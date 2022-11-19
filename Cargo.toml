@@ -1,0 +1,2 @@
+[workspace]
+members = ["derive_modify", "derive_modify_tests", "modificate", "modify"]

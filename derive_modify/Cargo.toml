@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+name = "derive_modify"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+if_chain = "1"
+lazy_static = "1"
+modify = { path = "../modify" }
+proc-macro-error = "1"
+proc-macro2 = "1.0.47"
+quote = "1"
+regex = "1.5.5"
+syn = { version = "1.0.103", features = ["extra-traits", "full"] }

@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "modificate"
+version = "0.1.0"
+
+[dependencies]
+derive_modify = { path = "../derive_modify" }
+modify = { path = "../modify" }
+proc-macro2 = "1.0.47"
+syn = { version = "1.0.103", features = ["full"] }
