@@ -1,10 +1,7 @@
-#[cfg(test)]
-mod tests;
+use modificate::Modify;
+use serde::{self, Deserialize, Serialize};
 
-use derive_modify::Modify;
-use modify::Modify;
-
-#[derive(Debug, Modify)]
+#[derive(Debug, Modify, Serialize, Deserialize)]
 pub struct Testor {
     #[modifier(uppercase)]
     pub a: String,
@@ -16,6 +13,7 @@ pub struct Testor {
     pub d: String,
     #[modifier(uppercase, trim)]
     pub e: String,
+    #[serde(rename = "F")]
     #[modifier(lowercase, trim)]
     pub f: String,
     #[modifier(lowercase, trim)]

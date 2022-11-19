@@ -1,13 +1,16 @@
+mod fields;
 mod quoting;
+mod types;
 
-use modify::{FieldInformation, ModType};
+use crate::quoting::quote_field_modifiers;
+use fields::FieldInformation;
+use modify::ModType;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::{parse_quote, spanned::Spanned};
-
-use crate::quoting::quote_field_modifiers;
+use types::{assert_string_type, lit_to_string};
 
 #[proc_macro_derive(Modify, attributes(modifier))]
 #[proc_macro_error]
@@ -20,7 +23,7 @@ fn impl_modify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
     let fields = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
-    let (modifiers, _) = quote_field_modifiers(fields);
+    let modifiers = quote_field_modifiers(fields);
     quote!(
         impl #impl_generics ::modify::Modify for #ident #ty_generics #where_clause {
             fn modify(&mut self) {
@@ -35,11 +38,10 @@ fn collect_field_modifiers(ast: &syn::DeriveInput) -> Vec<FieldInformation> {
     let field_types = map_field_types(&fields);
     fields.drain(..).fold(vec![], |mut acc, field| {
         let key = field.ident.clone().unwrap().to_string();
-        let (name, modifiers) = find_modifiers_for_field(&field, &field_types);
+        let (_, modifiers) = find_modifiers_for_field(&field, &field_types);
         acc.push(FieldInformation::new(
             field,
             field_types.get(&key).unwrap().clone(),
-            name,
             modifiers,
         ));
         acc
@@ -100,19 +102,16 @@ fn find_modifiers_for_field(
         match attr.parse_meta() {
             Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) => {
                 let meta_items = nested.iter().collect::<Vec<_>>();
-                // original name before serde rename
-                /*                 if attr.path == parse_quote!(serde) {
-                    if let Some(s) = find_original_field_name(&meta_items) {
-                        field_ident = s;
-                    }
+                // Skip non-modifier attrs
+                if attr.path != parse_quote!(modifier) {
                     continue;
-                } */
+                }
 
                 // Only modifiers from here on
                 for meta_item in meta_items {
                     match *meta_item {
                         syn::NestedMeta::Meta(ref item) => match *item {
-                            // These contain single word modifiers: trim, upper/lowercase, capitalize
+                            // These contain single word modifiers: trim, upper/lowercase, capitalize, nested
                             // #[modifier(trim)]
                             syn::Meta::Path(ref name) => {
                                 match name.get_ident().unwrap().to_string().as_ref() {
@@ -131,6 +130,9 @@ fn find_modifiers_for_field(
                                     "capitalize" => {
                                         assert_string_type("capitalize", field_type, &field.ty);
                                         modifiers.push(ModType::Capitalize);
+                                    }
+                                    "nested" => {
+                                        modifiers.push(ModType::Nested);
                                     }
                                     _ => {
                                         let mut ident = proc_macro2::TokenStream::new();
@@ -220,23 +222,6 @@ fn find_modifiers_for_field(
     (field_ident, modifiers)
 }
 
-fn assert_string_type(name: &str, type_name: &str, field_type: &syn::Type) {
-    if !type_name.contains("String") {
-        abort!(
-            field_type.span(),
-            "`{}` modifier can only be used on `Option<String>` or `String`",
-            name
-        );
-    }
-}
-
-fn lit_to_string(lit: &syn::Lit) -> Option<String> {
-    match *lit {
-        syn::Lit::Str(ref s) => Some(s.value()),
-        _ => None,
-    }
-}
-
 /// Find the types (as string) for each field of the struct
 /// Needed for the `must_match` filter
 fn map_field_types(fields: &[syn::Field]) -> HashMap<String, String> {
@@ -276,6 +261,7 @@ fn map_field_types(fields: &[syn::Field]) -> HashMap<String, String> {
         };
         types.insert(field_ident, field_type);
     }
+    println!("TYPES: {:?}", types);
 
     types
 }

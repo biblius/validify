@@ -1,35 +1,27 @@
-use modify::{FieldInformation, ModType};
+use crate::fields::FieldInformation;
+use modify::ModType;
 use quote::quote;
 
-pub fn quote_field_modifiers(
+/// Creates a token stream applying the modifiers based on the field annotations.
+pub(super) fn quote_field_modifiers(
     mut fields: Vec<FieldInformation>,
-) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-    let mut validations = vec![];
-    let nested_validations = vec![];
+) -> Vec<proc_macro2::TokenStream> {
+    let mut modifications = vec![];
 
     fields.drain(..).for_each(|item| {
         let field_ident = item.field.ident.clone().unwrap();
-        let field_quoter = FieldQuoter::new(field_ident, item.name, item.field_type);
+        let field_quoter = FieldQuoter::new(field_ident, item.field_type);
 
-        for validation in &item.modifiers {
-            quote_modifier(&field_quoter, validation, &mut validations);
+        for modifier in &item.modifiers {
+            modifications.push(quote_modifiers(&field_quoter, modifier))
         }
     });
 
-    (validations, nested_validations)
+    modifications
 }
 
-pub fn quote_modifier(
-    field_quoter: &FieldQuoter,
-    modifier: &ModType,
-    modifications: &mut Vec<proc_macro2::TokenStream>,
-) {
-    modifications.push(quote_with_option(field_quoter, modifier))
-}
-
-/// Returns a modification statement for the field,
-/// depending on whether the it is an Option
-fn quote_with_option(fq: &FieldQuoter, mod_type: &ModType) -> proc_macro2::TokenStream {
+/// Returns a modification statement for the field.
+fn quote_modifiers(fq: &FieldQuoter, mod_type: &ModType) -> proc_macro2::TokenStream {
     let modifier_param = fq.quote_modifier_param();
     let is_option = fq.check_option();
 
@@ -39,12 +31,17 @@ fn quote_with_option(fq: &FieldQuoter, mod_type: &ModType) -> proc_macro2::Token
         ModType::Lowercase => quote_lowercase_modifier(modifier_param, is_option),
         ModType::Capitalize => quote_capitalize_modifier(modifier_param, is_option),
         ModType::Custom { function } => quote_custom_modifier(modifier_param, function, is_option),
+        ModType::Nested => quote_nested_modifier(modifier_param),
     };
 
     fq.wrap_if_option(quoted)
 }
 
-pub fn quote_custom_modifier(
+fn quote_nested_modifier(param: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    quote!(#param.modify())
+}
+
+fn quote_custom_modifier(
     param: proc_macro2::TokenStream,
     function: &str,
     is_option: bool,
@@ -61,7 +58,7 @@ pub fn quote_custom_modifier(
     }
 }
 
-pub fn quote_trim_modifier(
+pub(super) fn quote_trim_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
 ) -> proc_macro2::TokenStream {
@@ -76,7 +73,7 @@ pub fn quote_trim_modifier(
     }
 }
 
-pub fn quote_uppercase_modifier(
+pub(super) fn quote_uppercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
 ) -> proc_macro2::TokenStream {
@@ -91,7 +88,7 @@ pub fn quote_uppercase_modifier(
     }
 }
 
-pub fn quote_lowercase_modifier(
+pub(super) fn quote_lowercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
 ) -> proc_macro2::TokenStream {
@@ -106,7 +103,7 @@ pub fn quote_lowercase_modifier(
     }
 }
 
-pub fn quote_capitalize_modifier(
+pub(super) fn quote_capitalize_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
 ) -> proc_macro2::TokenStream {
@@ -121,19 +118,17 @@ pub fn quote_capitalize_modifier(
     }
 }
 
-/// Contains the field ident, its name and its type
+/// Contains the field ident and its type
 #[derive(Debug)]
-pub struct FieldQuoter {
+pub(super) struct FieldQuoter {
     ident: syn::Ident,
-    /// The field name
-    name: String,
     /// The field type
     _type: String,
 }
 
 impl FieldQuoter {
-    pub fn new(ident: syn::Ident, name: String, _type: String) -> FieldQuoter {
-        FieldQuoter { ident, name, _type }
+    pub fn new(ident: syn::Ident, _type: String) -> FieldQuoter {
+        FieldQuoter { ident, _type }
     }
 
     /// Check if this field's type is an Option
@@ -147,7 +142,7 @@ impl FieldQuoter {
         let ident = &self.ident;
 
         if self._type.starts_with('&') {
-            panic!("Structs implementing `Modify` must contain owned data")
+            panic!("Fields containing modifiers must contain owned data")
         }
 
         if self._type.starts_with("Option<") {
@@ -160,7 +155,7 @@ impl FieldQuoter {
     pub fn get_optional_modifier_param(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
         if self._type.starts_with("Option<&") || self._type.starts_with("Option<Option<&") {
-            panic!("Structs implementing `Modify` must contain owned data")
+            panic!("Fields containing modifiers must contain owned data")
         } else {
             quote!(#ident)
         }

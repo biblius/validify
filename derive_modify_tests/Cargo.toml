@@ -6,8 +6,11 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_modify = { version = "0.1.0", path = "../derive_modify" }
+chrono = { version = "0.4.23", features = ["serde"] }
 lazy_static = "1.4.0"
+modificate = { version = "0.1.0", path = "../modificate" }
 modify = { version = "0.1.0", path = "../modify" }
-serde = "1.0.147"
+serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.87"
+trybuild = "1.0.71"
+validator = { version = "0.16.0", features = ["derive"] }
