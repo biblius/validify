@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "validify"
+version = "0.1.0"
+
+[dependencies]
+derive_validify = { path = "../derive_validify" }
+proc-macro2 = "1.0.47"
+syn = { version = "1.0.103", features = ["full"] }
+traits = { path = "../traits" }
+validator = { version = "0.16.0", features = ["derive"] }

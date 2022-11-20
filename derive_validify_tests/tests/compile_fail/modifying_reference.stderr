@@ -1,0 +1,5 @@
+error: `trim` modifier can only be used on `Option<String>` or `String`
+ --> tests/compile_fail/modifying_reference.rs:8:8
+  |
+8 |     p: &'static str,
+  |        ^

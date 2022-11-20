@@ -1,0 +1,7 @@
+error[E0599]: no method named `modify` found for struct `String` in the current scope
+ --> tests/compile_fail/nested_no_struct.rs:3:10
+  |
+3 | #[derive(Validify)]
+  |          ^^^^^^^^ method not found in `String`
+  |
+  = note: this error originates in the derive macro `Validify` (in Nightly builds, run with -Z macro-backtrace for more info)

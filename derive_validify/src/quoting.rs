@@ -1,6 +1,6 @@
 use crate::fields::FieldInformation;
-use modify::ModType;
 use quote::quote;
+use traits::ModType;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
 pub(super) fn quote_field_modifiers(

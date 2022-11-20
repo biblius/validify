@@ -1,4 +1,4 @@
-use modify::ModType;
+use traits::ModType;
 
 /// Holds the `syn::Field` in `field`, its type and all the annotated
 /// modifiers

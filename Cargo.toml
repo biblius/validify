@@ -1,2 +1,2 @@
 [workspace]
-members = ["derive_modify", "derive_modify_tests", "modificate", "modify"]
+members = ["derive_validify", "derive_validify_tests", "traits", "validify"]

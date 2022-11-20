@@ -4,48 +4,77 @@ mod types;
 
 use crate::quoting::quote_field_modifiers;
 use fields::FieldInformation;
-use modify::ModType;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::{parse_quote, spanned::Spanned};
+use traits::ModType;
 use types::{assert_string_type, lit_to_string};
 
-#[proc_macro_derive(Modify, attributes(modifier))]
+#[proc_macro_attribute]
+pub fn validify(
+    _meta: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let input: proc_macro2::TokenStream = input.into();
+    let out = quote! {
+        #[derive(::validator::Validate, ::validify::Validify)]
+        #input
+    };
+    out.into()
+}
+
+#[proc_macro_derive(Validify, attributes(modify))]
 #[proc_macro_error]
 pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse(input).unwrap();
-    impl_modify(&ast).into()
+    impl_validify(&ast).into()
 }
 
-fn impl_modify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
+/// Impl entry point
+fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
-    let fields = collect_field_modifiers(ast);
+    let (has_val, fields) = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let modifiers = quote_field_modifiers(fields);
+    if has_val {
+        return quote!(
+        impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
+            fn modify(&mut self) {
+                #(#modifiers)*
+            }
+        }
+        impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {});
+    }
     quote!(
-        impl #impl_generics ::modify::Modify for #ident #ty_generics #where_clause {
+        impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
             fn modify(&mut self) {
                 #(#modifiers)*
             }
     })
 }
 
-fn collect_field_modifiers(ast: &syn::DeriveInput) -> Vec<FieldInformation> {
+/// Return a vec of all the fields and their info. Returns a boolean indicating whether or not
+/// the struct contains fields with validations. If so, Validify will be implemented for the struct in
+/// addition to Modify.
+fn collect_field_modifiers(ast: &syn::DeriveInput) -> (bool, Vec<FieldInformation>) {
     let mut fields = collect_fields(ast);
 
+    let mut has_val = false;
     let field_types = map_field_types(&fields);
-    fields.drain(..).fold(vec![], |mut acc, field| {
+    let modifiers = fields.drain(..).fold(vec![], |mut acc, field| {
         let key = field.ident.clone().unwrap().to_string();
-        let (_, modifiers) = find_modifiers_for_field(&field, &field_types);
+        let (has_validations, modifiers) = find_modifiers_for_field(&field, &field_types);
         acc.push(FieldInformation::new(
             field,
             field_types.get(&key).unwrap().clone(),
             modifiers,
         ));
+        has_val |= has_validations;
         acc
-    })
+    });
+    (has_val, modifiers)
 }
 
 fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
@@ -55,31 +84,31 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
                 abort!(
                     fields.span(),
                     "Struct has unnamed fields";
-                    help = "#[derive(Modify)] can only be used on structs with named fields";
+                    help = "#[derive(Validify)] can only be used on structs with named fields";
                 );
             }
             fields.iter().cloned().collect()
         }
         _ => abort!(
             ast.span(),
-            "#[derive(Modify)] can only be used with structs"
+            "#[derive(Validify)] can only be used with structs"
         ),
     }
 }
 
-/// Find everything we need to know about a field: its real name if it's changed from the serialization
-/// and the list of modifiers to run on it
+/// Find everything we need to know about a field. Returns a boolean indicating whether the field has validations as the first element
+/// of the tuple and all the modifiers as the second element
 fn find_modifiers_for_field(
     field: &syn::Field,
     field_types: &HashMap<String, String>,
-) -> (String, Vec<ModType>) {
+) -> (bool, Vec<ModType>) {
     let rust_ident = field.ident.clone().unwrap().to_string();
     let field_ident = field.ident.clone().unwrap().to_string();
 
     let error = |span: Span, msg: &str| -> ! {
         abort!(
             span,
-            "Invalid attribute #[modifier] on field `{}`: {}",
+            "Invalid attribute #[modify] on field `{}`: {}",
             field.ident.clone().unwrap().to_string(),
             msg
         );
@@ -89,21 +118,27 @@ fn find_modifiers_for_field(
 
     let mut modifiers = vec![];
     let mut has_modifiers = false;
+    let mut has_validation = false;
 
     for attr in &field.attrs {
-        if attr.path != parse_quote!(modifier) && attr.path != parse_quote!(serde) {
+        if attr.path == parse_quote!(validate) {
+            has_validation = true;
+        }
+
+        if attr.path != parse_quote!(modify) {
             continue;
         }
 
-        if attr.path == parse_quote!(modifier) {
+        if attr.path == parse_quote!(modify) {
             has_modifiers = true;
         }
 
         match attr.parse_meta() {
             Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) => {
                 let meta_items = nested.iter().collect::<Vec<_>>();
+
                 // Skip non-modifier attrs
-                if attr.path != parse_quote!(modifier) {
+                if attr.path != parse_quote!(modify) {
                     continue;
                 }
 
@@ -171,22 +206,6 @@ fn find_modifiers_for_field(
                                 let meta_items = nested.iter().cloned().collect::<Vec<_>>();
                                 let ident = path.get_ident().unwrap();
                                 match ident.to_string().as_ref() {
-                                    /* "length" => {
-                                        assert_has_len(rust_ident.clone(), field_type, &field.ty);
-                                        modifiers.push(extract_length_validation(
-                                            rust_ident.clone(),
-                                            attr,
-                                            &meta_items,
-                                        ));
-                                    }
-                                    "range" => {
-                                        assert_has_range(rust_ident.clone(), field_type, &field.ty);
-                                        modifiers.push(extract_range_validation(
-                                            rust_ident.clone(),
-                                            attr,
-                                            &meta_items,
-                                        ));
-                                    } */
                                     "custom" => {
                                         modifiers.push(extract_custom_validation(
                                             rust_ident.clone(),
@@ -219,7 +238,7 @@ fn find_modifiers_for_field(
         }
     }
 
-    (field_ident, modifiers)
+    (has_validation, modifiers)
 }
 
 /// Find the types (as string) for each field of the struct
@@ -261,8 +280,6 @@ fn map_field_types(fields: &[syn::Field]) -> HashMap<String, String> {
         };
         types.insert(field_ident, field_type);
     }
-    println!("TYPES: {:?}", types);
-
     types
 }
 

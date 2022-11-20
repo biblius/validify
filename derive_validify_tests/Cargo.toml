@@ -1,16 +1,16 @@
 [package]
 edition = "2021"
-name = "derive_modify_tests"
+name = "derive_validify_tests"
 version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+actix-web = "4.2.1"
 chrono = { version = "0.4.23", features = ["serde"] }
 lazy_static = "1.4.0"
-modificate = { version = "0.1.0", path = "../modificate" }
-modify = { version = "0.1.0", path = "../modify" }
 serde = { version = "1.0.147", features = ["derive"] }
-serde_json = "1.0.87"
+traits = { version = "0.1.0", path = "../traits" }
 trybuild = "1.0.71"
 validator = { version = "0.16.0", features = ["derive"] }
+validify = { version = "0.1.0", path = "../validify" }
