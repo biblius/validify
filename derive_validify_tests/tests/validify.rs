@@ -49,6 +49,18 @@ struct Testor {
     pub c: String,
     #[modify(custom = "do_something")]
     pub d: Option<String>,
+    #[modify(nested)]
+    pub nested: Nestor,
+}
+
+#[validify]
+struct Nestor {
+    #[modify(trim, uppercase)]
+    #[validate(length(equal = 12))]
+    a: String,
+    #[modify(capitalize)]
+    #[validate(length(equal = 14))]
+    b: String,
 }
 
 fn do_something(input: &mut String) {
@@ -61,6 +73,10 @@ fn validify1() {
         b: Some("  makemeshout   ".to_string()),
         c: "I'll never be the same".to_string(),
         d: Some("Me neither".to_string()),
+        nested: Nestor {
+            a: "   notsotinynow   ".to_string(),
+            b: "capitalize me.".to_string(),
+        },
     };
 
     assert!(matches!(test.validate(), Ok(())));
@@ -69,4 +85,6 @@ fn validify1() {
     assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
     assert_eq!(test.c, "modified");
     assert_eq!(test.d, Some("modified".to_string()));
+    assert_eq!(test.nested.a, "NOTSOTINYNOW");
+    assert_eq!(test.nested.b, "Capitalize me.");
 }

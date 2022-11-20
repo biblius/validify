@@ -20,38 +20,56 @@ This is useful, for example, when a payload's `String` field has a minimum lengt
 The recommended way to implement it is to simply annotate the struct you want to modify and validate with the `validify` macro:
 
 ```rust
-use validify::{Validify, validify};
-
 #[validify]
 struct Testor {
-  #[modify(lowercase, trim)]
-  #[validate(length(equal = 8))]
-  pub a: String,
-  #[modify(trim, uppercase)]
-  pub b: Option<String>,
-  #[modify(custom = "do_something")]
-  pub c: String,
-  #[modify(custom = "do_something")]
-  pub d: Option<String>,
+    #[modify(lowercase, trim)]
+    #[validate(length(equal = 8))]
+    pub a: String,
+    #[modify(trim, uppercase)]
+    pub b: Option<String>,
+    #[modify(custom = "do_something")]
+    pub c: String,
+    #[modify(custom = "do_something")]
+    pub d: Option<String>,
+    #[modify(nested)]
+    pub nested: Nestor,
+}
+
+#[validify]
+struct Nestor {
+    #[modify(trim, uppercase)]
+    #[validate(length(equal = 12))]
+    a: String,
+    #[modify(capitalize)]
+    #[validate(length(equal = 14))]
+    b: String,
 }
 
 fn do_something(input: &mut String) {
-  *input = String::from("modified");
+    *input = String::from("modified");
 }
+#[test]
+fn validify1() {
+    let mut test = Testor {
+        a: "   LOWER ME     ".to_string(),
+        b: Some("  makemeshout   ".to_string()),
+        c: "I'll never be the same".to_string(),
+        d: Some("Me neither".to_string()),
+        nested: Nestor {
+            a: "   notsotinynow   ".to_string(),
+            b: "capitalize me.".to_string(),
+        },
+    };
 
-let mut test = Testor {
-  a: "   LOWER ME     ".to_string(),
-  b: Some("  makemeshout   ".to_string()),
-  c: "I'll never be the same".to_string(),
-  d: Some("Me neither".to_string()),
-};
+    assert!(matches!(test.validate(), Ok(())));
 
-assert!(matches!(test.validate(), Ok(())));
-
-assert_eq!(test.a, "lower me");
-assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
-assert_eq!(test.c, "modified");
-assert_eq!(test.d, Some("modified".to_string()));
+    assert_eq!(test.a, "lower me");
+    assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
+    assert_eq!(test.c, "modified");
+    assert_eq!(test.d, Some("modified".to_string()));
+    assert_eq!(test.nested.a, "NOTSOTINYNOW");
+    assert_eq!(test.nested.b, "Capitalize me.");
+}
 
 ```
 
