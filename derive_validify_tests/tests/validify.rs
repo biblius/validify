@@ -79,7 +79,8 @@ fn validify1() {
         },
     };
 
-    assert!(matches!(test.validate(), Ok(())));
+    let res = test.validate();
+    assert!(matches!(res, Ok(())));
 
     assert_eq!(test.a, "lower me");
     assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));

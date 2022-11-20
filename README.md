@@ -1,23 +1,23 @@
 # Validify
 
-A procedural macro that builds upon the [validator](https://docs.rs/validator/latest/validator/) crate and provides attributes for field modifiers. Particularly useful in the context of web payloads.
+A procedural macro built on top of the [validator](https://docs.rs/validator/latest/validator/) crate that provides attributes for field modifiers. Particularly useful in the context of web payloads.
 
 ## **Modifiers**
 
 |   Modifier    |  Type    |        Description
 |---------------|----------|-----------------------
-|  trim         |  String  | Removes whitespace
+|  trim         |  String  | Removes surrounding whitespace
 |  uppercase    |  String  | Calls `.to_uppercase()`
 |  lowercase    |  String  | Calls `.to_lowercase()`
 |  capitalize   |  String  | Makes the first char of the string uppercase
 |  nested       |  Struct  | Can only be used on fields containing structs that implement the `Validify` trait. Runs all the nested struct's modifiers when calling `modify` on the parent struct.
-|  custom       |    Any   | Takes a function argument with its signature being `&mut <Type>`.
+|  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
 
 The crate provides the `Validify` trait and the `validify` attribute macro. The main addition here to the validator crate is that payloads can be modified before being validated.
 
 This is useful, for example, when a payload's `String` field has a minimum length restriction and you don't want it to be just spaces. Validify allows you to modify the field before it gets validated so as to mitigate this problem.
 
-The recommended way to implement it is to simply annotate the struct you want to modify and validate with the `validify` macro:
+Annotate the struct you want to modify and validate with the `validify` macro:
 
 ```rust
 use validify::{validify, Validify};
@@ -59,8 +59,10 @@ fn main() {
         b: "capitalize me.".to_string(),
     },
   };
+  // The magic line
+  let res = test.validate();
   // Validatons OK
-  assert!(matches!(test.validate(), Ok(())));
+  assert!(matches!(res, Ok(())));
   // Parent
   assert_eq!(test.a, "lower me");
   assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
@@ -83,3 +85,5 @@ This macro will automatically implement validator's `Validate` trait and validif
         <Self as Validate>::validate(self)
     }
 ```
+
+The `modify` method mutates the struct in place. For example, the output of the trim modifier for some string field would be `self.field = self.field.trim().to_string()`, while for an optional field it would be `if let Some(field) = self.field.as_mut() { *field = field.trim().to_string() };`. This is also the reason custom functions have to take in a `&mut T` instead of an `&mut Option<T>`.
