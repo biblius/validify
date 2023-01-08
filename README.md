@@ -10,10 +10,10 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 |  uppercase    |  String  | Calls `.to_uppercase()`
 |  lowercase    |  String  | Calls `.to_lowercase()`
 |  capitalize   |  String  | Makes the first char of the string uppercase
-|  nested       |  Struct  | Can only be used on fields containing structs that implement the `Validify` trait. Runs all the nested struct's modifiers when calling `modify` on the parent struct.
 |  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
+|  validify     |  Struct  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations
 
-The crate provides the `Validify` trait and the `validify` attribute macro. The main addition here to the validator crate is that payloads can be modified before being validated.
+The crate provides the `Validify` trait and the `validify` attribute macro and supports all the functionality of the validator crate. The main addition here is that payloads can be modified before being validated.
 
 This is useful, for example, when a payload's `String` field has a minimum length restriction and you don't want it to be just spaces. Validify allows you to modify the field before it gets validated so as to mitigate this problem.
 
@@ -33,9 +33,12 @@ struct Testor {
     pub c: String,
     #[modify(custom = "do_something")]
     pub d: Option<String>,
-    #[modify(nested)]
+
+    // Executes Nestor's `Validify::validate`, i.e. nests validations
+    #[validify]
     pub nested: Nestor,
 }
+
 #[validify]
 struct Nestor {
     #[modify(trim, uppercase)]
@@ -45,9 +48,11 @@ struct Nestor {
     #[validate(length(equal = 14))]
     b: String,
 }
+
 fn do_something(input: &mut String) {
     *input = String::from("modified");
 }
+
 fn main() {
   let mut test = Testor {
     a: "   LOWER ME     ".to_string(),
@@ -59,10 +64,12 @@ fn main() {
         b: "capitalize me.".to_string(),
     },
   };
+
   // The magic line
   let res = test.validate();
-  // Validatons OK
+
   assert!(matches!(res, Ok(())));
+
   // Parent
   assert_eq!(test.a, "lower me");
   assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
@@ -74,16 +81,42 @@ fn main() {
 }
 ```
 
-Notice how even though field `d` is an option, the function used to modify the field still takes in `&mut String`. This is because
-modifiers and validations are only executed when the field isn't `None`.
+Notice how even though field `d` is an option, the function used to modify the field still takes in `&mut String`. This is because modifiers and validations are only executed when the field isn't `None`.
 
-This macro will automatically implement validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validate` which internally just looks like:
+If you need schema level validations, schema validation from the validator crate is still supported, e.g.:
+
+```rust
+#[validify]
+#[validate(schema(function = "validate_testor"))]
+struct Testor { /* ... */ }
+
+fn validate_testor(t: &Testor) {
+  /* ... */
+}
+```
+
+This macro will automatically implement validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validate` which in the above example expands to:
 
 ```rust
     fn validate(&mut self) -> Result<(), ValidationErrors> {
+        <Nestor as Validify>::validate(&mut self.nested)?;
         <Self as Modify>::modify(self);
         <Self as Validate>::validate(self)
     }
 ```
 
-The `modify` method mutates the struct in place. For example, the output of the trim modifier for some string field would be `self.field = self.field.trim().to_string()`, while for an optional field it would be `if let Some(field) = self.field.as_mut() { *field = field.trim().to_string() };`. This is also the reason custom functions have to take in a `&mut T` instead of an `&mut Option<T>`.
+Note that this approach is a bit different from validator's in regards to error handling. Specifically, if any nested struct fails validation, it will immediatelly return the errors only for that struct, as opposed to accumulating all the errors and returning them.
+
+The `modify` method mutates the struct in place. For example, the output of the trim modifier for some string field would be
+
+```rust
+self.field = self.field.trim().to_string()`, 
+```
+
+while for an optional field it would be
+
+```rust
+if let Some(field) = self.field.as_mut() { *field = field.trim().to_string() };
+```
+
+This is also the reason custom functions have to take in a `&mut T` instead of an `&mut Option<T>`.

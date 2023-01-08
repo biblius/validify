@@ -1,44 +1,71 @@
 use crate::fields::FieldInformation;
+use proc_macro2::{Ident, Span};
 use quote::quote;
 use traits::ModType;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
 pub(super) fn quote_field_modifiers(
     mut fields: Vec<FieldInformation>,
-) -> Vec<proc_macro2::TokenStream> {
+) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
     let mut modifications = vec![];
+    let mut validations = vec![];
 
     fields.drain(..).for_each(|item| {
         let field_ident = item.field.ident.clone().unwrap();
         let field_quoter = FieldQuoter::new(field_ident, item.field_type);
 
-        for modifier in &item.modifiers {
-            modifications.push(quote_modifiers(&field_quoter, modifier))
+        for modifier in item.modifiers.iter() {
+            let (mods, valids) = quote_modifiers(&field_quoter, modifier);
+            modifications.push(mods);
+            if let Some(validation) = valids {
+                validations.push(validation)
+            }
         }
     });
 
-    modifications
+    (modifications, validations)
 }
 
-/// Returns a modification statement for the field.
-fn quote_modifiers(fq: &FieldQuoter, mod_type: &ModType) -> proc_macro2::TokenStream {
+/// Returns a modification and a validation (if it's nested) statement for the field.
+fn quote_modifiers(
+    fq: &FieldQuoter,
+    mod_type: &ModType,
+) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
+    let (ty, span) = (fq._type.clone(), fq.ident.span());
     let modifier_param = fq.quote_modifier_param();
     let is_option = fq.check_option();
 
-    let quoted = match mod_type {
-        ModType::Trim => quote_trim_modifier(modifier_param, is_option),
-        ModType::Uppercase => quote_uppercase_modifier(modifier_param, is_option),
-        ModType::Lowercase => quote_lowercase_modifier(modifier_param, is_option),
-        ModType::Capitalize => quote_capitalize_modifier(modifier_param, is_option),
-        ModType::Custom { function } => quote_custom_modifier(modifier_param, function, is_option),
-        ModType::Nested => quote_nested_modifier(modifier_param),
+    let (mods, valids) = match mod_type {
+        ModType::Trim => (quote_trim_modifier(modifier_param, is_option), None),
+        ModType::Uppercase => (quote_uppercase_modifier(modifier_param, is_option), None),
+        ModType::Lowercase => (quote_lowercase_modifier(modifier_param, is_option), None),
+        ModType::Capitalize => (quote_capitalize_modifier(modifier_param, is_option), None),
+        ModType::Custom { function } => (
+            quote_custom_modifier(modifier_param, function, is_option),
+            None,
+        ),
+        ModType::Nested => {
+            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span);
+            (modify, Some(validate))
+        }
     };
 
-    fq.wrap_if_option(quoted)
+    (
+        fq.wrap_if_option(mods),
+        valids.map(|tokens| fq.wrap_if_option(tokens)),
+    )
 }
 
-fn quote_nested_modifier(param: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-    quote!(#param.modify())
+fn quote_nested_modifier(
+    param: proc_macro2::TokenStream,
+    ty: String,
+    span: Span,
+) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
+    let ident = Ident::new(&ty, span);
+    (
+        quote!(#param.modify();),
+        quote!(<#ident as ::validify::Validify>::validate(&mut #param)?;),
+    )
 }
 
 fn quote_custom_modifier(

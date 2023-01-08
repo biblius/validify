@@ -25,7 +25,7 @@ pub fn validify(
     out.into()
 }
 
-#[proc_macro_derive(Validify, attributes(modify))]
+#[proc_macro_derive(Validify, attributes(modify, validify))]
 #[proc_macro_error]
 pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast = syn::parse(input).unwrap();
@@ -37,7 +37,7 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
     let (has_val, fields) = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
-    let modifiers = quote_field_modifiers(fields);
+    let (modifiers, validations) = quote_field_modifiers(fields);
     if has_val {
         return quote!(
         impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
@@ -45,7 +45,14 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 #(#modifiers)*
             }
         }
-        impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {});
+        impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
+            /// Apply the provided modifiers to self and run validations
+            fn validate(&mut self) -> Result<(), ::validator::ValidationErrors> {
+                #(#validations)*
+                <Self as ::validify::Modify>::modify(self);
+                <Self as ::validator::Validate>::validate(self)
+            }
+        });
     }
     quote!(
         impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
@@ -125,7 +132,11 @@ fn find_modifiers_for_field(
             has_validation = true;
         }
 
+        // Skip non-modifier attrs and nest if we have a validify call
         if attr.path != parse_quote!(modify) {
+            if attr.path == parse_quote!(validify) {
+                modifiers.push(ModType::Nested);
+            }
             continue;
         }
 
@@ -136,11 +147,6 @@ fn find_modifiers_for_field(
         match attr.parse_meta() {
             Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) => {
                 let meta_items = nested.iter().collect::<Vec<_>>();
-
-                // Skip non-modifier attrs
-                if attr.path != parse_quote!(modify) {
-                    continue;
-                }
 
                 // Only modifiers from here on
                 for meta_item in meta_items {
@@ -165,9 +171,6 @@ fn find_modifiers_for_field(
                                     "capitalize" => {
                                         assert_string_type("capitalize", field_type, &field.ty);
                                         modifiers.push(ModType::Capitalize);
-                                    }
-                                    "nested" => {
-                                        modifiers.push(ModType::Nested);
                                     }
                                     _ => {
                                         let mut ident = proc_macro2::TokenStream::new();
@@ -207,7 +210,7 @@ fn find_modifiers_for_field(
                                 let ident = path.get_ident().unwrap();
                                 match ident.to_string().as_ref() {
                                     "custom" => {
-                                        modifiers.push(extract_custom_validation(
+                                        modifiers.push(extract_custom_modifiers(
                                             rust_ident.clone(),
                                             attr,
                                             &meta_items,
@@ -217,7 +220,7 @@ fn find_modifiers_for_field(
                                 }
                             }
                         },
-                        _ => unreachable!("Found a non Meta while looking for modifiers"),
+                        ref n => abort!(n.span(), "Found a non Meta while looking for modifiers"),
                     };
                 }
             }
@@ -226,7 +229,7 @@ fn find_modifiers_for_field(
             Err(e) => {
                 abort!(
                     attr.span(),
-                    "Unable to parse this attribute for the field `{}` with the error: {:?}",
+                    "Unable to parse attribute for the field `{}`. Error: {:?}",
                     field_ident,
                     e
                 );
@@ -242,7 +245,6 @@ fn find_modifiers_for_field(
 }
 
 /// Find the types (as string) for each field of the struct
-/// Needed for the `must_match` filter
 fn map_field_types(fields: &[syn::Field]) -> HashMap<String, String> {
     let mut types = HashMap::new();
 
@@ -283,7 +285,7 @@ fn map_field_types(fields: &[syn::Field]) -> HashMap<String, String> {
     types
 }
 
-fn extract_custom_validation(
+fn extract_custom_modifiers(
     field: String,
     attr: &syn::Attribute,
     meta_items: &[syn::NestedMeta],
@@ -325,7 +327,7 @@ fn extract_custom_validation(
                     item
                 ),
             },
-            _ => unreachable!(),
+            ref n => abort!(n.span(), "Unexpected token {:?} while parsing items", n),
         }
     }
 

@@ -58,11 +58,11 @@ fn simple_modify() {
 struct Testamentor {
     #[modify(trim, lowercase)]
     a: String,
-    #[modify(nested)]
+    #[validify]
     nestor: Nestor,
 }
 
-#[derive(Debug, Validify, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Validify, Deserialize)]
 struct Nestor {
     #[modify(custom = "do_other")]
     a: usize,
@@ -113,7 +113,7 @@ struct BigBoy {
     #[modify(custom = "do_something", lowercase)]
     h: Option<String>,
     i: &'static str,
-    #[modify(nested)]
+    #[validify]
     j: Nestor,
 }
 
@@ -187,7 +187,7 @@ fn mutate_map(c: &mut HashMap<usize, usize>) {
     c.insert(420, 666);
 }
 fn mutate_date(e: &mut NaiveDate) {
-    *e = NaiveDate::from_ymd_opt(2022, 04, 20).unwrap()
+    *e = NaiveDate::from_ymd_opt(2022, 4, 20).unwrap()
 }
 fn mutate_vec(g: &mut Vec<String>) {
     g.push("YOLO".to_string())
@@ -220,7 +220,7 @@ fn custom_with_types() {
     let mut hm = HashMap::new();
     hm.insert(420, 666);
 
-    let date = NaiveDate::from_ymd_opt(2022, 04, 20).unwrap();
+    let date = NaiveDate::from_ymd_opt(2022, 4, 20).unwrap();
 
     assert_eq!(tt.a, 420);
     assert_eq!(tt.b, "MODIFIED");

@@ -6,7 +6,7 @@ pub trait Modify {
 }
 
 pub trait Validify: Modify + Validate {
-    /// Apply the provided modifiers to self and run validations
+    /// Apply the provided modifiers to self and run validations.
     fn validate(&mut self) -> Result<(), ValidationErrors> {
         <Self as Modify>::modify(self);
         <Self as Validate>::validate(self)

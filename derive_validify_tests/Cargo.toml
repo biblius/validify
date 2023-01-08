@@ -3,8 +3,6 @@ edition = "2021"
 name = "derive_validify_tests"
 version = "0.1.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 actix-web = "4.2.1"
 chrono = { version = "0.4.23", features = ["serde"] }
