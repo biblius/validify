@@ -34,18 +34,28 @@ fn quote_modifiers(
     let (ty, span) = (fq._type.clone(), fq.ident.span());
     let modifier_param = fq.quote_modifier_param();
     let is_option = fq.check_option();
+    let is_vec = fq.check_vec();
 
     let (mods, valids) = match mod_type {
-        ModType::Trim => (quote_trim_modifier(modifier_param, is_option), None),
-        ModType::Uppercase => (quote_uppercase_modifier(modifier_param, is_option), None),
-        ModType::Lowercase => (quote_lowercase_modifier(modifier_param, is_option), None),
-        ModType::Capitalize => (quote_capitalize_modifier(modifier_param, is_option), None),
+        ModType::Trim => (quote_trim_modifier(modifier_param, is_option, is_vec), None),
+        ModType::Uppercase => (
+            quote_uppercase_modifier(modifier_param, is_option, is_vec),
+            None,
+        ),
+        ModType::Lowercase => (
+            quote_lowercase_modifier(modifier_param, is_option, is_vec),
+            None,
+        ),
+        ModType::Capitalize => (
+            quote_capitalize_modifier(modifier_param, is_option, is_vec),
+            None,
+        ),
         ModType::Custom { function } => (
             quote_custom_modifier(modifier_param, function, is_option),
             None,
         ),
         ModType::Nested => {
-            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span);
+            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span, is_vec);
             (modify, Some(validate))
         }
     };
@@ -60,12 +70,34 @@ fn quote_nested_modifier(
     param: proc_macro2::TokenStream,
     ty: String,
     span: Span,
+    is_vec: bool,
 ) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let ident = Ident::new(&ty, span);
-    (
-        quote!(#param.modify();),
-        quote!(<#ident as ::validify::Validify>::validate(&mut #param)?;),
-    )
+    let ident = if is_vec {
+        Ident::new(&strip_vec_prefix(&ty), span)
+    } else {
+        Ident::new(&ty, span)
+    };
+
+    let modifications = if is_vec {
+        quote!(
+            for el in #param.iter_mut() {
+                el.modify();
+            }
+        )
+    } else {
+        quote!(#param.modify();)
+    };
+
+    let validations = if is_vec {
+        quote!(
+            for el in #param.iter_mut() {
+                <#ident as ::validify::Validify>::validate(el)?;
+            }
+        )
+    } else {
+        quote!(<#ident as ::validify::Validify>::validate(&mut #param)?;)
+    };
+    (modifications, validations)
 }
 
 fn quote_custom_modifier(
@@ -88,7 +120,11 @@ fn quote_custom_modifier(
 pub(super) fn quote_trim_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
+    is_vec: bool,
 ) -> proc_macro2::TokenStream {
+    if is_vec {
+        return quote_vec_modifier(param, is_option, ModType::Trim);
+    }
     if is_option {
         quote!(
             *#param = #param.trim().to_string();
@@ -103,7 +139,11 @@ pub(super) fn quote_trim_modifier(
 pub(super) fn quote_uppercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
+    is_vec: bool,
 ) -> proc_macro2::TokenStream {
+    if is_vec {
+        return quote_vec_modifier(param, is_option, ModType::Uppercase);
+    }
     if is_option {
         quote!(
             *#param = #param.to_uppercase();
@@ -115,10 +155,55 @@ pub(super) fn quote_uppercase_modifier(
     }
 }
 
+fn quote_vec_modifier(
+    param: proc_macro2::TokenStream,
+    is_option: bool,
+    mod_type: ModType,
+) -> proc_macro2::TokenStream {
+    let modifier = match mod_type {
+        ModType::Trim => quote!(trim().to_string()),
+        ModType::Uppercase => quote!(to_uppercase()),
+        ModType::Lowercase => quote!(to_lowercase()),
+        ModType::Capitalize => quote!(),
+        _ => unreachable!("Use of modifier that can be applied directly to vec forbidden"),
+    };
+    if is_option {
+        if mod_type == ModType::Capitalize {
+            quote!(
+                for el in #param.iter_mut() {
+                    *el = ::std::format!("{}{}", &el[0..1].to_uppercase(), &el[1..])
+                }
+            )
+        } else {
+            quote!(
+                for el in #param.iter_mut() {
+                    *el = el.#modifier
+                }
+            )
+        }
+    } else if mod_type == ModType::Capitalize {
+        quote!(
+            for el in #param.iter_mut() {
+                *el = ::std::format!("{}{}", &el[0..1].to_uppercase(), &el[1..])
+            }
+        )
+    } else {
+        quote!(
+            for el in #param.iter_mut() {
+                *el = el.#modifier
+            }
+        )
+    }
+}
+
 pub(super) fn quote_lowercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
+    is_vec: bool,
 ) -> proc_macro2::TokenStream {
+    if is_vec {
+        return quote_vec_modifier(param, is_option, ModType::Lowercase);
+    }
     if is_option {
         quote!(
             *#param = #param.to_lowercase();
@@ -133,7 +218,11 @@ pub(super) fn quote_lowercase_modifier(
 pub(super) fn quote_capitalize_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
+    is_vec: bool,
 ) -> proc_macro2::TokenStream {
+    if is_vec {
+        return quote_vec_modifier(param, is_option, ModType::Capitalize);
+    }
     if is_option {
         quote!(
           *#param = ::std::format!("{}{}", &#param[0..1].to_uppercase(), &#param[1..]);
@@ -161,6 +250,11 @@ impl FieldQuoter {
     /// Check if this field's type is an Option
     pub fn check_option(&self) -> bool {
         self._type.starts_with("Option")
+    }
+
+    /// Check if this field's type is an Option
+    pub fn check_vec(&self) -> bool {
+        self._type.starts_with("Vec") || self._type.starts_with("Option<Vec")
     }
 
     /// Returns `self.#ident`, unless the field is an option in which case it just
@@ -208,4 +302,9 @@ impl FieldQuoter {
 
         tokens
     }
+}
+
+fn strip_vec_prefix(s: &str) -> String {
+    let s = s.replace("Vec<", "");
+    s.replace('>', "")
 }

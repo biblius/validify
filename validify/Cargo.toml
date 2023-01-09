@@ -1,6 +1,15 @@
 [package]
+authors = ["biblius <crazycompanyxxl@gmail.com>"]
+categories = ["validation"]
+description = "An extension of the validator crate that enables payload modification"
 edition = "2021"
+exclude = ["derive_validify_tests/"]
+homepage = "https://github.com/biblius/validify"
+keywords = ["modify", "validate", "validation", "validify"]
+license = "MIT"
 name = "validify"
+readme = "README.md"
+repository = "https://github.com/biblius/validify"
 version = "0.1.0"
 
 [dependencies]

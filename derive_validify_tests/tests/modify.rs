@@ -7,7 +7,8 @@ use validify::{validify, Modify, Validify};
  * SIMPLE
  */
 
-#[derive(Debug, Validify, Serialize, Deserialize)]
+#[validify]
+#[derive(Debug, Serialize, Deserialize)]
 struct Testor {
     #[modify(lowercase)]
     pub a: String,
@@ -54,7 +55,8 @@ fn simple_modify() {
  * NESTED
  */
 
-#[derive(Debug, Validify, Serialize)]
+#[validify]
+#[derive(Debug, Serialize)]
 struct Testamentor {
     #[modify(trim, lowercase)]
     a: String,
@@ -62,7 +64,8 @@ struct Testamentor {
     nestor: Nestor,
 }
 
-#[derive(Debug, Serialize, Validify, Deserialize)]
+#[validify]
+#[derive(Debug, Serialize, Deserialize)]
 struct Nestor {
     #[modify(custom = "do_other")]
     a: usize,
@@ -93,7 +96,8 @@ fn nested_modify() {
  * BIG BOY
  */
 
-#[derive(Debug, Validify, Serialize, Deserialize)]
+#[validify]
+#[derive(Debug, Serialize, Deserialize)]
 struct BigBoy {
     #[modify(uppercase)]
     a: String,
@@ -155,7 +159,8 @@ fn big_boy() {
  * TYPES
  */
 
-#[derive(Debug, Validify, Serialize)]
+#[validify]
+#[derive(Debug, Serialize)]
 struct TypeTest {
     #[modify(custom = "mutate_i32")]
     a: i32,

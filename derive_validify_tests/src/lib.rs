@@ -11,6 +11,8 @@ mod tests {
         a: String,
         #[validify]
         b: U,
+        #[modify(trim, lowercase, capitalize)]
+        c: Vec<String>,
     }
 
     #[derive(Debug)]
@@ -29,6 +31,7 @@ mod tests {
         let mut t = T {
             a: String::new(),
             b: U { b: 2 },
+            c: vec!["lmeo".to_string()],
         };
         t.validate().unwrap();
     }

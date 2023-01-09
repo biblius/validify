@@ -1,5 +1,7 @@
-error: `trim` modifier can only be used on `Option<String>` or `String`
- --> tests/compile_fail/modifying_reference.rs:8:8
+error: proc-macro derive panicked
+ --> tests/compile_fail/modifying_reference.rs:3:10
   |
-8 |     p: &'static str,
-  |        ^
+3 | #[derive(Validify)]
+  |          ^^^^^^^^
+  |
+  = help: message: Fields containing modifiers must contain owned data

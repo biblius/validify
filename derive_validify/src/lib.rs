@@ -1,6 +1,5 @@
 mod fields;
 mod quoting;
-mod types;
 
 use crate::quoting::quote_field_modifiers;
 use fields::FieldInformation;
@@ -10,7 +9,6 @@ use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::{parse_quote, spanned::Spanned};
 use traits::ModType;
-use types::{assert_string_type, lit_to_string};
 
 #[proc_macro_attribute]
 pub fn validify(
@@ -35,53 +33,44 @@ pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// Impl entry point
 fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
-    let (has_val, fields) = collect_field_modifiers(ast);
+    let fields = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let (modifiers, validations) = quote_field_modifiers(fields);
-    if has_val {
-        return quote!(
-        impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
-            fn modify(&mut self) {
-                #(#modifiers)*
-            }
-        }
-        impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
-            /// Apply the provided modifiers to self and run validations
-            fn validate(&mut self) -> Result<(), ::validator::ValidationErrors> {
-                #(#validations)*
-                <Self as ::validify::Modify>::modify(self);
-                <Self as ::validator::Validate>::validate(self)
-            }
-        });
-    }
+
     quote!(
-        impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
-            fn modify(&mut self) {
-                #(#modifiers)*
-            }
+    impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
+        fn modify(&mut self) {
+            #(#modifiers)*
+        }
+    }
+    impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
+        /// Apply the provided modifiers to self and run validations
+        fn validate(&mut self) -> Result<(), ::validator::ValidationErrors> {
+            #(#validations)*
+            <Self as ::validify::Modify>::modify(self);
+            <Self as ::validator::Validate>::validate(self)
+        }
     })
 }
 
 /// Return a vec of all the fields and their info. Returns a boolean indicating whether or not
 /// the struct contains fields with validations. If so, Validify will be implemented for the struct in
 /// addition to Modify.
-fn collect_field_modifiers(ast: &syn::DeriveInput) -> (bool, Vec<FieldInformation>) {
+fn collect_field_modifiers(ast: &syn::DeriveInput) -> Vec<FieldInformation> {
     let mut fields = collect_fields(ast);
 
-    let mut has_val = false;
     let field_types = map_field_types(&fields);
     let modifiers = fields.drain(..).fold(vec![], |mut acc, field| {
         let key = field.ident.clone().unwrap().to_string();
-        let (has_validations, modifiers) = find_modifiers_for_field(&field, &field_types);
+        let modifiers = find_modifiers_for_field(&field);
         acc.push(FieldInformation::new(
             field,
             field_types.get(&key).unwrap().clone(),
             modifiers,
         ));
-        has_val |= has_validations;
         acc
     });
-    (has_val, modifiers)
+    modifiers
 }
 
 fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
@@ -105,10 +94,7 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
 
 /// Find everything we need to know about a field. Returns a boolean indicating whether the field has validations as the first element
 /// of the tuple and all the modifiers as the second element
-fn find_modifiers_for_field(
-    field: &syn::Field,
-    field_types: &HashMap<String, String>,
-) -> (bool, Vec<ModType>) {
+fn find_modifiers_for_field(field: &syn::Field) -> Vec<ModType> {
     let rust_ident = field.ident.clone().unwrap().to_string();
     let field_ident = field.ident.clone().unwrap().to_string();
 
@@ -121,17 +107,10 @@ fn find_modifiers_for_field(
         );
     };
 
-    let field_type = field_types.get(&field_ident).unwrap();
-
     let mut modifiers = vec![];
     let mut has_modifiers = false;
-    let mut has_validation = false;
 
     for attr in &field.attrs {
-        if attr.path == parse_quote!(validate) {
-            has_validation = true;
-        }
-
         // Skip non-modifier attrs and nest if we have a validify call
         if attr.path != parse_quote!(modify) {
             if attr.path == parse_quote!(validify) {
@@ -157,19 +136,19 @@ fn find_modifiers_for_field(
                             syn::Meta::Path(ref name) => {
                                 match name.get_ident().unwrap().to_string().as_ref() {
                                     "trim" => {
-                                        assert_string_type("trim", field_type, &field.ty);
+                                        // assert_string_type("trim", field_type, &field.ty);
                                         modifiers.push(ModType::Trim);
                                     }
                                     "uppercase" => {
-                                        assert_string_type("uppercase", field_type, &field.ty);
+                                        // assert_string_type("uppercase", field_type, &field.ty);
                                         modifiers.push(ModType::Uppercase);
                                     }
                                     "lowercase" => {
-                                        assert_string_type("lowercase", field_type, &field.ty);
+                                        // assert_string_type("lowercase", field_type, &field.ty);
                                         modifiers.push(ModType::Lowercase);
                                     }
                                     "capitalize" => {
-                                        assert_string_type("capitalize", field_type, &field.ty);
+                                        // assert_string_type("capitalize", field_type, &field.ty);
                                         modifiers.push(ModType::Capitalize);
                                     }
                                     _ => {
@@ -241,7 +220,7 @@ fn find_modifiers_for_field(
         }
     }
 
-    (has_validation, modifiers)
+    modifiers
 }
 
 /// Find the types (as string) for each field of the struct
@@ -340,5 +319,12 @@ fn extract_custom_modifiers(
 
     ModType::Custom {
         function: function.unwrap(),
+    }
+}
+
+fn lit_to_string(lit: &syn::Lit) -> Option<String> {
+    match *lit {
+        syn::Lit::Str(ref s) => Some(s.value()),
+        _ => None,
     }
 }

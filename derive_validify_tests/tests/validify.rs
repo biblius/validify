@@ -1,5 +1,33 @@
+use serde::{Deserialize, Serialize};
 use validator::ValidationError;
 use validify::{validify, Validify};
+
+#[validify]
+struct HasVec {
+    #[modify(trim, uppercase)]
+    #[validate(length(min = 2))]
+    a: Vec<String>,
+    #[modify(trim, lowercase, capitalize)]
+    #[validate(length(min = 2))]
+    b: Option<Vec<String>>,
+}
+
+#[test]
+fn vec_mod() {
+    let mut v = HasVec {
+        a: vec!["    lmeo    ".to_string(), "lm ao      ".to_string()],
+        b: Some(vec![
+            " ALOHA     ".to_string(),
+            "     SNACKBAR    ".to_string(),
+        ]),
+    };
+    let res = v.validate();
+    assert!(matches!(res, Ok(())));
+    assert_eq!(v.a[0], "LMEO");
+    assert_eq!(v.a[1], "LM AO");
+    assert_eq!(v.b.as_ref().unwrap()[0], "Aloha");
+    assert_eq!(v.b.unwrap()[1], "Snackbar");
+}
 
 #[derive(Debug)]
 #[validify]
@@ -91,6 +119,10 @@ fn validify1() {
     assert_eq!(test.nested.a, "NOTSOTINYNOW");
     assert_eq!(test.nested.b, "Capitalize me.");
 }
+
+/*
+ * NESTED
+ */
 
 #[validify]
 #[validate(schema(function = "validate_input"))]
@@ -239,4 +271,227 @@ fn validify_nested_input() {
 
     let res = input.validate();
     assert!(matches!(res, Err(_)));
+}
+
+#[validify]
+#[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[validate(schema(function = "schema_validation"))]
+struct BigBoi {
+    #[validate(length(max = 300))]
+    title: String,
+    #[validate(custom = "validate_status")]
+    status: String,
+    #[modify(capitalize)]
+    city_country: String,
+    #[validate(length(max = 5000))]
+    description_roles_responsibilites: String,
+    #[validate(length(max = 1000))]
+    education: String,
+    #[modify(capitalize)]
+    type_of_workplace: Vec<String>,
+    #[validate(custom = "in_working_hours")]
+    working_hours: String,
+    part_time_period: Option<String>,
+    #[modify(capitalize)]
+    #[validate(custom = "validate_contract_type")]
+    contract_type: String,
+    indefinite_probation_period: bool,
+    indefinite_probation_period_duration: Option<i32>,
+    #[validate(custom = "validate_career_level")]
+    career_level: String,
+    #[modify(capitalize)]
+    benefits: String,
+    #[validate(length(max = 60))]
+    meta_title: String,
+    #[validate(length(max = 160))]
+    meta_description: String,
+    #[validate(custom = "validate_mime_type")]
+    meta_image: String,
+    #[validate(custom = "greater_than_now")]
+    published_at: String,
+    #[validate(custom = "greater_than_now")]
+    expires_at: String,
+    #[validify]
+    languages: Vec<TestLanguages>,
+    #[validify]
+    tags: TestTags,
+}
+
+#[validify]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TestTags {
+    #[modify(trim)]
+    #[validate(length(min = 1), custom = "validate_names")]
+    names: Vec<String>,
+}
+
+#[validify]
+#[derive(Serialize, Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct TestLanguages {
+    company_opening_id: String,
+    #[modify(trim)]
+    language: String,
+    #[modify(trim)]
+    #[validate(custom = "validate_proficiency")]
+    proficiency: Option<String>,
+    required: Option<bool>,
+    created_by: String,
+}
+
+fn schema_validation(bb: &BigBoi) -> Result<(), ValidationError> {
+    if bb.contract_type == "indefinite"
+        && bb.indefinite_probation_period
+        && bb.indefinite_probation_period_duration.is_none()
+    {
+        return Err(ValidationError::new("No probation duration"));
+    }
+
+    if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
+        return Err(ValidationError::new(
+            "Fulltime contract cannot have part time period",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_proficiency(lang: &str) -> Result<(), ValidationError> {
+    vec!["neznam", "sabijam"]
+        .contains(&lang)
+        .then_some(())
+        .map_or_else(|| Err(ValidationError::new("Must be native")), |_| Ok(()))
+}
+
+fn validate_status(status: &str) -> Result<(), ValidationError> {
+    vec!["online", "offline", "za refaktorirat al neka ga"]
+        .contains(&status)
+        .then_some(())
+        .map_or_else(|| Err(ValidationError::new("Invalid status")), |_| Ok(()))
+}
+
+fn validate_names(names: &[String]) -> Result<(), ValidationError> {
+    for n in names.iter() {
+        if n.len() > 10 || n.is_empty() {
+            return Err(ValidationError::new(
+                "Maximum length of 10 exceeded for name",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn in_working_hours(hour: &str) -> Result<(), ValidationError> {
+    vec!["08", "09", "10", "11", "12", "13", "14", "15", "16"]
+        .contains(&hour)
+        .then_some(())
+        .map_or_else(
+            || Err(ValidationError::new("Invalid working hours")),
+            |_| Ok(()),
+        )
+}
+
+fn validate_career_level(level: &str) -> Result<(), ValidationError> {
+    vec!["One", "Two", "Over 9000"]
+        .contains(&level)
+        .then_some(())
+        .map_or_else(
+            || Err(ValidationError::new("Invalid career level")),
+            |_| Ok(()),
+        )
+}
+
+fn validate_contract_type(contract: &str) -> Result<(), ValidationError> {
+    vec!["Fulltime", "Temporary"]
+        .contains(&contract)
+        .then_some(())
+        .map_or_else(
+            || Err(ValidationError::new("Invalid contract type")),
+            |_| Ok(()),
+        )
+}
+
+fn validate_mime_type(mime: &str) -> Result<(), ValidationError> {
+    vec!["jpeg", "png"]
+        .contains(&mime)
+        .then_some(())
+        .map_or_else(
+            || Err(ValidationError::new("Invalid MIME type")),
+            |_| Ok(()),
+        )
+}
+
+fn greater_than_now(date: &str) -> Result<(), ValidationError> {
+    let parsed = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M:%S");
+    match parsed {
+        Ok(date) => {
+            if date
+                < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
+                    .unwrap()
+            {
+                Err(ValidationError::new("Date cannot be less than now"))
+            } else {
+                Ok(())
+            }
+        }
+        Err(e) => {
+            eprintln!("Error parsing date: {e}");
+            Err(ValidationError::new("Could not parse date"))
+        }
+    }
+}
+
+#[test]
+fn biggest_of_bois() {
+    let tags = TestTags {
+        names: vec!["tag".to_string(), "tag".to_string(), "tag".to_string()],
+    };
+    let languages = vec![
+        TestLanguages {
+            company_opening_id: "yolo mcswag".to_string(),
+            language: "    tommorrowlang     ".to_string(),
+            proficiency: Some("sabijam      ".to_string()),
+            required: Some(true),
+            created_by: "ja".to_string(),
+        },
+        TestLanguages {
+            company_opening_id: "divops".to_string(),
+            language: "go".to_string(),
+            proficiency: Some("    neznam".to_string()),
+            required: None,
+            created_by: "on".to_string(),
+        },
+    ];
+    let mut big = BigBoi {
+        title: "al sam velik".to_string(),
+        status: "za refaktorirat al neka ga".to_string(),
+        city_country: "gradrzava".to_string(),
+        description_roles_responsibilites: "kuvaj kavu peri podove ne pitaj nista".to_string(),
+        education: "any".to_string(),
+        type_of_workplace: vec!["cikuriku".to_string()],
+        working_hours: "08".to_string(),
+        part_time_period: None,
+        contract_type: "Fulltime".to_string(),
+        indefinite_probation_period: false,
+        indefinite_probation_period_duration: None,
+        career_level: "Over 9000".to_string(),
+        benefits: "svasta nesta".to_string(),
+        meta_title: "a dokle vise".to_string(),
+        meta_description: "ne da mi se".to_string(),
+        meta_image: "jpeg".to_string(),
+        published_at: "2500-01-01 00:00:00".to_string(),
+        expires_at: "2500-01-01 00:00:00".to_string(),
+        languages,
+        tags,
+    };
+
+    let res = big.validate();
+
+    assert!(matches!(res, Ok(())));
+
+    assert_eq!(big.languages[0].language, "tommorrowlang");
+    assert_eq!(big.languages[1].language, "go");
+    assert_eq!(big.languages[0].proficiency, Some("sabijam".to_string()));
+    assert_eq!(big.languages[1].proficiency, Some("neznam".to_string()));
 }

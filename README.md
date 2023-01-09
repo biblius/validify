@@ -6,12 +6,14 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 
 |   Modifier    |  Type    |        Description
 |---------------|----------|-----------------------
-|  trim         |  String  | Removes surrounding whitespace
-|  uppercase    |  String  | Calls `.to_uppercase()`
-|  lowercase    |  String  | Calls `.to_lowercase()`
-|  capitalize   |  String  | Makes the first char of the string uppercase
+|  trim*        |  String  | Removes surrounding whitespace
+|  uppercase*   |  String  | Calls `.to_uppercase()`
+|  lowercase*   |  String  | Calls `.to_lowercase()`
+|  capitalize*  |  String  | Makes the first char of the string uppercase
 |  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
-|  validify     |  Struct  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations
+|  validify*    |  Struct  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations
+
+\*Also works for Vec\<T> by running validate on each element.
 
 The crate provides the `Validify` trait and the `validify` attribute macro and supports all the functionality of the validator crate. The main addition here is that payloads can be modified before being validated.
 
@@ -95,6 +97,8 @@ fn validate_testor(t: &Testor) {
 }
 ```
 
+Like field level validation, schema level validation is performed after modification.
+
 This macro will automatically implement validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validate` which in the above example expands to:
 
 ```rust
@@ -120,3 +124,6 @@ if let Some(field) = self.field.as_mut() { *field = field.trim().to_string() };
 ```
 
 This is also the reason custom functions have to take in a `&mut T` instead of an `&mut Option<T>`.
+
+TODO: Integrate with validr
+TODO: Play around with Serde level errors
