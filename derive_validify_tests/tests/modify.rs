@@ -65,13 +65,12 @@ struct Testamentor {
 }
 
 #[validify]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Nestor {
     #[modify(custom = "do_other")]
     a: usize,
     #[modify(custom = "do_something")]
     b: String,
-    c: &'static str,
 }
 
 #[test]
@@ -81,7 +80,6 @@ fn nested_modify() {
         nestor: Nestor {
             a: 5,
             b: "ALOHA".to_string(),
-            c: "Snackbar",
         },
     };
     testamentor.modify();
@@ -89,7 +87,6 @@ fn nested_modify() {
     assert_eq!(testamentor.a, "lower me");
     assert_eq!(testamentor.nestor.a, 10);
     assert_eq!(testamentor.nestor.b, "modified");
-    assert_eq!(testamentor.nestor.c, "Snackbar");
 }
 
 /**
@@ -116,7 +113,6 @@ struct BigBoy {
     g: Option<String>,
     #[modify(custom = "do_something", lowercase)]
     h: Option<String>,
-    i: &'static str,
     #[validify]
     j: Nestor,
 }
@@ -132,11 +128,9 @@ fn big_boy() {
         f: "   AAALAOO     ".to_string(),
         g: None,
         h: Some("dude".to_string()),
-        i: "works",
         j: Nestor {
             a: 5,
             b: "ALOHA".to_string(),
-            c: "Snackbar",
         },
     };
     bb.modify();
@@ -149,10 +143,8 @@ fn big_boy() {
     assert_eq!(bb.f, "aaalaoo");
     assert_eq!(bb.g, None);
     assert_eq!(bb.h, Some("modified".to_string()));
-    assert_eq!(bb.i, "works");
     assert_eq!(bb.j.a, 10);
     assert_eq!(bb.j.b, "modified");
-    assert_eq!(bb.j.c, "Snackbar");
 }
 
 /**
@@ -200,7 +192,6 @@ fn mutate_vec(g: &mut Vec<String>) {
 fn mutate_nestor(n: &mut Nestor) {
     n.a = 20;
     n.b = "Haha".to_string();
-    n.c = "lol";
 }
 
 #[test]
@@ -217,7 +208,6 @@ fn custom_with_types() {
         i: Nestor {
             a: 10,
             b: "nestor".to_string(),
-            c: "nested",
         },
     };
     tt.modify();
@@ -237,15 +227,14 @@ fn custom_with_types() {
     assert_eq!(tt.h, Some(vec!["testor".to_string(), "YOLO".to_string()]));
     assert_eq!(tt.i.a, 20);
     assert_eq!(tt.i.b, "Haha".to_string());
-    assert_eq!(tt.i.c, "lol");
 }
 
 /**
  * FROM JSON
  */
 
-#[derive(Debug, Serialize)]
 #[validify]
+#[derive(Debug, Serialize)]
 struct JsonTest {
     #[modify(lowercase)]
     a: String,
@@ -265,8 +254,8 @@ fn from_json() {
 }
 
 fn mock_handler(data: actix_web::web::Json<JsonTest>) {
-    let mut data = data.0;
-    data.validate().unwrap();
+    let data = data.0;
+    let data = JsonTest::validate(data.into()).unwrap();
     mock_service(data);
 }
 

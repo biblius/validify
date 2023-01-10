@@ -33,24 +33,120 @@ pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// Impl entry point
 fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
-    let fields = collect_field_modifiers(ast);
+    let fields_info = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
-    let (modifiers, validations) = quote_field_modifiers(fields);
+    let (modifiers, validations) = quote_field_modifiers(fields_info);
+
+    let (payload, payload_ident) = generate_payload_type(ast);
 
     quote!(
+
+    #payload
+
     impl #impl_generics ::validify::Modify for #ident #ty_generics #where_clause {
         fn modify(&mut self) {
             #(#modifiers)*
         }
     }
+
     impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
+
+        type Payload = #payload_ident;
+
         /// Apply the provided modifiers to self and run validations
-        fn validate(&mut self) -> Result<(), ::validator::ValidationErrors> {
+        fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
+            <Self::Payload as ::validator::Validate>::validate(&payload)?;
+            let mut this = Self::from(payload);
             #(#validations)*
-            <Self as ::validify::Modify>::modify(self);
-            <Self as ::validator::Validate>::validate(self)
+            <Self as ::validify::Modify>::modify(&mut this);
+            <Self as ::validator::Validate>::validate(&this)?;
+            Ok(this)
         }
     })
+}
+
+fn generate_payload_type(ast: &syn::DeriveInput) -> (proc_macro2::TokenStream, proc_macro2::Ident) {
+    let ident = &ast.ident;
+    let payload_ident = syn::Ident::new(&format!("{}Payload", &ast.ident.to_string()), ast.span());
+    let fields = collect_fields(ast);
+    let types = map_field_types(&fields);
+
+    let payload_fields = fields
+        .iter()
+        .map(|f| {
+            let ident = f.ident.as_ref().unwrap();
+            let typ = types.get(&ident.to_string()).unwrap();
+            let ty = &f.ty;
+            if typ.starts_with("Option") {
+                quote!(
+                    #ident: #ty,
+                )
+            } else {
+                quote!(
+                    #[validate(required)]
+                    #ident: Option<#ty>,
+                )
+            }
+        })
+        .collect::<Vec<proc_macro2::TokenStream>>();
+
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+
+    let into_fields = fields
+        .iter()
+        .map(|f| {
+            let ident = f.ident.as_ref().unwrap();
+            let typ = types.get(&ident.to_string()).unwrap();
+            if typ.starts_with("Option") {
+                quote!(
+                    #ident: self.#ident,
+                )
+            } else {
+                quote!(#ident: Some(self.#ident),)
+            }
+        })
+        .collect::<Vec<proc_macro2::TokenStream>>();
+
+    let from_fields = fields
+        .iter()
+        .map(|f| {
+            let ident = f.ident.as_ref().unwrap();
+            let typ = types.get(&ident.to_string()).unwrap();
+            if typ.starts_with("Option") {
+                quote!(
+                    #ident: payload.#ident,
+                )
+            } else {
+                quote!(#ident: payload.#ident.unwrap(),)
+            }
+        })
+        .collect::<Vec<proc_macro2::TokenStream>>();
+    // TODO: Include the visibility of the struct in the impl instead of defaulting to pub
+    (
+        quote!(
+            #[derive(Debug, Clone, ::validator::Validate, serde::Serialize, serde::Deserialize)]
+            pub struct #payload_ident #ty_generics #where_clause {
+                #(#payload_fields)*
+            }
+
+             impl #impl_generics Into<#payload_ident> for #ident {
+                fn into(self) -> #payload_ident {
+                    #payload_ident {
+                        #(#into_fields)*
+                    }
+                }
+            }
+
+            impl #impl_generics From<#payload_ident> for #ident {
+                fn from(payload: #payload_ident) -> Self {
+                    Self {
+                        #(#from_fields)*
+                    }
+                }
+            }
+        ),
+        payload_ident,
+    )
 }
 
 /// Return a vec of all the fields and their info. Returns a boolean indicating whether or not
@@ -136,19 +232,15 @@ fn find_modifiers_for_field(field: &syn::Field) -> Vec<ModType> {
                             syn::Meta::Path(ref name) => {
                                 match name.get_ident().unwrap().to_string().as_ref() {
                                     "trim" => {
-                                        // assert_string_type("trim", field_type, &field.ty);
                                         modifiers.push(ModType::Trim);
                                     }
                                     "uppercase" => {
-                                        // assert_string_type("uppercase", field_type, &field.ty);
                                         modifiers.push(ModType::Uppercase);
                                     }
                                     "lowercase" => {
-                                        // assert_string_type("lowercase", field_type, &field.ty);
                                         modifiers.push(ModType::Lowercase);
                                     }
                                     "capitalize" => {
-                                        // assert_string_type("capitalize", field_type, &field.ty);
                                         modifiers.push(ModType::Capitalize);
                                     }
                                     _ => {

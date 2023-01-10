@@ -4,6 +4,7 @@
 //! use validify::{validify, Validify};
 //!
 //! #[validify]
+//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 //! struct Testor {
 //!     #[modify(lowercase, trim)]
 //!     #[validate(length(equal = 8))]
@@ -19,6 +20,7 @@
 //! }
 //!
 //! #[validify]
+//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 //! struct Nestor {
 //!     #[modify(trim, uppercase)]
 //!     #[validate(length(equal = 12))]
@@ -42,10 +44,13 @@
 //!       b: "capitalize me.".to_string(),
 //!   },
 //! };
-//! // The magic line
-//! let res = test.validate();
 //!
-//! assert!(matches!(res, Ok(())));
+//! // The magic line
+//! let res = Testor::validate(test.into());
+//!
+//! assert!(matches!(res, Ok(_)));
+//!
+//! let test = res.unwrap();
 //!
 //! // Parent
 //! assert_eq!(test.a, "lower me");

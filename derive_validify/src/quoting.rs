@@ -78,6 +78,10 @@ fn quote_nested_modifier(
         Ident::new(&ty, span)
     };
 
+    let par = param.to_string();
+    let field = par.split('.').last().unwrap();
+    let field_ident: proc_macro2::TokenStream = format!("this.{}", field).parse().unwrap();
+
     let modifications = if is_vec {
         quote!(
             for el in #param.iter_mut() {
@@ -90,12 +94,12 @@ fn quote_nested_modifier(
 
     let validations = if is_vec {
         quote!(
-            for el in #param.iter_mut() {
-                <#ident as ::validify::Validify>::validate(el)?;
+            for el in #field_ident.iter_mut() {
+                <#ident as ::validify::Validify>::validate(el.clone().into())?;
             }
         )
     } else {
-        quote!(<#ident as ::validify::Validify>::validate(&mut #param)?;)
+        quote!(<#ident as ::validify::Validify>::validate(#field_ident.clone().into())?;)
     };
     (modifications, validations)
 }

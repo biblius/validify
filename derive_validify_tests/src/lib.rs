@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
 
+    use serde::{Deserialize, Serialize};
     use validify::{validify, Validify};
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     #[validify]
     struct T {
         #[modify(custom = "foo", uppercase)]
@@ -15,7 +16,7 @@ mod tests {
         c: Vec<String>,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     #[validify]
     struct U {
         #[validate(range(min = 1))]
@@ -28,11 +29,11 @@ mod tests {
 
     #[test]
     fn validate() {
-        let mut t = T {
+        let t = T {
             a: String::new(),
             b: U { b: 2 },
             c: vec!["lmeo".to_string()],
         };
-        t.validate().unwrap();
+        T::validate(t.into()).unwrap();
     }
 }

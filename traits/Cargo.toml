@@ -7,5 +7,6 @@ version = "0.1.0"
 
 [dependencies]
 proc-macro2 = "1.0.47"
+serde = "1.0.152"
 syn = { version = "1.0.103", features = ["full"] }
 validator = "0.16.0"

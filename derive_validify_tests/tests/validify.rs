@@ -3,6 +3,7 @@ use validator::ValidationError;
 use validify::{validify, Validify};
 
 #[validify]
+#[derive(Debug, Serialize, Deserialize)]
 struct HasVec {
     #[modify(trim, uppercase)]
     #[validate(length(min = 2))]
@@ -14,23 +15,25 @@ struct HasVec {
 
 #[test]
 fn vec_mod() {
-    let mut v = HasVec {
+    let v = HasVec {
         a: vec!["    lmeo    ".to_string(), "lm ao      ".to_string()],
         b: Some(vec![
             " ALOHA     ".to_string(),
             "     SNACKBAR    ".to_string(),
         ]),
     };
-    let res = v.validate();
-    assert!(matches!(res, Ok(())));
+    let res = HasVec::validate(v.into());
+    assert!(matches!(res, Ok(_)));
+
+    let v = res.unwrap();
     assert_eq!(v.a[0], "LMEO");
     assert_eq!(v.a[1], "LM AO");
     assert_eq!(v.b.as_ref().unwrap()[0], "Aloha");
     assert_eq!(v.b.unwrap()[1], "Snackbar");
 }
 
-#[derive(Debug)]
 #[validify]
+#[derive(Debug, Serialize, Deserialize)]
 struct WithVal {
     #[validate(length(equal = 13))]
     #[modify(trim)]
@@ -46,28 +49,29 @@ fn make_me_9(u: &mut usize) {
 
 #[test]
 fn validify0() {
-    let mut t = WithVal {
+    let t = WithVal {
         a: "        ".to_string(),
         b: 420,
     };
 
-    let res = t.validate();
-    assert_eq!(t.a, "");
-    assert_eq!(t.b, 9);
+    let res = WithVal::validate(t.into());
     assert!(matches!(res, Err(_)));
 
-    let mut t = WithVal {
+    let t = WithVal {
         a: "    SO MUCH SPACE    ".to_string(),
         b: 420,
     };
 
-    let res = t.validate();
-    assert_eq!(t.a, "SO MUCH SPACE");
-    assert_eq!(t.b, 9);
-    assert!(matches!(res, Ok(())))
+    let res = WithVal::validate(t.into());
+    assert!(matches!(res, Ok(_)));
+
+    let res = res.unwrap();
+    assert_eq!(res.a, "SO MUCH SPACE");
+    assert_eq!(res.b, 9);
 }
 
 #[validify]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
@@ -83,6 +87,7 @@ struct Testor {
 }
 
 #[validify]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -98,7 +103,7 @@ fn do_something(input: &mut String) {
 
 #[test]
 fn validify1() {
-    let mut test = Testor {
+    let test = Testor {
         a: "   LOWER ME     ".to_string(),
         b: Some("  makemeshout   ".to_string()),
         c: "I'll never be the same".to_string(),
@@ -109,8 +114,10 @@ fn validify1() {
         },
     };
 
-    let res = test.validate();
-    assert!(matches!(res, Ok(())));
+    let res = Testor::validate(test.into());
+    assert!(matches!(res, Ok(_)));
+
+    let test = res.unwrap();
 
     assert_eq!(test.a, "lower me");
     assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
@@ -126,6 +133,7 @@ fn validify1() {
 
 #[validify]
 #[validate(schema(function = "validate_input"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Input {
     #[modify(trim, uppercase)]
     a: String,
@@ -137,6 +145,7 @@ struct Input {
 
 #[validify]
 #[validate(schema(function = "validate_nested"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct NestedInput {
     a: Option<usize>,
     #[modify(trim, lowercase)]
@@ -165,7 +174,7 @@ fn validate_nested(nested: &NestedInput) -> Result<(), ValidationError> {
 #[test]
 fn schema_mod_val() {
     // Condition b fails, but a is not empty, should succeed
-    let mut input = Input {
+    let input = Input {
         a: "I am validated".to_string(),
         b: 3,
         c: NestedInput {
@@ -174,11 +183,11 @@ fn schema_mod_val() {
         },
     };
 
-    let res = input.validate();
-    assert!(matches!(res, Ok(())));
+    let res = Input::validate(input.into());
+    assert!(matches!(res, Ok(_)));
 
     // Condition b fails and a is empty, should fail
-    let mut input = Input {
+    let input = Input {
         a: "       ".to_string(),
         b: 3,
         c: NestedInput {
@@ -187,11 +196,11 @@ fn schema_mod_val() {
         },
     };
 
-    let res = input.validate();
+    let res = Input::validate(input.into());
     assert!(matches!(res, Err(_)));
 
     // Condition b fails, but a is not empty
-    let mut input = Input {
+    let input = Input {
         a: "    yes   ".to_string(),
         b: 3,
         // Both can't be some
@@ -201,22 +210,22 @@ fn schema_mod_val() {
         },
     };
 
-    let res = input.validate();
+    let res = Input::validate(input.into());
     assert!(matches!(res, Err(_)));
 
     // Condition b fails, but a is not empty
-    let mut input = Input {
+    let input = Input {
         a: "    yes   ".to_string(),
         b: 3,
         // Both can't be none
         c: NestedInput { a: None, b: None },
     };
 
-    let res = input.validate();
+    let res = Input::validate(input.into());
     assert!(matches!(res, Err(_)));
 
     // Condition b fails, but a is not empty
-    let mut input = Input {
+    let input = Input {
         a: "    yes   ".to_string(),
         b: 3,
         // A is some and should succeed
@@ -226,11 +235,11 @@ fn schema_mod_val() {
         },
     };
 
-    let res = input.validate();
-    assert!(matches!(res, Ok(())));
+    let res = Input::validate(input.into());
+    assert!(matches!(res, Ok(_)));
 
     // Condition b fails, but a is not empty
-    let mut input = Input {
+    let input = Input {
         a: "    yes   ".to_string(),
         b: 3,
         // B is 'some' and should succeed
@@ -240,15 +249,17 @@ fn schema_mod_val() {
         },
     };
 
-    let res = input.validate();
-    assert!(matches!(res, Ok(())));
+    let res = Input::validate(input.into());
+    assert!(matches!(res, Ok(_)));
+
+    let input = res.unwrap();
 
     assert_eq!(input.c.b, Some("hit@me.up".to_string()))
 }
 
 #[test]
 fn validify_nested_input() {
-    let mut input = Input {
+    let input = Input {
         a: "I am validated".to_string(),
         b: 2,
         c: NestedInput {
@@ -257,10 +268,10 @@ fn validify_nested_input() {
         },
     };
 
-    let res = input.validate();
-    assert!(matches!(res, Ok(())));
+    let res = Input::validate(input.into());
+    assert!(matches!(res, Ok(_)));
 
-    let mut input = Input {
+    let input = Input {
         a: "I am validated".to_string(),
         b: 2,
         c: NestedInput {
@@ -269,7 +280,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = input.validate();
+    let res = Input::validate(input.into());
     assert!(matches!(res, Err(_)));
 }
 
@@ -463,7 +474,7 @@ fn biggest_of_bois() {
             created_by: "on".to_string(),
         },
     ];
-    let mut big = BigBoi {
+    let big = BigBoi {
         title: "al sam velik".to_string(),
         status: "za refaktorirat al neka ga".to_string(),
         city_country: "gradrzava".to_string(),
@@ -486,9 +497,14 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let res = big.validate();
+    let big = big.into();
+    println!("BIG BEFORE: {:#?}", big);
 
-    assert!(matches!(res, Ok(())));
+    let res = BigBoi::validate(big);
+    println!("RESULT: {:#?}", res);
+    assert!(matches!(res, Ok(_)));
+
+    let big = res.unwrap();
 
     assert_eq!(big.languages[0].language, "tommorrowlang");
     assert_eq!(big.languages[1].language, "go");
