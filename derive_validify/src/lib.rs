@@ -33,6 +33,7 @@ pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// Impl entry point
 fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
+    let name = &ident.to_string();
     let fields_info = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let (modifiers, validations) = quote_field_modifiers(fields_info);
@@ -57,9 +58,18 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
             <Self::Payload as ::validator::Validate>::validate(&payload)?;
             let mut this = Self::from(payload);
+            let mut errors: Result<(), ::validator::ValidationErrors> = Err(::validator::ValidationErrors::new());
             #(#validations)*
             <Self as ::validify::Modify>::modify(&mut this);
-            <Self as ::validator::Validate>::validate(&this)?;
+            if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
+                errors = ::validator::ValidationErrors::merge(errors, #name, Err(errs));
+            }
+            if let Err(errors) = errors {
+                if !errors.is_empty() {
+                    let errors: Result<Self, ::validator::ValidationErrors> = Err(errors);
+                    return errors;
+                }
+            }
             Ok(this)
         }
     })
@@ -158,10 +168,11 @@ fn collect_field_modifiers(ast: &syn::DeriveInput) -> Vec<FieldInformation> {
     let field_types = map_field_types(&fields);
     let modifiers = fields.drain(..).fold(vec![], |mut acc, field| {
         let key = field.ident.clone().unwrap().to_string();
-        let modifiers = find_modifiers_for_field(&field);
+        let (name, modifiers) = find_modifiers_for_field(&field);
         acc.push(FieldInformation::new(
             field,
             field_types.get(&key).unwrap().clone(),
+            name,
             modifiers,
         ));
         acc
@@ -190,7 +201,7 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
 
 /// Find everything we need to know about a field. Returns a boolean indicating whether the field has validations as the first element
 /// of the tuple and all the modifiers as the second element
-fn find_modifiers_for_field(field: &syn::Field) -> Vec<ModType> {
+fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
     let rust_ident = field.ident.clone().unwrap().to_string();
     let field_ident = field.ident.clone().unwrap().to_string();
 
@@ -312,7 +323,7 @@ fn find_modifiers_for_field(field: &syn::Field) -> Vec<ModType> {
         }
     }
 
-    modifiers
+    (field_ident, modifiers)
 }
 
 /// Find the types (as string) for each field of the struct
