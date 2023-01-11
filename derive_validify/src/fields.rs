@@ -6,14 +6,21 @@ use traits::ModType;
 pub(super) struct FieldInformation {
     pub field: syn::Field,
     pub field_type: String,
+    pub name: String,
     pub modifiers: Vec<ModType>,
 }
 
 impl FieldInformation {
-    pub fn new(field: syn::Field, field_type: String, modifiers: Vec<ModType>) -> Self {
+    pub fn new(
+        field: syn::Field,
+        field_type: String,
+        name: String,
+        modifiers: Vec<ModType>,
+    ) -> Self {
         FieldInformation {
             field,
             field_type,
+            name,
             modifiers,
         }
     }

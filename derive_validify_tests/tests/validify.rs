@@ -155,7 +155,7 @@ struct NestedInput {
 
 fn validate_input(input: &Input) -> Result<(), ValidationError> {
     if input.a.is_empty() && input.b > 2 {
-        return Err(ValidationError::new("You done goofd my dude"));
+        return Err(ValidationError::new("A is empty and b is more than 2"));
     }
     Ok(())
 }
@@ -190,14 +190,16 @@ fn schema_mod_val() {
     let input = Input {
         a: "       ".to_string(),
         b: 3,
+        // Both are some, should fail
         c: NestedInput {
-            a: None,
+            a: Some(2),
             b: Some("HIT@ME.UP".to_string()),
         },
     };
 
+    // 2 Errors in total
     let res = Input::validate(input.into());
-    assert!(matches!(res, Err(_)));
+    assert!(matches!(res, Err(e) if e.errors().len() == 2));
 
     // Condition b fails, but a is not empty
     let input = Input {
@@ -222,7 +224,7 @@ fn schema_mod_val() {
     };
 
     let res = Input::validate(input.into());
-    assert!(matches!(res, Err(_)));
+    assert!(matches!(res, Err(e) if e.errors().len() == 1));
 
     // Condition b fails, but a is not empty
     let input = Input {

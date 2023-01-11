@@ -1,4 +1,9 @@
-//! ### Example
+//! A procedural macro built on top of the [validator](https://docs.rs/validator/latest/validator/)
+//! crate that provides attributes for field modifiers. Particularly useful in the context of web payloads.
+//!
+//! Visit the [repository](https://github.com/biblius/validify) to see exactly how it works.
+//!
+//!  ### Example
 //!
 //! ```
 //! use validify::{validify, Validify};

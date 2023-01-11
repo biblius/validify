@@ -12,7 +12,7 @@ pub(super) fn quote_field_modifiers(
 
     fields.drain(..).for_each(|item| {
         let field_ident = item.field.ident.clone().unwrap();
-        let field_quoter = FieldQuoter::new(field_ident, item.field_type);
+        let field_quoter = FieldQuoter::new(field_ident, item.name, item.field_type);
 
         for modifier in item.modifiers.iter() {
             let (mods, valids) = quote_modifiers(&field_quoter, modifier);
@@ -55,7 +55,8 @@ fn quote_modifiers(
             None,
         ),
         ModType::Nested => {
-            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span, is_vec);
+            let (modify, validate) =
+                quote_nested_modifier(modifier_param, fq.name.clone(), ty, span, is_vec);
             (modify, Some(validate))
         }
     };
@@ -68,6 +69,7 @@ fn quote_modifiers(
 
 fn quote_nested_modifier(
     param: proc_macro2::TokenStream,
+    name: String,
     ty: String,
     span: Span,
     is_vec: bool,
@@ -95,11 +97,31 @@ fn quote_nested_modifier(
     let validations = if is_vec {
         quote!(
             for el in #field_ident.iter_mut() {
-                <#ident as ::validify::Validify>::validate(el.clone().into())?;
+                match <#ident as ::validify::Validify>::validate(el.clone().into()) {
+                    Ok(_) => {},
+                    Err(errs) => {
+                        errors = validator::ValidationErrors::merge(
+                            errors,
+                            #name,
+                            Err(errs)
+                        );
+                    }
+                }
             }
         )
     } else {
-        quote!(<#ident as ::validify::Validify>::validate(#field_ident.clone().into())?;)
+        quote!(
+            match <#ident as ::validify::Validify>::validate(#field_ident.clone().into()) {
+                Ok(_) => {},
+                Err(errs) => {
+                    errors = validator::ValidationErrors::merge(
+                        errors,
+                        #name,
+                        Err(errs)
+                    );
+                }
+            }
+        )
     };
     (modifications, validations)
 }
@@ -242,13 +264,14 @@ pub(super) fn quote_capitalize_modifier(
 #[derive(Debug)]
 pub(super) struct FieldQuoter {
     ident: syn::Ident,
+    name: String,
     /// The field type
     _type: String,
 }
 
 impl FieldQuoter {
-    pub fn new(ident: syn::Ident, _type: String) -> FieldQuoter {
-        FieldQuoter { ident, _type }
+    pub fn new(ident: syn::Ident, name: String, _type: String) -> FieldQuoter {
+        FieldQuoter { ident, name, _type }
     }
 
     /// Check if this field's type is an Option

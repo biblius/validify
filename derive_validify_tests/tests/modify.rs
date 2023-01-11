@@ -249,13 +249,13 @@ fn from_json() {
         a: "MODIFIED".to_string(),
         b: "    makemeshout    ".to_string(),
     };
-    let json = actix_web::web::Json(jt);
+    let json = actix_web::web::Json(jt.into());
     mock_handler(json)
 }
 
-fn mock_handler(data: actix_web::web::Json<JsonTest>) {
+fn mock_handler(data: actix_web::web::Json<<JsonTest as Validify>::Payload>) {
     let data = data.0;
-    let data = JsonTest::validate(data.into()).unwrap();
+    let data = JsonTest::validate(data).unwrap();
     mock_service(data);
 }
 

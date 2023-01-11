@@ -1,4 +1,4 @@
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 use validator::{Validate, ValidationErrors};
 
 pub trait Modify {
@@ -34,16 +34,18 @@ pub trait Validify: Modify + validator::Validate + Sized + From<Self::Payload> {
     ///
     /// impl Validify for Data {
     ///     type Payload = DataPayload;
+    ///
+    ///     /* fn validate(payload: Self::Payload) { ... } */
     /// }
     ///
     /// ```
-    type Payload: Serialize + DeserializeOwned + Validate;
+    type Payload: DeserializeOwned + Validate;
 
     /// Apply the provided modifiers to self and run validations.
     fn validate(payload: Self::Payload) -> Result<Self, ValidationErrors> {
         // Since the payload is all options, this will
         // only check if there are missing required fields
-        payload.validate()?;
+        <Self::Payload as ::validator::Validate>::validate(&payload)?;
         let mut this = Self::from(payload);
         <Self as Modify>::modify(&mut this);
         <Self as validator::Validate>::validate(&this)?;
