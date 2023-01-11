@@ -355,26 +355,20 @@ struct TestLanguages {
 }
 
 fn schema_validation(bb: &BigBoi) -> Result<(), ValidationError> {
-    if bb.contract_type == "indefinite"
+    if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
+        return Err(ValidationError::new(
+            "Fulltime contract cannot have part time period",
+        ));
+    }
+
+    if bb.contract_type == "Fulltime"
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
         return Err(ValidationError::new("No probation duration"));
     }
 
-    if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        return Err(ValidationError::new(
-            "Fulltime contract cannot have part time period",
-        ));
-    }
     Ok(())
-}
-
-fn validate_proficiency(lang: &str) -> Result<(), ValidationError> {
-    vec!["neznam", "sabijam"]
-        .contains(&lang)
-        .then_some(())
-        .map_or_else(|| Err(ValidationError::new("Must be native")), |_| Ok(()))
 }
 
 fn validate_status(status: &str) -> Result<(), ValidationError> {
@@ -382,17 +376,6 @@ fn validate_status(status: &str) -> Result<(), ValidationError> {
         .contains(&status)
         .then_some(())
         .map_or_else(|| Err(ValidationError::new("Invalid status")), |_| Ok(()))
-}
-
-fn validate_names(names: &[String]) -> Result<(), ValidationError> {
-    for n in names.iter() {
-        if n.len() > 10 || n.is_empty() {
-            return Err(ValidationError::new(
-                "Maximum length of 10 exceeded for name",
-            ));
-        }
-    }
-    Ok(())
 }
 
 fn in_working_hours(hour: &str) -> Result<(), ValidationError> {
@@ -433,6 +416,24 @@ fn validate_mime_type(mime: &str) -> Result<(), ValidationError> {
             || Err(ValidationError::new("Invalid MIME type")),
             |_| Ok(()),
         )
+}
+
+fn validate_names(names: &[String]) -> Result<(), ValidationError> {
+    for n in names.iter() {
+        if n.len() > 10 || n.is_empty() {
+            return Err(ValidationError::new(
+                "Maximum length of 10 exceeded for name",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_proficiency(lang: &str) -> Result<(), ValidationError> {
+    vec!["neznam", "sabijam"]
+        .contains(&lang)
+        .then_some(())
+        .map_or_else(|| Err(ValidationError::new("Must be native")), |_| Ok(()))
 }
 
 fn greater_than_now(date: &str) -> Result<(), ValidationError> {
@@ -482,12 +483,12 @@ fn biggest_of_bois() {
         city_country: "gradrzava".to_string(),
         description_roles_responsibilites: "kuvaj kavu peri podove ne pitaj nista".to_string(),
         education: "any".to_string(),
-        type_of_workplace: vec!["cikuriku".to_string()],
+        type_of_workplace: vec!["cikuriku".to_string(), "cheetz".to_string()],
         working_hours: "08".to_string(),
         part_time_period: None,
         contract_type: "Fulltime".to_string(),
         indefinite_probation_period: false,
-        indefinite_probation_period_duration: None,
+        indefinite_probation_period_duration: Some(23),
         career_level: "Over 9000".to_string(),
         benefits: "svasta nesta".to_string(),
         meta_title: "a dokle vise".to_string(),
@@ -500,10 +501,8 @@ fn biggest_of_bois() {
     };
 
     let big = big.into();
-    println!("BIG BEFORE: {:#?}", big);
 
     let res = BigBoi::validate(big);
-    println!("RESULT: {:#?}", res);
     assert!(matches!(res, Ok(_)));
 
     let big = res.unwrap();
@@ -512,4 +511,82 @@ fn biggest_of_bois() {
     assert_eq!(big.languages[1].language, "go");
     assert_eq!(big.languages[0].proficiency, Some("sabijam".to_string()));
     assert_eq!(big.languages[1].proficiency, Some("neznam".to_string()));
+    assert_eq!(big.type_of_workplace[0], "Cikuriku");
+    assert_eq!(big.type_of_workplace[1], "Cheetz");
+    assert_eq!(big.city_country, "Gradrzava");
+    assert_eq!(big.benefits, "Svasta nesta");
+
+    let tags = TestTags {
+        // Invalid length
+        names: vec![
+            "taggggggggggggggggggggggggg".to_string(),
+            "tag".to_string(),
+            "tag".to_string(),
+        ],
+    };
+
+    let languages = vec![
+        TestLanguages {
+            company_opening_id: "yolo mcswag".to_string(),
+            language: "    tommorrowlang     ".to_string(),
+
+            // Invalid proficiency
+            proficiency: Some("invalid      ".to_string()),
+            required: Some(true),
+            created_by: "ja".to_string(),
+        },
+        TestLanguages {
+            company_opening_id: "divops".to_string(),
+            language: "go".to_string(),
+
+            // Invalid proficiency
+            proficiency: Some("    invalid".to_string()),
+            required: None,
+            created_by: "on".to_string(),
+        },
+    ];
+
+    let big = BigBoi {
+        title: "al sam velik".to_string(),
+
+        // Invalid status
+        status: "invalid".to_string(),
+
+        city_country: "gradrzava".to_string(),
+        description_roles_responsibilites: "kuvaj kavu peri podove ne pitaj nista".to_string(),
+        education: "any".to_string(),
+        type_of_workplace: vec!["cikuriku".to_string(), "cheetz".to_string()],
+
+        // Invalid working hours
+        working_hours: "invalid".to_string(),
+
+        // Part time period with fulltime contract type
+        part_time_period: Some(String::new()),
+        contract_type: "Fulltime".to_string(),
+
+        // Fulltime period with no duration
+        indefinite_probation_period: true,
+        indefinite_probation_period_duration: None,
+
+        // Invalid career level
+        career_level: "Over 100000".to_string(),
+
+        benefits: "svasta nesta".to_string(),
+        meta_title: "a dokle vise".to_string(),
+        meta_description: "ne da mi se".to_string(),
+
+        // Invalid mime type
+        meta_image: "heic".to_string(),
+
+        // Invalid time
+        published_at: "1999-01-01 00:00:00".to_string(),
+
+        // Invalid time
+        expires_at: "1999-01-01 00:00:00".to_string(),
+        languages,
+        tags,
+    };
+
+    let res = BigBoi::validate(big.into());
+    assert!(matches!(res, Err(e) if e.errors().len() == 10));
 }

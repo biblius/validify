@@ -115,30 +115,22 @@ The macro automatically implements validator's `Validate` trait and validify's `
 
 ```rust
     fn validate(payload: Self::Payload) -> Result<(), ValidationErrors> {
-        // Since the payload is all options, this will
-        // only check if there are missing required fields
         <Self::Payload as ::validator::Validate>::validate(&payload)?;
         let mut this = Self::from(payload);
-        let mut errors: Result<(), ::validator::ValidationErrors> = Err(
-            ::validator::ValidationErrors::new(),
-        );
-
-        /* Repeat for every nested struct implementing validify */
-        match <Nestor as ::validify::Validify>::validate(this.b.clone().into()) {
-            Ok(_) => {}
-            Err(errs) => {
-                errors = validator::ValidationErrors::merge(errors, "nested", Err(errs));
-            }
+        let mut errors: Vec<::validify::ValidationErrors> = Vec::new();
+        if let Err(e) = <Nestor as ::validify::Validify>::validate(this.nested.clone().into()) {
+            errors.push(e.into());
         }
         <Self as ::validify::Modify>::modify(&mut this);
-        if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
-            errors = ::validator::ValidationErrors::merge(errors, "Testor", Err(errs));
+        if let Err(e) = <Self as ::validator::Validate>::validate(&this) {
+            errors.push(e.into());
         }
-        if let Err(errors) = errors {
-            if !errors.is_empty() {
-                let errors: Result<Self, ::validator::ValidationErrors> = Err(errors);
-                return errors;
+        if !errors.is_empty() {
+            let mut errs = ::validify::ValidationErrors::new();
+            for err in errors {
+                errs = errs.merge(err);
             }
+            return Err(errs);
         }
         Ok(this)
     }

@@ -33,7 +33,6 @@ pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// Impl entry point
 fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &ast.ident;
-    let name = &ident.to_string();
     let fields_info = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let (modifiers, validations) = quote_field_modifiers(fields_info);
@@ -55,20 +54,21 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         type Payload = #payload_ident;
 
         /// Apply the provided modifiers to self and run validations
-        fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
+        fn validate(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors> {
             <Self::Payload as ::validator::Validate>::validate(&payload)?;
             let mut this = Self::from(payload);
-            let mut errors: Result<(), ::validator::ValidationErrors> = Err(::validator::ValidationErrors::new());
+            let mut errors: Vec<::validify::ValidationErrors> = Vec::new();
             #(#validations)*
             <Self as ::validify::Modify>::modify(&mut this);
             if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
-                errors = ::validator::ValidationErrors::merge(errors, #name, Err(errs));
+                errors.push(errs.into());
             }
-            if let Err(errors) = errors {
-                if !errors.is_empty() {
-                    let errors: Result<Self, ::validator::ValidationErrors> = Err(errors);
-                    return errors;
+            if !errors.is_empty() {
+                let mut errs = ::validify::ValidationErrors::new();
+                for err in errors {
+                    errs = errs.merge(err);
                 }
+                return Err(errs);
             }
             Ok(this)
         }

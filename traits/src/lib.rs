@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use validator::{Validate, ValidationErrors};
+use validator::Validate;
 
 pub trait Modify {
     /// Apply the provided modifiers to self
@@ -61,4 +61,68 @@ pub enum ModType {
     Capitalize,
     Custom { function: String },
     Nested,
+}
+
+#[derive(Debug)]
+pub struct ValidationErrors(Vec<validator::ValidationError>);
+
+impl Default for ValidationErrors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ValidationErrors {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn merge(mut self, errors: ValidationErrors) -> Self {
+        self.0.extend(errors);
+        Self(self.0)
+    }
+
+    pub fn errors(&self) -> &[validator::ValidationError] {
+        &self.0
+    }
+}
+
+impl Iterator for ValidationErrors {
+    type Item = validator::ValidationError;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.pop()
+    }
+}
+
+impl From<validator::ValidationErrors> for ValidationErrors {
+    fn from(value: validator::ValidationErrors) -> Self {
+        let mut errors = vec![];
+        nest_validation_errors(value, &mut errors);
+        Self(errors)
+    }
+}
+
+/// Nests validation errors to one vec
+fn nest_validation_errors(
+    errs: validator::ValidationErrors,
+    buff: &mut Vec<validator::ValidationError>,
+) {
+    for err in errs.errors().values() {
+        match err {
+            validator::ValidationErrorsKind::Struct(box_error) => {
+                nest_validation_errors(*box_error.clone(), buff);
+            }
+            validator::ValidationErrorsKind::List(e) => {
+                for er in e.clone().into_values() {
+                    nest_validation_errors(*er.clone(), buff);
+                }
+            }
+            validator::ValidationErrorsKind::Field(e) => {
+                for er in e {
+                    buff.push(er.clone());
+                }
+            }
+        }
+    }
 }

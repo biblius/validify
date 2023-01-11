@@ -55,8 +55,7 @@ fn quote_modifiers(
             None,
         ),
         ModType::Nested => {
-            let (modify, validate) =
-                quote_nested_modifier(modifier_param, fq.name.clone(), ty, span, is_vec);
+            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span, is_vec);
             (modify, Some(validate))
         }
     };
@@ -69,7 +68,6 @@ fn quote_modifiers(
 
 fn quote_nested_modifier(
     param: proc_macro2::TokenStream,
-    name: String,
     ty: String,
     span: Span,
     is_vec: bool,
@@ -97,29 +95,15 @@ fn quote_nested_modifier(
     let validations = if is_vec {
         quote!(
             for el in #field_ident.iter_mut() {
-                match <#ident as ::validify::Validify>::validate(el.clone().into()) {
-                    Ok(_) => {},
-                    Err(errs) => {
-                        errors = validator::ValidationErrors::merge(
-                            errors,
-                            #name,
-                            Err(errs)
-                        );
-                    }
+                if let Err(e) = <#ident as ::validify::Validify>::validate(el.clone().into()) {
+                    errors.push(e.into());
                 }
             }
         )
     } else {
         quote!(
-            match <#ident as ::validify::Validify>::validate(#field_ident.clone().into()) {
-                Ok(_) => {},
-                Err(errs) => {
-                    errors = validator::ValidationErrors::merge(
-                        errors,
-                        #name,
-                        Err(errs)
-                    );
-                }
+            if let Err(e) = <#ident as ::validify::Validify>::validate(#field_ident.clone().into()) {
+                errors.push(e.into());
             }
         )
     };
@@ -264,14 +248,18 @@ pub(super) fn quote_capitalize_modifier(
 #[derive(Debug)]
 pub(super) struct FieldQuoter {
     ident: syn::Ident,
-    name: String,
+    _name: String,
     /// The field type
     _type: String,
 }
 
 impl FieldQuoter {
-    pub fn new(ident: syn::Ident, name: String, _type: String) -> FieldQuoter {
-        FieldQuoter { ident, name, _type }
+    pub fn new(ident: syn::Ident, _name: String, _type: String) -> FieldQuoter {
+        FieldQuoter {
+            ident,
+            _name,
+            _type,
+        }
     }
 
     /// Check if this field's type is an Option
