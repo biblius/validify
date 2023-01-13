@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use validator::ValidationError;
+use validator::{ValidationError, ValidationErrors};
 use validify::{validify, Validify};
 
 #[validify]
@@ -153,22 +153,45 @@ struct NestedInput {
     b: Option<String>,
 }
 
-fn validate_input(input: &Input) -> Result<(), ValidationError> {
+fn validate_input(input: &Input) -> Result<(), ValidationErrors> {
+    let mut errs = ValidationErrors::new();
     if input.a.is_empty() && input.b > 2 {
-        return Err(ValidationError::new("A is empty and b is more than 2"));
+        errs.add(ValidationError::new(
+            "A is empty and b is more than 2",
+            validator::ErrorType::Schema,
+            None,
+        ));
     }
-    Ok(())
+    if errs.is_empty() {
+        return Ok(());
+    }
+    Err(errs)
 }
 
-fn validate_nested(nested: &NestedInput) -> Result<(), ValidationError> {
+fn validate_nested(nested: &NestedInput) -> Result<(), ValidationErrors> {
+    let mut errs = ValidationErrors::new();
+
     if nested.a.is_none() && nested.b.is_none() {
-        return Err(ValidationError::new("Can't both be empty"));
+        errs.add(ValidationError::new(
+            "Can't both be empty",
+            validator::ErrorType::Schema,
+            None,
+        ));
     }
 
     if nested.a.is_some() && nested.b.is_some() {
-        return Err(ValidationError::new("Can't both be some"));
+        errs.add(ValidationError::new(
+            "Can't both be some",
+            validator::ErrorType::Schema,
+            None,
+        ));
     }
-    Ok(())
+
+    if errs.is_empty() {
+        return Ok(());
+    }
+
+    Err(errs)
 }
 
 #[test]
@@ -354,10 +377,13 @@ struct TestLanguages {
     created_by: String,
 }
 
-fn schema_validation(bb: &BigBoi) -> Result<(), ValidationError> {
+fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
+    let mut errs = ValidationErrors::new();
     if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        return Err(ValidationError::new(
+        errs.add(ValidationError::new(
             "Fulltime contract cannot have part time period",
+            validator::ErrorType::Schema,
+            None,
         ));
     }
 
@@ -365,17 +391,32 @@ fn schema_validation(bb: &BigBoi) -> Result<(), ValidationError> {
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
-        return Err(ValidationError::new("No probation duration"));
+        errs.add(ValidationError::new(
+            "No probation duration",
+            validator::ErrorType::Schema,
+            None,
+        ));
     }
-
-    Ok(())
+    if errs.is_empty() {
+        return Ok(());
+    }
+    Err(errs)
 }
 
 fn validate_status(status: &str) -> Result<(), ValidationError> {
     vec!["online", "offline", "za refaktorirat al neka ga"]
         .contains(&status)
         .then_some(())
-        .map_or_else(|| Err(ValidationError::new("Invalid status")), |_| Ok(()))
+        .map_or_else(
+            || {
+                Err(ValidationError::new(
+                    "Invalid status",
+                    validator::ErrorType::Field,
+                    Some(String::from("status")),
+                ))
+            },
+            |_| Ok(()),
+        )
 }
 
 fn in_working_hours(hour: &str) -> Result<(), ValidationError> {
@@ -383,7 +424,13 @@ fn in_working_hours(hour: &str) -> Result<(), ValidationError> {
         .contains(&hour)
         .then_some(())
         .map_or_else(
-            || Err(ValidationError::new("Invalid working hours")),
+            || {
+                Err(ValidationError::new(
+                    "Invalid working hours",
+                    validator::ErrorType::Field,
+                    Some(String::from("workingHours")),
+                ))
+            },
             |_| Ok(()),
         )
 }
@@ -393,7 +440,13 @@ fn validate_career_level(level: &str) -> Result<(), ValidationError> {
         .contains(&level)
         .then_some(())
         .map_or_else(
-            || Err(ValidationError::new("Invalid career level")),
+            || {
+                Err(ValidationError::new(
+                    "Invalid career level",
+                    validator::ErrorType::Field,
+                    Some(String::from("carreerLevel")),
+                ))
+            },
             |_| Ok(()),
         )
 }
@@ -403,7 +456,13 @@ fn validate_contract_type(contract: &str) -> Result<(), ValidationError> {
         .contains(&contract)
         .then_some(())
         .map_or_else(
-            || Err(ValidationError::new("Invalid contract type")),
+            || {
+                Err(ValidationError::new(
+                    "Invalid contract type",
+                    validator::ErrorType::Field,
+                    Some(String::from("contract")),
+                ))
+            },
             |_| Ok(()),
         )
 }
@@ -413,7 +472,13 @@ fn validate_mime_type(mime: &str) -> Result<(), ValidationError> {
         .contains(&mime)
         .then_some(())
         .map_or_else(
-            || Err(ValidationError::new("Invalid MIME type")),
+            || {
+                Err(ValidationError::new(
+                    "Invalid MIME type",
+                    validator::ErrorType::Field,
+                    Some(String::from("metaImage")),
+                ))
+            },
             |_| Ok(()),
         )
 }
@@ -423,6 +488,8 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
         if n.len() > 10 || n.is_empty() {
             return Err(ValidationError::new(
                 "Maximum length of 10 exceeded for name",
+                validator::ErrorType::Field,
+                Some(String::from("names")),
             ));
         }
     }
@@ -433,7 +500,16 @@ fn validate_proficiency(lang: &str) -> Result<(), ValidationError> {
     vec!["neznam", "sabijam"]
         .contains(&lang)
         .then_some(())
-        .map_or_else(|| Err(ValidationError::new("Must be native")), |_| Ok(()))
+        .map_or_else(
+            || {
+                Err(ValidationError::new(
+                    "Must be native",
+                    validator::ErrorType::Field,
+                    Some(String::from("proficiency")),
+                ))
+            },
+            |_| Ok(()),
+        )
 }
 
 fn greater_than_now(date: &str) -> Result<(), ValidationError> {
@@ -444,14 +520,22 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                 < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
                     .unwrap()
             {
-                Err(ValidationError::new("Date cannot be less than now"))
+                Err(ValidationError::new(
+                    "Date cannot be less than now",
+                    validator::ErrorType::Field,
+                    Some(String::from("lmao")),
+                ))
             } else {
                 Ok(())
             }
         }
         Err(e) => {
             eprintln!("Error parsing date: {e}");
-            Err(ValidationError::new("Could not parse date"))
+            Err(ValidationError::new(
+                "Could not parse date",
+                validator::ErrorType::Field,
+                Some(String::from("lmao")),
+            ))
         }
     }
 }
@@ -588,5 +672,6 @@ fn biggest_of_bois() {
     };
 
     let res = BigBoi::validate(big.into());
-    assert!(matches!(res, Err(e) if e.errors().len() == 10));
+    println!("RESS: {:#?}", res);
+    assert!(matches!(res, Err(e) if e.errors().len() == 11));
 }

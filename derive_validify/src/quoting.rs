@@ -95,15 +95,15 @@ fn quote_nested_modifier(
     let validations = if is_vec {
         quote!(
             for el in #field_ident.iter_mut() {
-                if let Err(e) = <#ident as ::validify::Validify>::validate(el.clone().into()) {
-                    errors.push(e.into());
+                if let Err(mut e) = <#ident as ::validify::Validify>::validate(el.clone().into()) {
+                    errors.merge(e);
                 }
             }
         )
     } else {
         quote!(
-            if let Err(e) = <#ident as ::validify::Validify>::validate(#field_ident.clone().into()) {
-                errors.push(e.into());
+            if let Err(mut e) = <#ident as ::validify::Validify>::validate(#field_ident.clone().into()) {
+                errors.merge(e);
             }
         )
     };

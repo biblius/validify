@@ -5,7 +5,7 @@ description = "An extension of the validator crate that enables payload modifica
 edition = "2021"
 exclude = ["derive_validify_tests/"]
 homepage = "https://github.com/biblius/validify"
-keywords = ["modify", "validate", "validation", "validify"]
+keywords = ["modify", "payload", "validate", "validation", "validify"]
 license = "MIT"
 name = "validify"
 readme = "README.md"
@@ -17,7 +17,7 @@ derive_validify = { path = "../derive_validify" }
 proc-macro2 = "1.0.47"
 syn = { version = "1.0.103", features = ["full"] }
 traits = { path = "../traits" }
-validator = { version = "0.16.0", features = ["derive"] }
+validator = { path = "../validator", version = "0.1.0" }
 
 [dev-dependencies]
 serde = "1.0.152"

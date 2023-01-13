@@ -54,21 +54,18 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         type Payload = #payload_ident;
 
         /// Apply the provided modifiers to self and run validations
-        fn validate(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors> {
+        fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
             <Self::Payload as ::validator::Validate>::validate(&payload)?;
             let mut this = Self::from(payload);
-            let mut errors: Vec<::validify::ValidationErrors> = Vec::new();
+            let mut errors = ::validator::ValidationErrors::new();
             #(#validations)*
             <Self as ::validify::Modify>::modify(&mut this);
             if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
-                errors.push(errs.into());
+                errors.merge(errs);
             }
             if !errors.is_empty() {
-                let mut errs = ::validify::ValidationErrors::new();
-                for err in errors {
-                    errs = errs.merge(err);
-                }
-                return Err(errs);
+                errors.sort();
+                return Err(errors);
             }
             Ok(this)
         }
@@ -232,7 +229,7 @@ fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
 
         match attr.parse_meta() {
             Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) => {
-                let meta_items = nested.iter().collect::<Vec<_>>();
+                let meta_items = nested.iter().collect::<Vec<&syn::NestedMeta>>();
 
                 // Only modifiers from here on
                 for meta_item in meta_items {
@@ -288,7 +285,8 @@ fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
                                 ref nested,
                                 ..
                             }) => {
-                                let meta_items = nested.iter().cloned().collect::<Vec<_>>();
+                                let meta_items =
+                                    nested.iter().cloned().collect::<Vec<syn::NestedMeta>>();
                                 let ident = path.get_ident().unwrap();
                                 match ident.to_string().as_ref() {
                                     "custom" => {
