@@ -1,0 +1,5 @@
+error: Invalid attribute #[validate] on field `s`: Needs at least one validator
+ --> tests/compile_fail/no_validations.rs:5:5
+  |
+5 |     #[validate()]
+  |     ^

@@ -51,13 +51,6 @@ pub fn lit_to_f64_or_path(lit: &syn::Lit) -> Option<ValueOrPath<f64>> {
     None
 }
 
-pub fn lit_to_bool(lit: &syn::Lit) -> Option<bool> {
-    match *lit {
-        syn::Lit::Bool(ref s) => Some(s.value),
-        _ => None,
-    }
-}
-
 pub fn option_to_tokens<T: quote::ToTokens>(opt: &Option<T>) -> proc_macro2::TokenStream {
     match opt {
         Some(ref t) => quote!(::std::option::Option::Some(#t)),

@@ -1,0 +1,5 @@
+error: Invalid attribute #[validate] on field `s`: Invalid argument for `custom` validator: only strings are allowed
+ --> tests/compile_fail/custom_not_string.rs:5:25
+  |
+5 |     #[validate(custom = 2)]
+  |                         ^

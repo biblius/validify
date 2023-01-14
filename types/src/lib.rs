@@ -86,7 +86,7 @@ impl Validator {
             Validator::Required => "required",
             Validator::RequiredNested => "required_nested",
             Validator::DoesNotContain(_) => "does_not_contain",
-            Validator::In(_) => "in",
+            Validator::In(_) => "is_in",
         }
     }
 

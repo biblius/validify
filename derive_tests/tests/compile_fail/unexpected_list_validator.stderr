@@ -1,0 +1,5 @@
+error: Unexpected list validator: "not_a_list"
+ --> tests/compile_fail/unexpected_list_validator.rs:5:16
+  |
+5 |     #[validate(not_a_list(a, b, c))]
+  |                ^^^^^^^^^^

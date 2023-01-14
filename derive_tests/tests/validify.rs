@@ -299,6 +299,12 @@ fn validify_nested_input() {
     assert!(matches!(res, Err(_)));
 }
 
+const WORKING_HOURS: &[&str] = &["08", "09", "10", "11", "12", "13", "14", "15", "16"];
+const CAREER_LEVEL: &[&str] = &["One", "Two", "Over 9000"];
+const STATUSES: &[&str] = &["online", "offline", "za refaktorirat al neka ga"];
+const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
+const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
+
 #[validify]
 #[derive(Clone, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -306,7 +312,7 @@ fn validify_nested_input() {
 struct BigBoi {
     #[validate(length(max = 300))]
     title: String,
-    #[validate(custom = "validate_status")]
+    #[validate(is_in = "STATUSES")]
     status: String,
     #[modify(capitalize)]
     city_country: String,
@@ -316,15 +322,15 @@ struct BigBoi {
     education: String,
     #[modify(capitalize)]
     type_of_workplace: Vec<String>,
-    #[validate(custom = "in_working_hours")]
+    #[validate(is_in = "WORKING_HOURS")]
     working_hours: String,
     part_time_period: Option<String>,
     #[modify(capitalize)]
-    #[validate(custom = "validate_contract_type")]
+    #[validate(is_in = "CONTRACT_TYPES")]
     contract_type: String,
     indefinite_probation_period: bool,
     indefinite_probation_period_duration: Option<i32>,
-    #[validate(custom = "validate_career_level")]
+    #[validate(is_in = "CAREER_LEVEL")]
     career_level: String,
     #[modify(capitalize)]
     benefits: String,
@@ -332,7 +338,7 @@ struct BigBoi {
     meta_title: String,
     #[validate(length(max = 160))]
     meta_description: String,
-    #[validate(custom = "validate_mime_type")]
+    #[validate(is_in = "ALLOWED_MIME")]
     meta_image: String,
     #[validate(custom = "greater_than_now")]
     published_at: String,
@@ -379,77 +385,15 @@ fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
-        errs.add(ValidationError::new_schema("No probation duration"));
+        errs.add(
+            ValidationError::new_schema("No probation duration")
+                .with_message("Indefinite probation duration must be specified".to_string()),
+        );
     }
     if errs.is_empty() {
         return Ok(());
     }
     Err(errs)
-}
-
-fn validate_status(status: &str) -> Result<(), ValidationError> {
-    vec!["online", "offline", "za refaktorirat al neka ga"]
-        .contains(&status)
-        .then_some(())
-        .map_or_else(
-            || Err(ValidationError::new_field("Invalid status", "status")),
-            |_| Ok(()),
-        )
-}
-
-fn in_working_hours(hour: &str) -> Result<(), ValidationError> {
-    vec!["08", "09", "10", "11", "12", "13", "14", "15", "16"]
-        .contains(&hour)
-        .then_some(())
-        .map_or_else(
-            || {
-                Err(ValidationError::new_field(
-                    "Invalid working hours",
-                    "workingHours",
-                ))
-            },
-            |_| Ok(()),
-        )
-}
-
-fn validate_career_level(level: &str) -> Result<(), ValidationError> {
-    vec!["One", "Two", "Over 9000"]
-        .contains(&level)
-        .then_some(())
-        .map_or_else(
-            || {
-                Err(ValidationError::new_field(
-                    "Invalid career level",
-                    "carreerLevel",
-                ))
-            },
-            |_| Ok(()),
-        )
-}
-
-fn validate_contract_type(contract: &str) -> Result<(), ValidationError> {
-    vec!["Fulltime", "Temporary"]
-        .contains(&contract)
-        .then_some(())
-        .map_or_else(
-            || {
-                Err(ValidationError::new_field(
-                    "Invalid contract type",
-                    "contract",
-                ))
-            },
-            |_| Ok(()),
-        )
-}
-
-fn validate_mime_type(mime: &str) -> Result<(), ValidationError> {
-    vec!["jpeg", "png"]
-        .contains(&mime)
-        .then_some(())
-        .map_or_else(
-            || Err(ValidationError::new_field("Invalid MIME type", "metaImage")),
-            |_| Ok(()),
-        )
 }
 
 fn validate_names(names: &[String]) -> Result<(), ValidationError> {
@@ -629,6 +573,5 @@ fn biggest_of_bois() {
     };
 
     let res = BigBoi::validate(big.into());
-    println!("RESS: {:#?}", res);
     assert!(matches!(res, Err(e) if e.errors().len() == 11));
 }

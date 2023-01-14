@@ -121,8 +121,6 @@ fn quote_error(
 
     let field = field_name.map_or_else(|| quote!(None), |field| quote!(#field));
 
-    println!("{:?}", validation.message);
-
     let add_message_quoted = if let Some(ref m) = validation.message {
         quote!(err.set_message(String::from(#m));)
     } else {
@@ -551,10 +549,16 @@ pub fn quote_is_in_validation(
     unreachable!()
 }
 
-pub fn quote_schema_validation(v: &SchemaValidation) -> proc_macro2::TokenStream {
-    let fn_ident: syn::Path = syn::parse_str(&v.function).unwrap();
+pub fn quote_schema_validation(validation: &SchemaValidation) -> proc_macro2::TokenStream {
+    let fn_ident: syn::Path = syn::parse_str(&validation.function).unwrap();
 
-    let arg_quoted = if let Some(ref args) = v.args {
+    let add_message_quoted = if let Some(ref m) = validation.message {
+        quote!(err.set_message(String::from(#m));)
+    } else {
+        quote!()
+    };
+
+    let arg_quoted = if let Some(ref args) = validation.args {
         let arg_type = &args.arg_access;
         quote!(self, #arg_type)
     } else {
@@ -565,6 +569,11 @@ pub fn quote_schema_validation(v: &SchemaValidation) -> proc_macro2::TokenStream
         match #fn_ident(#arg_quoted) {
             ::std::result::Result::Ok(()) => (),
             ::std::result::Result::Err(mut errs) => {
+                for err in errs.errors_mut() {
+                    if err.message().is_none() {
+                        #add_message_quoted
+                    }
+                }
                 errors.merge(errs);
             },
         };

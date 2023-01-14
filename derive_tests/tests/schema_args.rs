@@ -12,14 +12,8 @@ fn validate_schema_fn_reference_with_lifetime_ok() {
         _: &TestStruct,
         arg: &mut CustomStruct,
     ) -> Result<(), ValidationErrors> {
-        let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new_schema("meh"));
         arg.counter += 1;
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors)
-        }
+        Ok(())
     }
 
     #[allow(dead_code)]

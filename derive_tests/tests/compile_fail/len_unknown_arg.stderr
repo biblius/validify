@@ -1,0 +1,5 @@
+error: Invalid attribute #[validate] on field `s`: unknown argument `eq` for validator `length` (it only has `min`, `max`, `equal`)
+ --> tests/compile_fail/len_unknown_arg.rs:5:23
+  |
+5 |     #[validate(length(eq = 2))]
+  |                       ^^

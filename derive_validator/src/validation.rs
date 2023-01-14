@@ -8,7 +8,6 @@ use types::{CustomArgument, Validator};
 pub struct SchemaValidation {
     pub function: String,
     pub args: Option<CustomArgument>,
-    pub skip_on_field_errors: bool,
     pub code: Option<String>,
     pub message: Option<String>,
 }

@@ -110,7 +110,7 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
             if fields.iter().any(|field| field.ident.is_none()) {
                 abort!(
                     fields.span(),
-                    "struct has unnamed fields";
+                    "Struct has unnamed fields";
                     help = "#[derive(Validate)] can only be used on structs with named fields";
                 );
             }
@@ -118,7 +118,7 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
         }
         _ => abort!(
             ast.span(),
-            "#[derive(Validate)] can only be used with structs"
+            "#[derive(Validate)] can only be used on structs with named fields"
         ),
     }
 }
@@ -232,11 +232,10 @@ fn find_struct_validation(attr: &syn::Attribute) -> SchemaValidation {
         then {
             let ident = path.get_ident().unwrap();
             if ident != "schema" {
-                error(attr.span(), "Only `schema` is allowed as validator on a struct")
+                error(attr.span(), "Only `schema` validation is allowed on a struct")
             }
 
             let mut function = String::new();
-            let mut skip_on_field_errors = true;
             let mut code = None;
             let mut message = None;
             let mut args = None;
@@ -251,29 +250,19 @@ fn find_struct_validation(attr: &syn::Attribute) -> SchemaValidation {
                             "function" => {
                                 function = match lit_to_string(lit) {
                                     Some(s) => s,
-                                    None => error(lit.span(), "Invalid argument type for `function` \
-                                    : only strings are allowed"),
-                                };
-                            },
-                            "skip_on_field_errors" => {
-                                skip_on_field_errors = match lit_to_bool(lit) {
-                                    Some(s) => s,
-                                    None => error(lit.span(), "Invalid argument type for `skip_on_field_errors` \
-                                    : only bools are allowed"),
+                                    None => error(lit.span(), "Invalid argument type for `function`: only strings are allowed"),
                                 };
                             },
                             "code" => {
                                 code = match lit_to_string(lit) {
                                     Some(s) => Some(s),
-                                    None => error(lit.span(), "Invalid argument type for `code` \
-                                    : only strings are allowed"),
+                                    None => error(lit.span(), "Invalid argument type for `code`: only strings are allowed"),
                                 };
                             },
                             "message" => {
                                 message = match lit_to_string(lit) {
                                     Some(s) => Some(s),
-                                    None => error(lit.span(), "Invalid argument type for `message` \
-                                    : only strings are allowed"),
+                                    None => error(lit.span(), "Invalid argument type for `message`: only strings are allowed"),
                                 };
                             },
                             "arg" => {
@@ -285,13 +274,13 @@ fn find_struct_validation(attr: &syn::Attribute) -> SchemaValidation {
                                                 args = Some(CustomArgument::new(lit.span(), arg_type));
                                             }
                                             Err(_) => {
-                                                let mut msg = "invalid argument type for `arg` of `schema` validator: The string has to be a single type.".to_string();
+                                                let mut msg = "Invalid argument type for `arg` of `schema` validator: The string has to be a single type.".to_string();
                                                 msg.push_str("\n(Tip: You can combine multiple types into one tuple.)");
                                                 error(lit.span(), msg.as_str());
                                             }
                                         }
                                     }
-                                    None => error(lit.span(), "invalid argument type for `arg` of `custom` validator: expected a string")
+                                    None => error(lit.span(), "Invalid argument type for `arg` of `custom` validator: expected a string")
                                 };
                             },
                             _ => error(lit.span(), "Unknown argument")
@@ -309,7 +298,6 @@ fn find_struct_validation(attr: &syn::Attribute) -> SchemaValidation {
             SchemaValidation {
                 function,
                 args,
-                skip_on_field_errors,
                 code,
                 message,
             }
@@ -476,25 +464,25 @@ fn find_validators_for_field(
                                                 function: s,
                                                 argument: Box::new(None),
                                             })),
-                                            None => error(lit.span(), "invalid argument for `custom` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `custom` validator: only strings are allowed"),
                                         };
                                     }
                                     "contains" => {
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::Contains(s))),
-                                            None => error(lit.span(), "invalid argument for `contains` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `contains` validator: only strings are allowed"),
                                         };
                                     }
                                     "does_not_contain" => {
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::DoesNotContain(s))),
-                                            None => error(lit.span(), "invalid argument for `does_not_contain` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `does_not_contain` validator: only strings are allowed"),
                                         };
                                     }
                                     "regex" => {
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::Regex(s))),
-                                            None => error(lit.span(), "invalid argument for `regex` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `regex` validator: only strings are allowed"),
                                         };
                                     }
                                     "must_match" => {
@@ -503,18 +491,18 @@ fn find_validators_for_field(
                                                 assert_type_matches(rust_ident.clone(), field_type, field_types.get(&s), attr);
                                                 validators.push(FieldValidation::new(Validator::MustMatch(s)));
                                             }
-                                            None => error(lit.span(), "invalid argument for `must_match` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `must_match` validator: only strings are allowed"),
                                         };
                                     }
                                     "is_in" => {
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::In(s))),
-                                            None => error(lit.span(), "invalid argument for `in` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `in` validator: only strings are allowed"),
                                         }
                                     }
                                     v => abort!(
                                         path.span(),
-                                        "unexpected name value validator: {:?}",
+                                        "Unexpected name value validator: {:?}",
                                         v
                                     ),
                                 };
@@ -617,10 +605,10 @@ fn find_validators_for_field(
             Ok(syn::Meta::NameValue(_)) => abort!(attr.span(), "Unexpected name=value argument"),
             Err(e) => {
                 let error_string = format!("{:?}", e);
-                if error_string == "Error(\"expected literal\")" {
+                if error_string == "Error(\"Expected literal\")" {
                     abort!(
                         attr.span(),
-                        "Attributes for field `{}` malformed",
+                        "Invalid attributes for field `{}`",
                         field_ident
                     );
                 } else {
@@ -635,7 +623,7 @@ fn find_validators_for_field(
         }
 
         if has_validate && validators.is_empty() {
-            error(attr.span(), "it needs at least one validator");
+            error(attr.span(), "Needs at least one validator");
         }
     }
 

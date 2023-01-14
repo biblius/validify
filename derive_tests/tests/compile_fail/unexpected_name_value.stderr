@@ -1,0 +1,5 @@
+error: Unexpected name value validator: "not_a"
+ --> tests/compile_fail/unexpected_name_value.rs:5:16
+  |
+5 |     #[validate(not_a = "validator")]
+  |                ^^^^^

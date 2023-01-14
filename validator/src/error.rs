@@ -45,7 +45,7 @@ impl ValidationError {
         }
     }
 
-    pub fn with_message<T: Serialize>(mut self, msg: String) -> Self {
+    pub fn with_message(mut self, msg: String) -> Self {
         match self {
             ValidationError::Schema {
                 ref mut message, ..
@@ -160,6 +160,10 @@ impl ValidationErrors {
         self.0.is_empty()
     }
 
+    pub fn errors_mut(&mut self) -> &mut [ValidationError] {
+        &mut self.0
+    }
+
     pub fn field_errors(&self) -> Vec<ValidationError> {
         self.0
             .iter()
@@ -186,14 +190,6 @@ impl std::error::Error for ValidationErrors {
     }
 }
 
-impl Iterator for ValidationErrors {
-    type Item = ValidationError;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop()
-    }
-}
-
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -213,11 +209,11 @@ impl std::fmt::Display for ValidationError {
             } => {
                 write!(
                     fmt,
-                    "Field ({}) validation error: {}, {{ message: {}, params: {:?}]",
+                    "Field ({}) validation error: {}, {{ message: {}, params: {:?} }}",
                     name,
                     code,
                     message.as_ref().map_or_else(|| "", |f| f),
-                    params
+                    params,
                 )
             }
         }

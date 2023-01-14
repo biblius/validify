@@ -27,7 +27,7 @@ fn validate_signup(data: &SignupData) -> Result<(), ValidationErrors> {
 }
 
 #[derive(Debug, Validate, Deserialize)]
-#[validate(schema(function = "validate_signup", skip_on_field_errors = false))]
+#[validate(schema(function = "validate_signup"))]
 struct SignupData {
     #[validate(email)]
     mail: String,
