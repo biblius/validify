@@ -15,6 +15,27 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 
 \*Also works for Vec\<T> by running validate on each element.
 
+## **Validators**
+
+|       Validator       |    Type     |      Params     |        Description
+|-----------------------|-------------|-----------------|-----------------------
+| email                 |  String     |        --       | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).
+| url                   |  String     |        --       | Checks if the string is a URL.
+| length                | Collection  | min, max, equal | Checks if the field's collection length is within the specified params.
+| range                 |  Number     |     min, max    | Checks if the field's value is in the specified range.
+| must_match            |    Any      |       Any*      | Checks if the field matches the specified value
+| contains              | Collection  |      Item*      | Checks if the collection contains the specified value
+| does_not_contain      | Collection  |      Item*      | Checks if the collection doesn't contain the specified value
+| non_control_character |  String     |        --       | Checks if the field contains control characters
+| custom                |  Function   |      FnItem*    | Executes custom validation on the field specified by the end user
+| regex                 |  String     |      Regex*     | Matches the provided regex against the field
+| credit_card           |  String     |        --       | Checks if the field's value is a valid credit card number
+| phone                 |  String     |        --       | Checks if the field's value is a valid phone number
+| required              |  Option     |        --       | Checks whether the field's value is Some
+| is_in                 |  String     |    Collection*  | Checks whether the field's value is in the provided collection
+
+\* Params are specified in string notation, i.e. `"param"`.
+
 The crate provides the `Validify` trait and the `validify` attribute macro and supports all the functionality of the validator crate. The main addition here is that payloads can be modified before being validated.
 
 This is useful, for example, when a payload's `String` field has a minimum length restriction and you don't want it to be just spaces. Validify allows you to modify the field before it gets validated so as to mitigate this problem.
