@@ -2,15 +2,18 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use validify::{validify, Validify};
 
+const ALLOWED: &[&str] = &["YOLO", "mcswag"];
+
 #[derive(Debug, Clone)]
 #[validify]
 struct T {
-    #[modify(custom = "foo", uppercase)]
-    #[validate(length(min = 1))]
+    #[modify(custom = "foo", trim, uppercase)]
+    #[validate(length(min = 1), is_in = "ALLOWED")]
     a: String,
     #[validify]
     b: U,
-    #[modify(trim, lowercase, capitalize)]
+    #[modify(trim, lowercase)]
+    #[validate(contains = "lmeo")]
     c: Vec<String>,
 }
 
@@ -22,13 +25,13 @@ struct U {
 }
 
 fn foo(a: &mut String) {
-    *a = "foo".to_string();
+    *a = "  yolo    ".to_string();
 }
 
 #[test]
 fn validate() {
     let t = T {
-        a: String::new(),
+        a: String::from("foo"),
         b: U { b: 2 },
         c: vec!["lmeo".to_string()],
     };

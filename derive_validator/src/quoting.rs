@@ -1,12 +1,10 @@
+use crate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
+use crate::lit::{option_to_tokens, value_or_path_to_tokens};
+use crate::validation::{FieldValidation, SchemaValidation};
 use if_chain::if_chain;
 use proc_macro2::{self, Span};
 use quote::quote;
-
-use validator_types::Validator;
-
-use crate::asserts::{COW_TYPE, NUMBER_TYPES};
-use crate::lit::{option_to_tokens, value_or_path_to_tokens};
-use crate::validation::{FieldValidation, SchemaValidation};
+use types::Validator;
 
 /// Pass around all the information needed for creating a validation
 #[derive(Debug)]
@@ -114,34 +112,6 @@ impl FieldQuoter {
     }
 }
 
-fn is_map(_type: &str) -> bool {
-    if let Some(stripped) = _type.strip_prefix("Option<") {
-        is_map(stripped)
-    } else if let Some(stripped) = _type.strip_prefix('&') {
-        is_map(stripped)
-    } else {
-        _type.starts_with("HashMap<")
-            || _type.starts_with("FxHashMap<")
-            || _type.starts_with("FnvHashMap<")
-            || _type.starts_with("BTreeMap<")
-            || _type.starts_with("IndexMap<")
-    }
-}
-
-fn is_list(_type: &str) -> bool {
-    if let Some(stripped) = _type.strip_prefix('&') {
-        is_list(stripped)
-    } else if let Some(stripped) = _type.strip_prefix("Option<") {
-        is_list(stripped)
-    } else {
-        _type.starts_with("Vec<")
-            || _type.starts_with("HashSet<")
-            || _type.starts_with("BTreeSet<")
-            || _type.starts_with("IndexSet<")
-            || _type.starts_with('[')
-    }
-}
-
 /// Quote an actual end-user error creation automatically
 fn quote_error(
     validation: &FieldValidation,
@@ -151,14 +121,16 @@ fn quote_error(
 
     let field = field_name.map_or_else(|| quote!(None), |field| quote!(#field));
 
+    println!("{:?}", validation.message);
+
     let add_message_quoted = if let Some(ref m) = validation.message {
-        quote!(err.message = Some(String::from(#m));)
+        quote!(err.set_message(String::from(#m));)
     } else {
         quote!()
     };
 
     quote!(
-        let mut err = ::validator::ValidationError::new(#code, ::validator::ErrorType::Field, Some(#field.to_string()));
+        let mut err = ::validator::ValidationError::new_field(#code, #field);
         #add_message_quoted
     )
 }
@@ -431,7 +403,7 @@ pub fn quote_custom_validation(
         };
 
         let add_message_quoted = if let Some(ref m) = validation.message {
-            quote!(err.message = Some(String::from(#m));)
+            quote!(err.set_message(String::from(#m));)
         } else {
             quote!()
         };
@@ -551,7 +523,32 @@ pub fn quote_validator(
         Validator::DoesNotContain(_) => {
             validations.push(quote_does_not_contain_validation(field_quoter, validation))
         }
+        Validator::In(_) => validations.push(quote_is_in_validation(field_quoter, validation)),
     }
+}
+
+pub fn quote_is_in_validation(
+    field_quoter: &FieldQuoter,
+    validation: &FieldValidation,
+) -> proc_macro2::TokenStream {
+    if let Validator::In(haystack) = &validation.validator {
+        let field_name = &field_quoter.name;
+        let validator_param = field_quoter.quote_validator_param();
+
+        let hs = syn::Ident::new(haystack, Span::call_site());
+        let quoted_error = quote_error(validation, Some(field_name));
+        let quoted = quote!(
+            if !#hs.contains(#validator_param.as_str()) {
+                #quoted_error
+                err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+                err.add_param(::std::borrow::Cow::from("haystack"), &#hs);
+                errors.add(err);
+            }
+        );
+
+        return field_quoter.wrap_if_option(quoted);
+    }
+    unreachable!()
 }
 
 pub fn quote_schema_validation(v: &SchemaValidation) -> proc_macro2::TokenStream {

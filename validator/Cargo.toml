@@ -1,16 +1,5 @@
 [package]
-authors = [
-  "Biblius <crazycompanyxxl@gmail.com>",
-  "Vincent Prouillet <hello@vincentprouillet.com",
-]
-description = "Common validation functions (email, url, length, ...) and trait - to be used with `validator_derive`"
-edition = "2018"
-homepage = "https://github.com/Keats/validator"
-keywords = ["api", "validation", "validator"]
-license = "MIT"
 name = "validator"
-readme = "../README.md"
-repository = "https://github.com/Keats/validator"
 version = "0.1.0"
 
 [dependencies]

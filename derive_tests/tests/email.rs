@@ -1,0 +1,72 @@
+use validator::Validate;
+
+#[test]
+fn can_validate_valid_email() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(email)]
+        val: String,
+    }
+
+    let s = TestStruct {
+        val: "bob@bob.com".to_string(),
+    };
+
+    assert!(s.validate().is_ok());
+}
+
+#[test]
+fn bad_email_fails_validation() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(email)]
+        val: String,
+    }
+
+    let s = TestStruct {
+        val: "bob".to_string(),
+    };
+    let res = s.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "email");
+    assert_eq!(errs[0].params()["value"], "bob");
+}
+
+#[test]
+fn can_specify_code_for_email() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(email(code = "oops"))]
+        val: String,
+    }
+    let s = TestStruct {
+        val: "bob".to_string(),
+    };
+    let res = s.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "oops");
+}
+
+#[test]
+fn can_specify_message_for_email() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(email(message = "oops"))]
+        val: String,
+    }
+    let s = TestStruct {
+        val: "bob".to_string(),
+    };
+    let res = s.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].clone().message().unwrap(), "oops");
+}

@@ -1,8 +1,7 @@
-use proc_macro2::Span;
-use regex::Regex;
-
 use lazy_static::lazy_static;
+use proc_macro2::Span;
 use proc_macro_error::abort;
+use regex::Regex;
 use syn::spanned::Spanned;
 
 lazy_static! {
@@ -147,7 +146,10 @@ pub fn assert_custom_arg_type(field_span: &Span, field_type: &syn::Type) {
             assert_custom_arg_type(field_span, &paren.elem);
         }
         syn::Type::Tuple(tuple) => {
-            tuple.elems.iter().for_each(|x| assert_custom_arg_type(field_span, x));
+            tuple
+                .elems
+                .iter()
+                .for_each(|x| assert_custom_arg_type(field_span, x));
         }
         // assert idents
         syn::Type::Path(path) => {
@@ -174,5 +176,33 @@ pub fn assert_custom_arg_type(field_span: &Span, field_type: &syn::Type) {
                 CUSTOM_ARG_LIFETIME,
             );
         }
+    }
+}
+
+pub fn is_map(_type: &str) -> bool {
+    if let Some(stripped) = _type.strip_prefix("Option<") {
+        is_map(stripped)
+    } else if let Some(stripped) = _type.strip_prefix('&') {
+        is_map(stripped)
+    } else {
+        _type.starts_with("HashMap<")
+            || _type.starts_with("FxHashMap<")
+            || _type.starts_with("FnvHashMap<")
+            || _type.starts_with("BTreeMap<")
+            || _type.starts_with("IndexMap<")
+    }
+}
+
+pub fn is_list(_type: &str) -> bool {
+    if let Some(stripped) = _type.strip_prefix('&') {
+        is_list(stripped)
+    } else if let Some(stripped) = _type.strip_prefix("Option<") {
+        is_list(stripped)
+    } else {
+        _type.starts_with("Vec<")
+            || _type.starts_with("HashSet<")
+            || _type.starts_with("BTreeSet<")
+            || _type.starts_with("IndexSet<")
+            || _type.starts_with('[')
     }
 }

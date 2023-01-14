@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+name = "types"
+version = "0.1.0"
+
+[dependencies]
+proc-macro2 = "1"
+syn = { version = "1", features = ["extra-traits"] }

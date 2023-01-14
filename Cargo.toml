@@ -1,10 +1,10 @@
 [workspace]
 members = [
+  "derive_tests",
   "derive_validator",
   "derive_validify",
-  "derive_validify_tests",
   "traits",
+  "types",
   "validator",
-  "validator_types",
   "validify",
 ]

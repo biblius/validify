@@ -12,8 +12,8 @@ use syn::{parse_quote, spanned::Spanned, GenericParam, Lifetime, LifetimeDef, Ty
 use asserts::{assert_has_len, assert_has_range, assert_string_type, assert_type_matches};
 use lit::*;
 use quoting::{quote_schema_validations, quote_validator, FieldQuoter};
+use types::{CustomArgument, Validator};
 use validation::*;
-use validator_types::{CustomArgument, Validator};
 
 use crate::asserts::assert_custom_arg_type;
 
@@ -506,6 +506,12 @@ fn find_validators_for_field(
                                             None => error(lit.span(), "invalid argument for `must_match` validator: only strings are allowed"),
                                         };
                                     }
+                                    "is_in" => {
+                                        match lit_to_string(lit) {
+                                            Some(s) => validators.push(FieldValidation::new(Validator::In(s))),
+                                            None => error(lit.span(), "invalid argument for `in` validator: only strings are allowed"),
+                                        }
+                                    }
                                     v => abort!(
                                         path.span(),
                                         "unexpected name value validator: {:?}",
@@ -590,6 +596,14 @@ fn find_validators_for_field(
                                             );
                                         }
                                         validators.push(validation);
+                                    }
+                                    "is_in" => {
+                                        validators.push(extract_one_arg_validation(
+                                            "other",
+                                            ident.to_string(),
+                                            rust_ident.clone(),
+                                            &meta_items,
+                                        ));
                                     }
                                     v => abort!(path.span(), "Unexpected list validator: {:?}", v),
                                 }

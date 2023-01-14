@@ -15,9 +15,7 @@ version = "0.1.0"
 [dependencies]
 derive_validify = { path = "../derive_validify" }
 proc-macro2 = "1.0.47"
+serde = "1.0.152"
 syn = { version = "1.0.103", features = ["full"] }
 traits = { path = "../traits" }
 validator = { path = "../validator", version = "0.1.0" }
-
-[dev-dependencies]
-serde = "1.0.152"

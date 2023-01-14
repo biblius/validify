@@ -1,5 +1,5 @@
 use quote::quote;
-use validator_types::ValueOrPath;
+use types::ValueOrPath;
 
 pub fn lit_to_string(lit: &syn::Lit) -> Option<String> {
     match *lit {

@@ -1,10 +1,8 @@
+use crate::{asserts::assert_custom_arg_type, lit::*};
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use syn::spanned::Spanned;
-
-use validator_types::{CustomArgument, Validator};
-
-use crate::{asserts::assert_custom_arg_type, lit::*};
+use types::{CustomArgument, Validator};
 
 #[derive(Debug)]
 pub struct SchemaValidation {

@@ -62,9 +62,8 @@
 //! validator = { version = "0.12", features = ["derive"] }
 //! ```
 
-mod display_impl;
+mod error;
 mod traits;
-mod types;
 mod validation;
 
 pub use validation::cards::validate_credit_card;
@@ -81,7 +80,7 @@ pub use validation::range::validate_range;
 pub use validation::required::validate_required;
 pub use validation::urls::validate_url;
 
+pub use error::{ValidationError, ValidationErrors};
 pub use traits::{Contains, HasLen, Validate, ValidateArgs};
-pub use types::{ErrorType, ValidationError, ValidationErrors};
 
 pub use derive_validator::Validate;

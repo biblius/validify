@@ -1,9 +1,31 @@
+use crate::error::ValidationErrors;
+use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use indexmap::{IndexMap, IndexSet};
+/// This is the original trait that was implemented by deriving `Validate`. It will still be
+/// implemented for struct validations that don't take custom arguments. The call is being
+/// forwarded to the `ValidateArgs<'v_a>` trait.
+pub trait Validate {
+    fn validate(&self) -> Result<(), ValidationErrors>;
+}
 
-use crate::types::ValidationErrors;
+impl<T: Validate> Validate for &T {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        T::validate(*self)
+    }
+}
+
+/// This trait will be implemented by deriving `Validate`. This implementation can take one
+/// argument and pass this on to custom validators. The default `Args` type will be `()` if
+/// there is no custom validation with defined arguments.
+///
+/// The `Args` type can use the lifetime `'v_a` to pass references onto the validator.
+pub trait ValidateArgs<'v_a> {
+    type Args;
+
+    fn validate_args(&self, args: Self::Args) -> Result<(), ValidationErrors>;
+}
 
 /// Trait to implement if one wants to make the `length` validator
 /// work for more types
@@ -152,6 +174,18 @@ impl Contains for String {
     }
 }
 
+impl Contains for Vec<String> {
+    fn has_element(&self, needle: &str) -> bool {
+        self.iter().any(|a| a == needle)
+    }
+}
+
+impl Contains for &Vec<String> {
+    fn has_element(&self, needle: &str) -> bool {
+        self.iter().any(|a| a == needle)
+    }
+}
+
 impl<'a> Contains for &'a String {
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
@@ -180,28 +214,4 @@ impl<'a, S, H: ::std::hash::BuildHasher> Contains for &'a HashMap<String, S, H> 
     fn has_element(&self, needle: &str) -> bool {
         self.contains_key(needle)
     }
-}
-
-/// This is the original trait that was implemented by deriving `Validate`. It will still be
-/// implemented for struct validations that don't take custom arguments. The call is being
-/// forwarded to the `ValidateArgs<'v_a>` trait.
-pub trait Validate {
-    fn validate(&self) -> Result<(), ValidationErrors>;
-}
-
-impl<T: Validate> Validate for &T {
-    fn validate(&self) -> Result<(), ValidationErrors> {
-        T::validate(*self)
-    }
-}
-
-/// This trait will be implemented by deriving `Validate`. This implementation can take one
-/// argument and pass this on to custom validators. The default `Args` type will be `()` if
-/// there is no custom validation with defined arguments.
-///
-/// The `Args` type can use the lifetime `'v_a` to pass references onto the validator.
-pub trait ValidateArgs<'v_a> {
-    type Args;
-
-    fn validate_args(&self, args: Self::Args) -> Result<(), ValidationErrors>;
 }

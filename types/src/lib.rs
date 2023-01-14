@@ -2,9 +2,6 @@ use proc_macro2::Span;
 use syn::{Expr, Type};
 
 /// Contains all the validators that can be used
-///
-/// In this crate as it's not allowed to export more than the proc macro
-/// in a proc macro crate
 #[derive(Debug, Clone)]
 pub enum Validator {
     Email,
@@ -17,8 +14,6 @@ pub enum Validator {
     },
     // String is the name of the field to match
     MustMatch(String),
-    // value is a &str or a HashMap<String, ..>
-    Contains(String),
     // No implementation in this crate, it's all in validator_derive
     Regex(String),
     Range {
@@ -37,7 +32,9 @@ pub enum Validator {
     NonControlCharacter,
     Required,
     RequiredNested,
+    Contains(String),
     DoesNotContain(String),
+    In(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,6 +86,7 @@ impl Validator {
             Validator::Required => "required",
             Validator::RequiredNested => "required_nested",
             Validator::DoesNotContain(_) => "does_not_contain",
+            Validator::In(_) => "in",
         }
     }
 
