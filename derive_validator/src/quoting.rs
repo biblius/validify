@@ -1,7 +1,6 @@
 use crate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
 use crate::lit::{option_to_tokens, value_or_path_to_tokens};
 use crate::validation::{FieldValidation, SchemaValidation};
-use if_chain::if_chain;
 use proc_macro2::{self, Span};
 use quote::quote;
 use types::Validator;
@@ -384,21 +383,8 @@ pub fn quote_custom_validation(
 ) -> proc_macro2::TokenStream {
     let validator_param = field_quoter.quote_validator_param();
 
-    if let Validator::Custom {
-        function, argument, ..
-    } = &validation.validator
-    {
+    if let Validator::Custom { function } = &validation.validator {
         let fn_ident: syn::Path = syn::parse_str(function).unwrap();
-
-        let access = if_chain! {
-            if let Some(argument) = &**argument;
-            if let Some(access) = &argument.arg_access;
-            then {
-                quote!(, #access)
-            } else {
-                quote!()
-            }
-        };
 
         let add_message_quoted = if let Some(ref m) = validation.message {
             quote!(err.set_message(String::from(#m));)
@@ -407,7 +393,7 @@ pub fn quote_custom_validation(
         };
 
         let quoted = quote!(
-            match #fn_ident(#validator_param #access) {
+            match #fn_ident(#validator_param) {
                 ::std::result::Result::Ok(()) => (),
                 ::std::result::Result::Err(mut err) => {
                     #add_message_quoted
@@ -558,15 +544,8 @@ pub fn quote_schema_validation(validation: &SchemaValidation) -> proc_macro2::To
         quote!()
     };
 
-    let arg_quoted = if let Some(ref args) = validation.args {
-        let arg_type = &args.arg_access;
-        quote!(self, #arg_type)
-    } else {
-        quote!(self)
-    };
-
     quote!(
-        match #fn_ident(#arg_quoted) {
+        match #fn_ident(&self) {
             ::std::result::Result::Ok(()) => (),
             ::std::result::Result::Err(mut errs) => {
                 for err in errs.errors_mut() {

@@ -17,6 +17,6 @@ pub use validation::required::validate_required;
 pub use validation::urls::validate_url;
 
 pub use error::{ValidationError, ValidationErrors};
-pub use traits::{Contains, HasLen, Validate, ValidateArgs};
+pub use traits::{Contains, HasLen, Validate /* ValidateArgs */};
 
 pub use derive_validator::Validate;

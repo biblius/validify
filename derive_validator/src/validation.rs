@@ -1,13 +1,12 @@
-use crate::{asserts::assert_custom_arg_type, lit::*};
+use crate::lit::*;
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use syn::spanned::Spanned;
-use types::{CustomArgument, Validator};
+use types::Validator;
 
 #[derive(Debug)]
 pub struct SchemaValidation {
     pub function: String,
-    pub args: Option<CustomArgument>,
     pub code: Option<String>,
     pub message: Option<String>,
 }
@@ -215,7 +214,6 @@ pub fn extract_custom_validation(
     meta_items: &[syn::NestedMeta],
 ) -> FieldValidation {
     let mut function = None;
-    let mut argument = None;
 
     let (message, code) = extract_message_and_code("custom", &field, meta_items);
 
@@ -243,25 +241,6 @@ pub fn extract_custom_validation(
                                 None => error(lit.span(), "invalid argument type for `function` of `custom` validator: expected a string")
                             };
                         }
-                        "arg" => {
-                            match lit_to_string(lit) {
-                                Some(s) => {
-                                    match syn::parse_str::<syn::Type>(s.as_str()) {
-                                        Ok(arg_type) => {
-                                            assert_custom_arg_type(&lit.span(), &arg_type);
-                                            argument = Some(CustomArgument::new(lit.span(), arg_type));
-                                        }
-                                        Err(_) => {
-                                            let mut msg = "invalid argument type for `arg` of `custom` validator: The string has to be a single type.".to_string();
-                                            msg.push_str("\n(Tip: You can combine multiple types into one tuple.)");
-
-                                            error(lit.span(), msg.as_str());
-                                        }
-                                    }
-                                }
-                                None => error(lit.span(), "invalid argument type for `arg` of `custom` validator: expected a string")
-                            };
-                        }
                         v => error(path.span(), &format!(
                             "unknown argument `{}` for validator `custom` (it only has `function`, `arg`)",
                             v
@@ -287,7 +266,6 @@ pub fn extract_custom_validation(
 
     let validator = Validator::Custom {
         function: function.unwrap(),
-        argument: Box::new(argument),
     };
     FieldValidation {
         message,
@@ -407,7 +385,6 @@ pub fn extract_one_arg_validation(
     let validator = match validator_name.as_ref() {
         "custom" => Validator::Custom {
             function: value.unwrap(),
-            argument: Box::new(None),
         },
         "contains" => Validator::Contains(value.unwrap()),
         "does_not_contain" => Validator::DoesNotContain(value.unwrap()),

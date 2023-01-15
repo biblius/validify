@@ -7,7 +7,6 @@ version = "0.1.0"
 proc-macro = true
 
 [dependencies]
-if_chain = "1"
 lazy_static = "1"
 proc-macro-error = "1"
 proc-macro2 = "1"

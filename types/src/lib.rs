@@ -1,6 +1,3 @@
-use proc_macro2::Span;
-use syn::{Expr, Type};
-
 /// Contains all the validators that can be used
 #[derive(Debug, Clone)]
 pub enum Validator {
@@ -9,8 +6,6 @@ pub enum Validator {
     Custom {
         /// This is the name of the function that should be called
         function: String,
-        /// This is the argument type that can be passed in with a macro
-        argument: Box<Option<CustomArgument>>,
     },
     // String is the name of the field to match
     MustMatch(String),
@@ -43,31 +38,6 @@ pub enum ValueOrPath<T: std::fmt::Debug + Clone + PartialEq> {
     Path(String),
 }
 
-/// This struct stores information about defined custom arguments that will be passed in
-/// by the user in the validation step.
-#[derive(Debug, Clone)]
-pub struct CustomArgument {
-    /// The span of type definition, this can be used in combination with `quote_spanned!` for
-    /// better error reporting
-    pub def_span: Span,
-    /// The type of the argument. This can use `'v_a` as a lifetime but has to be Sized. This
-    /// means that the type size has to be known at compile time
-    pub arg_type: Type,
-    /// This is the way we can access the value from the provided arguments. This will usually
-    /// look something like `args.0`.
-    pub arg_access: Option<Expr>,
-}
-
-impl CustomArgument {
-    pub fn new(def_span: Span, arg_type: Type) -> Self {
-        CustomArgument {
-            def_span,
-            arg_type,
-            arg_access: None,
-        }
-    }
-}
-
 impl Validator {
     pub fn code(&self) -> &'static str {
         match *self {
@@ -88,25 +58,5 @@ impl Validator {
             Validator::DoesNotContain(_) => "does_not_contain",
             Validator::In(_) => "is_in",
         }
-    }
-
-    /// This returns the defined custom argument if it was defined
-    pub fn get_custom_argument(&self) -> Option<&CustomArgument> {
-        match self {
-            Validator::Custom { argument, .. } => (**argument).as_ref(),
-            _ => None,
-        }
-    }
-
-    /// This returns the defined custom argument if it was defined
-    pub fn get_custom_argument_mut(&mut self) -> Option<&mut CustomArgument> {
-        match self {
-            Validator::Custom { argument, .. } => (**argument).as_mut(),
-            _ => None,
-        }
-    }
-
-    pub fn has_custom_argument(&self) -> bool {
-        self.get_custom_argument().is_some()
     }
 }

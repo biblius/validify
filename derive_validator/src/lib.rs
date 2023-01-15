@@ -1,21 +1,17 @@
 #![recursion_limit = "128"]
 
-use std::{collections::HashMap, unreachable};
-
-use if_chain::if_chain;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
+use quote::quote;
 use quote::ToTokens;
-use quote::{quote, quote_spanned};
-use syn::{parse_quote, spanned::Spanned, GenericParam, Lifetime, LifetimeDef, Type};
+use std::{collections::HashMap, unreachable};
+use syn::{parse_quote, spanned::Spanned};
 
 use asserts::{assert_has_len, assert_has_range, assert_string_type, assert_type_matches};
 use lit::*;
 use quoting::{quote_schema_validations, quote_validator, FieldQuoter};
-use types::{CustomArgument, Validator};
+use types::Validator;
 use validation::*;
-
-use crate::asserts::assert_custom_arg_type;
 
 mod asserts;
 mod lit;
@@ -31,10 +27,8 @@ pub fn derive_validation(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 fn impl_validate(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     // Collecting the validators
-    let mut fields_validations = collect_field_validations(ast);
-    let mut struct_validations = find_struct_validations(&ast.attrs);
-    let (arg_type, has_arg) =
-        construct_validator_argument_type(&mut fields_validations, &mut struct_validations);
+    let fields_validations = collect_field_validations(ast);
+    let struct_validations = find_struct_validations(&ast.attrs);
     let (validations, nested_validations) = quote_field_validations(fields_validations);
 
     let schema_validations = quote_schema_validations(&struct_validations);
@@ -44,44 +38,9 @@ fn impl_validate(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
 
     // The Validate trait implementation
-    let validate_trait_impl = if !has_arg {
-        quote!(
-            impl #impl_generics ::validator::Validate for #ident #ty_generics #where_clause {
-                fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
-                    use ::validator::ValidateArgs;
-                    self.validate_args(())
-                }
-            }
-        )
-    } else {
-        quote!()
-    };
-
-    // Adding the validator lifetime 'v_a
-    let mut expanded_generic = ast.generics.clone();
-    expanded_generic.params.insert(
-        0,
-        GenericParam::Lifetime(LifetimeDef::new(Lifetime::new("'v_a", ast.span()))),
-    );
-
-    let (impl_generics, _, _) = expanded_generic.split_for_impl();
-
-    // Implementing ValidateArgs
-    let impl_ast = quote!(
-        #validate_trait_impl
-
-        // We need this here to prevent formatting lints that can be caused by `quote_spanned!`
-        // See: rust-lang/rust-clippy#6249 for more reference
-        #[allow(clippy::all)]
-        // Triggers when single_use_lifetimes rustc lint is configured in user project and there are no
-        // usages of 'v_a lifetime in the generated impl definition
-        #[allow(single_use_lifetimes)]
-        impl #impl_generics ::validator::ValidateArgs<'v_a> for #ident #ty_generics #where_clause {
-            type Args = #arg_type;
-
-            #[allow(unused_mut)]
-            #[allow(unused_variable)]
-            fn validate_args(&self, args: Self::Args) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+    quote!(
+        impl #impl_generics ::validator::Validate for #ident #ty_generics #where_clause {
+            fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
                 let mut errors = ::validator::ValidationErrors::new();
 
                 #(#validations)*
@@ -90,18 +49,14 @@ fn impl_validate(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 
                 #(#nested_validations)*
 
-                let mut result = if errors.is_empty() {
+                if errors.is_empty() {
                     ::std::result::Result::Ok(())
                 } else {
                     ::std::result::Result::Err(errors)
-                };
-
-                result
+                }
             }
         }
-    );
-
-    impl_ast
+    )
 }
 
 fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
@@ -140,62 +95,6 @@ fn collect_field_validations(ast: &syn::DeriveInput) -> Vec<FieldInformation> {
     })
 }
 
-fn construct_validator_argument_type(
-    fields_validations: &mut [FieldInformation],
-    struct_validations: &mut [SchemaValidation],
-) -> (proc_macro2::TokenStream, bool) {
-    const ARGS_PARAMETER_NAME: &str = "args";
-
-    // This iterator only holds custom validations with a argument_type
-    let mut customs: Vec<&mut CustomArgument> = fields_validations
-        .iter_mut()
-        .flat_map(|x| {
-            x.validations
-                .iter_mut()
-                .filter_map(|x| x.validator.get_custom_argument_mut())
-        })
-        .collect();
-
-    let mut schemas: Vec<&mut CustomArgument> = struct_validations
-        .iter_mut()
-        .filter_map(|x| x.args.as_mut())
-        .collect();
-
-    customs.append(&mut schemas);
-
-    if customs.is_empty() {
-        // Just the default empty type if no types are defined
-        (quote!(()), false)
-    } else if customs.len() == 1 {
-        // A single parameter will not be wrapped in a tuple
-        let arg = customs.pop().unwrap();
-        arg.arg_access = Some(syn::parse_str(ARGS_PARAMETER_NAME).unwrap());
-
-        let type_stream: &Type = &arg.arg_type;
-        let span = arg.def_span;
-        (quote_spanned!(span=> #type_stream), true)
-    } else {
-        // Multiple times will be wrapped in a tuple
-        let mut index = 0;
-        let params = customs.iter_mut().fold(quote!(), |acc, arg| {
-            let arg_access_string = format!("{}.{}", ARGS_PARAMETER_NAME, index);
-            arg.arg_access = Some(syn::parse_str(arg_access_string.as_str()).unwrap());
-            index += 1;
-
-            let type_stream: &Type = &arg.arg_type;
-            let span = arg.def_span;
-
-            if index == 1 {
-                quote_spanned!(span=> #type_stream)
-            } else {
-                quote_spanned!(span=> #acc, #type_stream)
-            }
-        });
-
-        (quote!((#params)), true)
-    }
-}
-
 fn quote_field_validations(
     mut fields: Vec<FieldInformation>,
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
@@ -225,85 +124,65 @@ fn find_struct_validation(attr: &syn::Attribute) -> SchemaValidation {
         abort!(span, "Invalid schema level validation: {}", msg);
     };
 
-    if_chain! {
-        if let Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) = attr.parse_meta();
-        if let syn::NestedMeta::Meta(syn::Meta::List(syn::MetaList { ref path, ref nested, .. })) = nested[0];
+    let Ok(syn::Meta::List(syn::MetaList { ref nested, .. })) = attr.parse_meta() else { error(attr.span(), "Unexpected struct validator") };
+    let syn::NestedMeta::Meta(syn::Meta::List(syn::MetaList { ref path, ref nested, .. })) = nested[0] else { error(attr.span(), "Unexpected struct validator") };
 
-        then {
-            let ident = path.get_ident().unwrap();
-            if ident != "schema" {
-                error(attr.span(), "Only `schema` validation is allowed on a struct")
+    let ident = path.get_ident().unwrap();
+    if ident != "schema" {
+        error(
+            attr.span(),
+            "Only `schema` validation is allowed on a struct",
+        )
+    }
+
+    let mut function = String::new();
+    let mut code = None;
+    let mut message = None;
+
+    for arg in nested {
+        let syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref path, ref lit, .. })) = *arg else { error(arg.span(), "Unexpected args") };
+
+        let ident = path.get_ident().unwrap();
+        match ident.to_string().as_ref() {
+            "function" => {
+                function = match lit_to_string(lit) {
+                    Some(s) => s,
+                    None => error(
+                        lit.span(),
+                        "Invalid argument type for `function`: only strings are allowed",
+                    ),
+                };
             }
-
-            let mut function = String::new();
-            let mut code = None;
-            let mut message = None;
-            let mut args = None;
-
-            for arg in nested {
-                if_chain! {
-                    if let syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref path, ref lit, .. })) = *arg;
-
-                    then {
-                        let ident = path.get_ident().unwrap();
-                        match ident.to_string().as_ref() {
-                            "function" => {
-                                function = match lit_to_string(lit) {
-                                    Some(s) => s,
-                                    None => error(lit.span(), "Invalid argument type for `function`: only strings are allowed"),
-                                };
-                            },
-                            "code" => {
-                                code = match lit_to_string(lit) {
-                                    Some(s) => Some(s),
-                                    None => error(lit.span(), "Invalid argument type for `code`: only strings are allowed"),
-                                };
-                            },
-                            "message" => {
-                                message = match lit_to_string(lit) {
-                                    Some(s) => Some(s),
-                                    None => error(lit.span(), "Invalid argument type for `message`: only strings are allowed"),
-                                };
-                            },
-                            "arg" => {
-                                match lit_to_string(lit) {
-                                    Some(s) => {
-                                        match syn::parse_str::<syn::Type>(s.as_str()) {
-                                            Ok(arg_type) => {
-                                                assert_custom_arg_type(&lit.span(), &arg_type);
-                                                args = Some(CustomArgument::new(lit.span(), arg_type));
-                                            }
-                                            Err(_) => {
-                                                let mut msg = "Invalid argument type for `arg` of `schema` validator: The string has to be a single type.".to_string();
-                                                msg.push_str("\n(Tip: You can combine multiple types into one tuple.)");
-                                                error(lit.span(), msg.as_str());
-                                            }
-                                        }
-                                    }
-                                    None => error(lit.span(), "Invalid argument type for `arg` of `custom` validator: expected a string")
-                                };
-                            },
-                            _ => error(lit.span(), "Unknown argument")
-                        }
-                    } else {
-                        error(arg.span(), "Unexpected args")
-                    }
-                }
+            "code" => {
+                code = match lit_to_string(lit) {
+                    Some(s) => Some(s),
+                    None => error(
+                        lit.span(),
+                        "Invalid argument type for `code`: only strings are allowed",
+                    ),
+                };
             }
-
-            if function.is_empty() {
-                error(path.span(), "`function` is required");
+            "message" => {
+                message = match lit_to_string(lit) {
+                    Some(s) => Some(s),
+                    None => error(
+                        lit.span(),
+                        "Invalid argument type for `message`: only strings are allowed",
+                    ),
+                };
             }
-
-            SchemaValidation {
-                function,
-                args,
-                code,
-                message,
-            }
-        } else {
-            error(attr.span(), "Unexpected struct validator")
+            _ => error(lit.span(), "Unknown argument"),
         }
+    }
+
+    if function.is_empty() {
+        error(path.span(), "`function` is required");
+    }
+
+    SchemaValidation {
+        function,
+        code,
+        message,
     }
 }
 
@@ -462,7 +341,6 @@ fn find_validators_for_field(
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::Custom {
                                                 function: s,
-                                                argument: Box::new(None),
                                             })),
                                             None => error(lit.span(), "Invalid argument for `custom` validator: only strings are allowed"),
                                         };

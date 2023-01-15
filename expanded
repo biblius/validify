@@ -1,0 +1,1174 @@
+#![feature(prelude_import)]
+#[prelude_import]
+use std::prelude::rust_2021::*;
+#[macro_use]
+extern crate std;
+use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
+use validify::{validify, Validify};
+const ALLOWED: &[&str] = &["YOLO", "mcswag"];
+struct T {
+    #[modify(custom = "foo", trim, uppercase)]
+    #[validate(length(min = 1), is_in = "ALLOWED")]
+    a: String,
+    #[validify]
+    b: U,
+    #[modify(trim, lowercase)]
+    #[validate(contains = "lmeo")]
+    c: Vec<String>,
+}
+impl ::validator::Validate for T {
+    fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        use ::validator::ValidateArgs;
+        self.validate_args()
+    }
+}
+#[allow(clippy::all)]
+#[allow(single_use_lifetimes)]
+impl ::validator::ValidateArgs for T {
+    #[allow(unused_mut)]
+    #[allow(unused_variable)]
+    fn validate_args(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        let mut errors = ::validator::ValidationErrors::new();
+        if !::validator::validate_length(
+            &self.a,
+            ::std::option::Option::Some(1u64 as u64),
+            ::std::option::Option::None,
+            ::std::option::Option::None,
+        ) {
+            let mut err = ::validator::ValidationError::new_field("length", "a");
+            err.add_param(::std::borrow::Cow::from("min"), &1u64);
+            err.add_param(::std::borrow::Cow::from("value"), &&self.a);
+            errors.add(err);
+        }
+        if !ALLOWED.contains(&self.a.as_str()) {
+            let mut err = ::validator::ValidationError::new_field("is_in", "a");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.a);
+            err.add_param(::std::borrow::Cow::from("haystack"), &ALLOWED);
+            errors.add(err);
+        }
+        if !::validator::validate_contains(&self.c, &"lmeo") {
+            let mut err = ::validator::ValidationError::new_field("contains", "c");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.c);
+            err.add_param(::std::borrow::Cow::from("needle"), &"lmeo");
+            errors.add(err);
+        }
+        let mut result = if errors.is_empty() {
+            ::std::result::Result::Ok(())
+        } else {
+            ::std::result::Result::Err(errors)
+        };
+        result
+    }
+}
+pub struct TPayload {
+    #[validate(required)]
+    a: Option<String>,
+    #[validate(required)]
+    b: Option<U>,
+    #[validate(required)]
+    c: Option<Vec<String>>,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for TPayload {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field3_finish(
+            f,
+            "TPayload",
+            "a",
+            &&self.a,
+            "b",
+            &&self.b,
+            "c",
+            &&self.c,
+        )
+    }
+}
+#[automatically_derived]
+impl ::core::clone::Clone for TPayload {
+    #[inline]
+    fn clone(&self) -> TPayload {
+        TPayload {
+            a: ::core::clone::Clone::clone(&self.a),
+            b: ::core::clone::Clone::clone(&self.b),
+            c: ::core::clone::Clone::clone(&self.c),
+        }
+    }
+}
+impl ::validator::Validate for TPayload {
+    fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        use ::validator::ValidateArgs;
+        self.validate_args()
+    }
+}
+#[allow(clippy::all)]
+#[allow(single_use_lifetimes)]
+impl ::validator::ValidateArgs for TPayload {
+    #[allow(unused_mut)]
+    #[allow(unused_variable)]
+    fn validate_args(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        let mut errors = ::validator::ValidationErrors::new();
+        if !::validator::validate_required(&self.a) {
+            let mut err = ::validator::ValidationError::new_field("required", "a");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.a);
+            errors.add(err);
+        }
+        if !::validator::validate_required(&self.b) {
+            let mut err = ::validator::ValidationError::new_field("required", "b");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.b);
+            errors.add(err);
+        }
+        if !::validator::validate_required(&self.c) {
+            let mut err = ::validator::ValidationError::new_field("required", "c");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.c);
+            errors.add(err);
+        }
+        let mut result = if errors.is_empty() {
+            ::std::result::Result::Ok(())
+        } else {
+            ::std::result::Result::Err(errors)
+        };
+        result
+    }
+}
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl _serde::Serialize for TPayload {
+        fn serialize<__S>(
+            &self,
+            __serializer: __S,
+        ) -> _serde::__private::Result<__S::Ok, __S::Error>
+        where
+            __S: _serde::Serializer,
+        {
+            let mut __serde_state = match _serde::Serializer::serialize_struct(
+                __serializer,
+                "TPayload",
+                false as usize + 1 + 1 + 1,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            match _serde::ser::SerializeStruct::serialize_field(
+                &mut __serde_state,
+                "a",
+                &self.a,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            match _serde::ser::SerializeStruct::serialize_field(
+                &mut __serde_state,
+                "b",
+                &self.b,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            match _serde::ser::SerializeStruct::serialize_field(
+                &mut __serde_state,
+                "c",
+                &self.c,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            _serde::ser::SerializeStruct::end(__serde_state)
+        }
+    }
+};
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl<'de> _serde::Deserialize<'de> for TPayload {
+        fn deserialize<__D>(
+            __deserializer: __D,
+        ) -> _serde::__private::Result<Self, __D::Error>
+        where
+            __D: _serde::Deserializer<'de>,
+        {
+            #[allow(non_camel_case_types)]
+            enum __Field {
+                __field0,
+                __field1,
+                __field2,
+                __ignore,
+            }
+            struct __FieldVisitor;
+            impl<'de> _serde::de::Visitor<'de> for __FieldVisitor {
+                type Value = __Field;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(
+                        __formatter,
+                        "field identifier",
+                    )
+                }
+                fn visit_u64<__E>(
+                    self,
+                    __value: u64,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        0u64 => _serde::__private::Ok(__Field::__field0),
+                        1u64 => _serde::__private::Ok(__Field::__field1),
+                        2u64 => _serde::__private::Ok(__Field::__field2),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_str<__E>(
+                    self,
+                    __value: &str,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        "a" => _serde::__private::Ok(__Field::__field0),
+                        "b" => _serde::__private::Ok(__Field::__field1),
+                        "c" => _serde::__private::Ok(__Field::__field2),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_bytes<__E>(
+                    self,
+                    __value: &[u8],
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        b"a" => _serde::__private::Ok(__Field::__field0),
+                        b"b" => _serde::__private::Ok(__Field::__field1),
+                        b"c" => _serde::__private::Ok(__Field::__field2),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+            }
+            impl<'de> _serde::Deserialize<'de> for __Field {
+                #[inline]
+                fn deserialize<__D>(
+                    __deserializer: __D,
+                ) -> _serde::__private::Result<Self, __D::Error>
+                where
+                    __D: _serde::Deserializer<'de>,
+                {
+                    _serde::Deserializer::deserialize_identifier(
+                        __deserializer,
+                        __FieldVisitor,
+                    )
+                }
+            }
+            struct __Visitor<'de> {
+                marker: _serde::__private::PhantomData<TPayload>,
+                lifetime: _serde::__private::PhantomData<&'de ()>,
+            }
+            impl<'de> _serde::de::Visitor<'de> for __Visitor<'de> {
+                type Value = TPayload;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(
+                        __formatter,
+                        "struct TPayload",
+                    )
+                }
+                #[inline]
+                fn visit_seq<__A>(
+                    self,
+                    mut __seq: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::SeqAccess<'de>,
+                {
+                    let __field0 = match match _serde::de::SeqAccess::next_element::<
+                        Option<String>,
+                    >(&mut __seq) {
+                        _serde::__private::Ok(__val) => __val,
+                        _serde::__private::Err(__err) => {
+                            return _serde::__private::Err(__err);
+                        }
+                    } {
+                        _serde::__private::Some(__value) => __value,
+                        _serde::__private::None => {
+                            return _serde::__private::Err(
+                                _serde::de::Error::invalid_length(
+                                    0usize,
+                                    &"struct TPayload with 3 elements",
+                                ),
+                            );
+                        }
+                    };
+                    let __field1 = match match _serde::de::SeqAccess::next_element::<
+                        Option<U>,
+                    >(&mut __seq) {
+                        _serde::__private::Ok(__val) => __val,
+                        _serde::__private::Err(__err) => {
+                            return _serde::__private::Err(__err);
+                        }
+                    } {
+                        _serde::__private::Some(__value) => __value,
+                        _serde::__private::None => {
+                            return _serde::__private::Err(
+                                _serde::de::Error::invalid_length(
+                                    1usize,
+                                    &"struct TPayload with 3 elements",
+                                ),
+                            );
+                        }
+                    };
+                    let __field2 = match match _serde::de::SeqAccess::next_element::<
+                        Option<Vec<String>>,
+                    >(&mut __seq) {
+                        _serde::__private::Ok(__val) => __val,
+                        _serde::__private::Err(__err) => {
+                            return _serde::__private::Err(__err);
+                        }
+                    } {
+                        _serde::__private::Some(__value) => __value,
+                        _serde::__private::None => {
+                            return _serde::__private::Err(
+                                _serde::de::Error::invalid_length(
+                                    2usize,
+                                    &"struct TPayload with 3 elements",
+                                ),
+                            );
+                        }
+                    };
+                    _serde::__private::Ok(TPayload {
+                        a: __field0,
+                        b: __field1,
+                        c: __field2,
+                    })
+                }
+                #[inline]
+                fn visit_map<__A>(
+                    self,
+                    mut __map: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::MapAccess<'de>,
+                {
+                    let mut __field0: _serde::__private::Option<Option<String>> = _serde::__private::None;
+                    let mut __field1: _serde::__private::Option<Option<U>> = _serde::__private::None;
+                    let mut __field2: _serde::__private::Option<Option<Vec<String>>> = _serde::__private::None;
+                    while let _serde::__private::Some(__key)
+                        = match _serde::de::MapAccess::next_key::<__Field>(&mut __map) {
+                            _serde::__private::Ok(__val) => __val,
+                            _serde::__private::Err(__err) => {
+                                return _serde::__private::Err(__err);
+                            }
+                        } {
+                        match __key {
+                            __Field::__field0 => {
+                                if _serde::__private::Option::is_some(&__field0) {
+                                    return _serde::__private::Err(
+                                        <__A::Error as _serde::de::Error>::duplicate_field("a"),
+                                    );
+                                }
+                                __field0 = _serde::__private::Some(
+                                    match _serde::de::MapAccess::next_value::<
+                                        Option<String>,
+                                    >(&mut __map) {
+                                        _serde::__private::Ok(__val) => __val,
+                                        _serde::__private::Err(__err) => {
+                                            return _serde::__private::Err(__err);
+                                        }
+                                    },
+                                );
+                            }
+                            __Field::__field1 => {
+                                if _serde::__private::Option::is_some(&__field1) {
+                                    return _serde::__private::Err(
+                                        <__A::Error as _serde::de::Error>::duplicate_field("b"),
+                                    );
+                                }
+                                __field1 = _serde::__private::Some(
+                                    match _serde::de::MapAccess::next_value::<
+                                        Option<U>,
+                                    >(&mut __map) {
+                                        _serde::__private::Ok(__val) => __val,
+                                        _serde::__private::Err(__err) => {
+                                            return _serde::__private::Err(__err);
+                                        }
+                                    },
+                                );
+                            }
+                            __Field::__field2 => {
+                                if _serde::__private::Option::is_some(&__field2) {
+                                    return _serde::__private::Err(
+                                        <__A::Error as _serde::de::Error>::duplicate_field("c"),
+                                    );
+                                }
+                                __field2 = _serde::__private::Some(
+                                    match _serde::de::MapAccess::next_value::<
+                                        Option<Vec<String>>,
+                                    >(&mut __map) {
+                                        _serde::__private::Ok(__val) => __val,
+                                        _serde::__private::Err(__err) => {
+                                            return _serde::__private::Err(__err);
+                                        }
+                                    },
+                                );
+                            }
+                            _ => {
+                                let _ = match _serde::de::MapAccess::next_value::<
+                                    _serde::de::IgnoredAny,
+                                >(&mut __map) {
+                                    _serde::__private::Ok(__val) => __val,
+                                    _serde::__private::Err(__err) => {
+                                        return _serde::__private::Err(__err);
+                                    }
+                                };
+                            }
+                        }
+                    }
+                    let __field0 = match __field0 {
+                        _serde::__private::Some(__field0) => __field0,
+                        _serde::__private::None => {
+                            match _serde::__private::de::missing_field("a") {
+                                _serde::__private::Ok(__val) => __val,
+                                _serde::__private::Err(__err) => {
+                                    return _serde::__private::Err(__err);
+                                }
+                            }
+                        }
+                    };
+                    let __field1 = match __field1 {
+                        _serde::__private::Some(__field1) => __field1,
+                        _serde::__private::None => {
+                            match _serde::__private::de::missing_field("b") {
+                                _serde::__private::Ok(__val) => __val,
+                                _serde::__private::Err(__err) => {
+                                    return _serde::__private::Err(__err);
+                                }
+                            }
+                        }
+                    };
+                    let __field2 = match __field2 {
+                        _serde::__private::Some(__field2) => __field2,
+                        _serde::__private::None => {
+                            match _serde::__private::de::missing_field("c") {
+                                _serde::__private::Ok(__val) => __val,
+                                _serde::__private::Err(__err) => {
+                                    return _serde::__private::Err(__err);
+                                }
+                            }
+                        }
+                    };
+                    _serde::__private::Ok(TPayload {
+                        a: __field0,
+                        b: __field1,
+                        c: __field2,
+                    })
+                }
+            }
+            const FIELDS: &'static [&'static str] = &["a", "b", "c"];
+            _serde::Deserializer::deserialize_struct(
+                __deserializer,
+                "TPayload",
+                FIELDS,
+                __Visitor {
+                    marker: _serde::__private::PhantomData::<TPayload>,
+                    lifetime: _serde::__private::PhantomData,
+                },
+            )
+        }
+    }
+};
+impl Into<TPayload> for T {
+    fn into(self) -> TPayload {
+        TPayload {
+            a: Some(self.a),
+            b: Some(self.b),
+            c: Some(self.c),
+        }
+    }
+}
+impl From<TPayload> for T {
+    fn from(payload: TPayload) -> Self {
+        Self {
+            a: payload.a.unwrap(),
+            b: payload.b.unwrap(),
+            c: payload.c.unwrap(),
+        }
+    }
+}
+impl ::validify::Modify for T {
+    fn modify(&mut self) {
+        foo(&mut self.a);
+        self.a = self.a.trim().to_string();
+        self.a = self.a.to_uppercase();
+        self.b.modify();
+        for el in self.c.iter_mut() {
+            *el = el.trim().to_string();
+        }
+        for el in self.c.iter_mut() {
+            *el = el.to_lowercase();
+        }
+    }
+}
+impl ::validify::Validify for T {
+    type Payload = TPayload;
+    /// Apply the provided modifiers to self and run validations
+    fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
+        <Self::Payload as ::validator::Validate>::validate(&payload)?;
+        let mut this = Self::from(payload);
+        let mut errors = ::validator::ValidationErrors::new();
+        if let Err(mut e)
+            = <U as ::validify::Validify>::validate(this.b.clone().into()) {
+            errors.merge(e);
+        }
+        <Self as ::validify::Modify>::modify(&mut this);
+        if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
+            errors.merge(errs);
+        }
+        if !errors.is_empty() {
+            errors.sort();
+            return Err(errors);
+        }
+        Ok(this)
+    }
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for T {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field3_finish(
+            f,
+            "T",
+            "a",
+            &&self.a,
+            "b",
+            &&self.b,
+            "c",
+            &&self.c,
+        )
+    }
+}
+#[automatically_derived]
+impl ::core::clone::Clone for T {
+    #[inline]
+    fn clone(&self) -> T {
+        T {
+            a: ::core::clone::Clone::clone(&self.a),
+            b: ::core::clone::Clone::clone(&self.b),
+            c: ::core::clone::Clone::clone(&self.c),
+        }
+    }
+}
+struct U {
+    #[validate(range(min = 1))]
+    b: usize,
+}
+impl ::validator::Validate for U {
+    fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        use ::validator::ValidateArgs;
+        self.validate_args()
+    }
+}
+#[allow(clippy::all)]
+#[allow(single_use_lifetimes)]
+impl ::validator::ValidateArgs for U {
+    #[allow(unused_mut)]
+    #[allow(unused_variable)]
+    fn validate_args(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        let mut errors = ::validator::ValidationErrors::new();
+        if !::validator::validate_range(
+            self.b as f64,
+            ::std::option::Option::Some(1f64 as f64),
+            ::std::option::Option::None,
+        ) {
+            let mut err = ::validator::ValidationError::new_field("range", "b");
+            err.add_param(::std::borrow::Cow::from("min"), &1f64);
+            err.add_param(::std::borrow::Cow::from("value"), &self.b);
+            errors.add(err);
+        }
+        let mut result = if errors.is_empty() {
+            ::std::result::Result::Ok(())
+        } else {
+            ::std::result::Result::Err(errors)
+        };
+        result
+    }
+}
+pub struct UPayload {
+    #[validate(required)]
+    b: Option<usize>,
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for UPayload {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(f, "UPayload", "b", &&self.b)
+    }
+}
+#[automatically_derived]
+impl ::core::clone::Clone for UPayload {
+    #[inline]
+    fn clone(&self) -> UPayload {
+        UPayload {
+            b: ::core::clone::Clone::clone(&self.b),
+        }
+    }
+}
+impl ::validator::Validate for UPayload {
+    fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        use ::validator::ValidateArgs;
+        self.validate_args()
+    }
+}
+#[allow(clippy::all)]
+#[allow(single_use_lifetimes)]
+impl ::validator::ValidateArgs for UPayload {
+    #[allow(unused_mut)]
+    #[allow(unused_variable)]
+    fn validate_args(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
+        let mut errors = ::validator::ValidationErrors::new();
+        if !::validator::validate_required(&self.b) {
+            let mut err = ::validator::ValidationError::new_field("required", "b");
+            err.add_param(::std::borrow::Cow::from("value"), &&self.b);
+            errors.add(err);
+        }
+        let mut result = if errors.is_empty() {
+            ::std::result::Result::Ok(())
+        } else {
+            ::std::result::Result::Err(errors)
+        };
+        result
+    }
+}
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl _serde::Serialize for UPayload {
+        fn serialize<__S>(
+            &self,
+            __serializer: __S,
+        ) -> _serde::__private::Result<__S::Ok, __S::Error>
+        where
+            __S: _serde::Serializer,
+        {
+            let mut __serde_state = match _serde::Serializer::serialize_struct(
+                __serializer,
+                "UPayload",
+                false as usize + 1,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            match _serde::ser::SerializeStruct::serialize_field(
+                &mut __serde_state,
+                "b",
+                &self.b,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            _serde::ser::SerializeStruct::end(__serde_state)
+        }
+    }
+};
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl<'de> _serde::Deserialize<'de> for UPayload {
+        fn deserialize<__D>(
+            __deserializer: __D,
+        ) -> _serde::__private::Result<Self, __D::Error>
+        where
+            __D: _serde::Deserializer<'de>,
+        {
+            #[allow(non_camel_case_types)]
+            enum __Field {
+                __field0,
+                __ignore,
+            }
+            struct __FieldVisitor;
+            impl<'de> _serde::de::Visitor<'de> for __FieldVisitor {
+                type Value = __Field;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(
+                        __formatter,
+                        "field identifier",
+                    )
+                }
+                fn visit_u64<__E>(
+                    self,
+                    __value: u64,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        0u64 => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_str<__E>(
+                    self,
+                    __value: &str,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        "b" => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_bytes<__E>(
+                    self,
+                    __value: &[u8],
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        b"b" => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+            }
+            impl<'de> _serde::Deserialize<'de> for __Field {
+                #[inline]
+                fn deserialize<__D>(
+                    __deserializer: __D,
+                ) -> _serde::__private::Result<Self, __D::Error>
+                where
+                    __D: _serde::Deserializer<'de>,
+                {
+                    _serde::Deserializer::deserialize_identifier(
+                        __deserializer,
+                        __FieldVisitor,
+                    )
+                }
+            }
+            struct __Visitor<'de> {
+                marker: _serde::__private::PhantomData<UPayload>,
+                lifetime: _serde::__private::PhantomData<&'de ()>,
+            }
+            impl<'de> _serde::de::Visitor<'de> for __Visitor<'de> {
+                type Value = UPayload;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(
+                        __formatter,
+                        "struct UPayload",
+                    )
+                }
+                #[inline]
+                fn visit_seq<__A>(
+                    self,
+                    mut __seq: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::SeqAccess<'de>,
+                {
+                    let __field0 = match match _serde::de::SeqAccess::next_element::<
+                        Option<usize>,
+                    >(&mut __seq) {
+                        _serde::__private::Ok(__val) => __val,
+                        _serde::__private::Err(__err) => {
+                            return _serde::__private::Err(__err);
+                        }
+                    } {
+                        _serde::__private::Some(__value) => __value,
+                        _serde::__private::None => {
+                            return _serde::__private::Err(
+                                _serde::de::Error::invalid_length(
+                                    0usize,
+                                    &"struct UPayload with 1 element",
+                                ),
+                            );
+                        }
+                    };
+                    _serde::__private::Ok(UPayload { b: __field0 })
+                }
+                #[inline]
+                fn visit_map<__A>(
+                    self,
+                    mut __map: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::MapAccess<'de>,
+                {
+                    let mut __field0: _serde::__private::Option<Option<usize>> = _serde::__private::None;
+                    while let _serde::__private::Some(__key)
+                        = match _serde::de::MapAccess::next_key::<__Field>(&mut __map) {
+                            _serde::__private::Ok(__val) => __val,
+                            _serde::__private::Err(__err) => {
+                                return _serde::__private::Err(__err);
+                            }
+                        } {
+                        match __key {
+                            __Field::__field0 => {
+                                if _serde::__private::Option::is_some(&__field0) {
+                                    return _serde::__private::Err(
+                                        <__A::Error as _serde::de::Error>::duplicate_field("b"),
+                                    );
+                                }
+                                __field0 = _serde::__private::Some(
+                                    match _serde::de::MapAccess::next_value::<
+                                        Option<usize>,
+                                    >(&mut __map) {
+                                        _serde::__private::Ok(__val) => __val,
+                                        _serde::__private::Err(__err) => {
+                                            return _serde::__private::Err(__err);
+                                        }
+                                    },
+                                );
+                            }
+                            _ => {
+                                let _ = match _serde::de::MapAccess::next_value::<
+                                    _serde::de::IgnoredAny,
+                                >(&mut __map) {
+                                    _serde::__private::Ok(__val) => __val,
+                                    _serde::__private::Err(__err) => {
+                                        return _serde::__private::Err(__err);
+                                    }
+                                };
+                            }
+                        }
+                    }
+                    let __field0 = match __field0 {
+                        _serde::__private::Some(__field0) => __field0,
+                        _serde::__private::None => {
+                            match _serde::__private::de::missing_field("b") {
+                                _serde::__private::Ok(__val) => __val,
+                                _serde::__private::Err(__err) => {
+                                    return _serde::__private::Err(__err);
+                                }
+                            }
+                        }
+                    };
+                    _serde::__private::Ok(UPayload { b: __field0 })
+                }
+            }
+            const FIELDS: &'static [&'static str] = &["b"];
+            _serde::Deserializer::deserialize_struct(
+                __deserializer,
+                "UPayload",
+                FIELDS,
+                __Visitor {
+                    marker: _serde::__private::PhantomData::<UPayload>,
+                    lifetime: _serde::__private::PhantomData,
+                },
+            )
+        }
+    }
+};
+impl Into<UPayload> for U {
+    fn into(self) -> UPayload {
+        UPayload { b: Some(self.b) }
+    }
+}
+impl From<UPayload> for U {
+    fn from(payload: UPayload) -> Self {
+        Self { b: payload.b.unwrap() }
+    }
+}
+impl ::validify::Modify for U {
+    fn modify(&mut self) {}
+}
+impl ::validify::Validify for U {
+    type Payload = UPayload;
+    /// Apply the provided modifiers to self and run validations
+    fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
+        <Self::Payload as ::validator::Validate>::validate(&payload)?;
+        let mut this = Self::from(payload);
+        let mut errors = ::validator::ValidationErrors::new();
+        <Self as ::validify::Modify>::modify(&mut this);
+        if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
+            errors.merge(errs);
+        }
+        if !errors.is_empty() {
+            errors.sort();
+            return Err(errors);
+        }
+        Ok(this)
+    }
+}
+#[automatically_derived]
+impl ::core::fmt::Debug for U {
+    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+        ::core::fmt::Formatter::debug_struct_field1_finish(f, "U", "b", &&self.b)
+    }
+}
+#[automatically_derived]
+impl ::core::clone::Clone for U {
+    #[inline]
+    fn clone(&self) -> U {
+        U {
+            b: ::core::clone::Clone::clone(&self.b),
+        }
+    }
+}
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl _serde::Serialize for U {
+        fn serialize<__S>(
+            &self,
+            __serializer: __S,
+        ) -> _serde::__private::Result<__S::Ok, __S::Error>
+        where
+            __S: _serde::Serializer,
+        {
+            let mut __serde_state = match _serde::Serializer::serialize_struct(
+                __serializer,
+                "U",
+                false as usize + 1,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            match _serde::ser::SerializeStruct::serialize_field(
+                &mut __serde_state,
+                "b",
+                &self.b,
+            ) {
+                _serde::__private::Ok(__val) => __val,
+                _serde::__private::Err(__err) => {
+                    return _serde::__private::Err(__err);
+                }
+            };
+            _serde::ser::SerializeStruct::end(__serde_state)
+        }
+    }
+};
+#[doc(hidden)]
+#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+const _: () = {
+    #[allow(unused_extern_crates, clippy::useless_attribute)]
+    extern crate serde as _serde;
+    #[automatically_derived]
+    impl<'de> _serde::Deserialize<'de> for U {
+        fn deserialize<__D>(
+            __deserializer: __D,
+        ) -> _serde::__private::Result<Self, __D::Error>
+        where
+            __D: _serde::Deserializer<'de>,
+        {
+            #[allow(non_camel_case_types)]
+            enum __Field {
+                __field0,
+                __ignore,
+            }
+            struct __FieldVisitor;
+            impl<'de> _serde::de::Visitor<'de> for __FieldVisitor {
+                type Value = __Field;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(
+                        __formatter,
+                        "field identifier",
+                    )
+                }
+                fn visit_u64<__E>(
+                    self,
+                    __value: u64,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        0u64 => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_str<__E>(
+                    self,
+                    __value: &str,
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        "b" => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+                fn visit_bytes<__E>(
+                    self,
+                    __value: &[u8],
+                ) -> _serde::__private::Result<Self::Value, __E>
+                where
+                    __E: _serde::de::Error,
+                {
+                    match __value {
+                        b"b" => _serde::__private::Ok(__Field::__field0),
+                        _ => _serde::__private::Ok(__Field::__ignore),
+                    }
+                }
+            }
+            impl<'de> _serde::Deserialize<'de> for __Field {
+                #[inline]
+                fn deserialize<__D>(
+                    __deserializer: __D,
+                ) -> _serde::__private::Result<Self, __D::Error>
+                where
+                    __D: _serde::Deserializer<'de>,
+                {
+                    _serde::Deserializer::deserialize_identifier(
+                        __deserializer,
+                        __FieldVisitor,
+                    )
+                }
+            }
+            struct __Visitor<'de> {
+                marker: _serde::__private::PhantomData<U>,
+                lifetime: _serde::__private::PhantomData<&'de ()>,
+            }
+            impl<'de> _serde::de::Visitor<'de> for __Visitor<'de> {
+                type Value = U;
+                fn expecting(
+                    &self,
+                    __formatter: &mut _serde::__private::Formatter,
+                ) -> _serde::__private::fmt::Result {
+                    _serde::__private::Formatter::write_str(__formatter, "struct U")
+                }
+                #[inline]
+                fn visit_seq<__A>(
+                    self,
+                    mut __seq: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::SeqAccess<'de>,
+                {
+                    let __field0 = match match _serde::de::SeqAccess::next_element::<
+                        usize,
+                    >(&mut __seq) {
+                        _serde::__private::Ok(__val) => __val,
+                        _serde::__private::Err(__err) => {
+                            return _serde::__private::Err(__err);
+                        }
+                    } {
+                        _serde::__private::Some(__value) => __value,
+                        _serde::__private::None => {
+                            return _serde::__private::Err(
+                                _serde::de::Error::invalid_length(
+                                    0usize,
+                                    &"struct U with 1 element",
+                                ),
+                            );
+                        }
+                    };
+                    _serde::__private::Ok(U { b: __field0 })
+                }
+                #[inline]
+                fn visit_map<__A>(
+                    self,
+                    mut __map: __A,
+                ) -> _serde::__private::Result<Self::Value, __A::Error>
+                where
+                    __A: _serde::de::MapAccess<'de>,
+                {
+                    let mut __field0: _serde::__private::Option<usize> = _serde::__private::None;
+                    while let _serde::__private::Some(__key)
+                        = match _serde::de::MapAccess::next_key::<__Field>(&mut __map) {
+                            _serde::__private::Ok(__val) => __val,
+                            _serde::__private::Err(__err) => {
+                                return _serde::__private::Err(__err);
+                            }
+                        } {
+                        match __key {
+                            __Field::__field0 => {
+                                if _serde::__private::Option::is_some(&__field0) {
+                                    return _serde::__private::Err(
+                                        <__A::Error as _serde::de::Error>::duplicate_field("b"),
+                                    );
+                                }
+                                __field0 = _serde::__private::Some(
+                                    match _serde::de::MapAccess::next_value::<
+                                        usize,
+                                    >(&mut __map) {
+                                        _serde::__private::Ok(__val) => __val,
+                                        _serde::__private::Err(__err) => {
+                                            return _serde::__private::Err(__err);
+                                        }
+                                    },
+                                );
+                            }
+                            _ => {
+                                let _ = match _serde::de::MapAccess::next_value::<
+                                    _serde::de::IgnoredAny,
+                                >(&mut __map) {
+                                    _serde::__private::Ok(__val) => __val,
+                                    _serde::__private::Err(__err) => {
+                                        return _serde::__private::Err(__err);
+                                    }
+                                };
+                            }
+                        }
+                    }
+                    let __field0 = match __field0 {
+                        _serde::__private::Some(__field0) => __field0,
+                        _serde::__private::None => {
+                            match _serde::__private::de::missing_field("b") {
+                                _serde::__private::Ok(__val) => __val,
+                                _serde::__private::Err(__err) => {
+                                    return _serde::__private::Err(__err);
+                                }
+                            }
+                        }
+                    };
+                    _serde::__private::Ok(U { b: __field0 })
+                }
+            }
+            const FIELDS: &'static [&'static str] = &["b"];
+            _serde::Deserializer::deserialize_struct(
+                __deserializer,
+                "U",
+                FIELDS,
+                __Visitor {
+                    marker: _serde::__private::PhantomData::<U>,
+                    lifetime: _serde::__private::PhantomData,
+                },
+            )
+        }
+    }
+};
+fn foo(a: &mut String) {
+    *a = "  yolo    ".to_string();
+}
