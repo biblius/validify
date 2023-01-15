@@ -32,7 +32,8 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 | credit_card           |  String     |        --       | Checks if the field's value is a valid credit card number
 | phone                 |  String     |        --       | Checks if the field's value is a valid phone number
 | required              |  Option     |        --       | Checks whether the field's value is Some
-| is_in                 |  String     |    Collection*  | Checks whether the field's value is in the provided collection
+| is_in                 |  String/Num |    Collection*  | Checks whether the field's value is in the provided collection
+| not_in                |  String/Num |    Collection*  | Checks whether the field's value is not in the provided collection
 
 \* Params are specified in string notation, i.e. `"param"`.
 
@@ -83,7 +84,7 @@ let mut test = Testor {
   },
 };
 // The magic line
-let res = Testor::validate(test.into());
+let res = Testor::validify(test.into());
 
 assert!(matches!(res, Ok(_)));
 
@@ -102,7 +103,7 @@ Notice how even though field `d` is an option, the function used to modify the f
 
 ## How it works
 
-Every struct annotated with `#[validify]` gets an associated payload struct. E.g.
+Every struct annotated with `#[validify]` gets an associated payload struct, e.g.
 
 ```rust
 #[validify]
@@ -116,7 +117,7 @@ struct Something {
 behind the scenes will generate an intermediary
 
 ```rust
-#[derive(Debug, Clone, Serialize, Deserialize, validator::Validate)]
+#[derive(Debug, Clone, Deserialize, validify::Validate)]
 struct SomethingPayload {
   #[validate(required)]
   a: Option<usize>,
@@ -130,20 +131,20 @@ struct SomethingPayload {
 
 Note that every field that isn't an option will be an 'optional' required field in the payload (solely to avoid deserialization errors). The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
 
-Validify's `validate` method always takes in the generated payload and outputs the original struct if all validations have passed.
+Validify's `validify` method always takes in the generated payload and outputs the original struct if all validations have passed.
 
-The macro automatically implements validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validate` which in the above example expands to:
+The macro automatically implements validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which in the above example expands to:
 
 ```rust
-    fn validate(payload: Self::Payload) -> Result<(), ValidationErrors> {
-        <Self::Payload as ::validator::Validate>::validate(&payload)?;
+    fn validify(payload: Self::Payload) -> Result<(), ValidationErrors> {
+        <Self::Payload as ::validify::Validate>::validate(&payload)?;
         let mut this = Self::from(payload);
         let mut errors: Vec<::validify::ValidationErrors> = Vec::new();
-        if let Err(e) = <Nestor as ::validify::Validify>::validate(this.nested.clone().into()) {
+        if let Err(e) = <Nestor as ::validify::Validify>::validify(this.nested.clone().into()) {
             errors.push(e.into());
         }
         <Self as ::validify::Modify>::modify(&mut this);
-        if let Err(e) = <Self as ::validator::Validate>::validate(&this) {
+        if let Err(e) = <Self as ::validify::Validate>::validate(&this) {
             errors.push(e.into());
         }
         if !errors.is_empty() {
@@ -171,7 +172,7 @@ fn validate_testor(t: &Testor) {
 
 Like field level validation, schema level validation is performed after modification.
 
-An example with a mock handler with actix:
+### **Example with route handler**
 
 ```rust
     fn actix_test() {
@@ -197,7 +198,7 @@ An example with a mock handler with actix:
     fn mock_handler(data: actix_web::web::Json<JsonTestPayload> 
     /* OR data: actix_web::web::Json<<JsonTest as Validify>::Payload> */) {
       let data = data.0;
-      let data = JsonTest::validate(data).unwrap();
+      let data = JsonTest::validify(data).unwrap();
       mock_service(data);
     }
 
@@ -205,4 +206,231 @@ An example with a mock handler with actix:
       assert_eq!(data.a, "modified".to_string());
       assert_eq!(data.b, "MAKEMESHOUT".to_string())
     }
+```
+
+### **Example with Big Boi**
+
+```rust
+
+const WORKING_HOURS: &[&str] = &["08", "09", "10", "11", "12", "13", "14", "15", "16"];
+const CAREER_LEVEL: &[&str] = &["One", "Two", "Over 9000"];
+const STATUSES: &[&str] = &["online", "offline"];
+const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
+const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
+const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
+
+#[validify]
+#[derive(Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+#[validate(schema(function = "schema_validation"))]
+struct BigBoi {
+    #[modify(trim)]
+    #[validate(length(max = 300))]
+    title: String,
+    #[modify(trim)]
+    #[validate(is_in = "STATUSES")]
+    status: String,
+    #[modify(capitalize, trim)]
+    city_country: String,
+    #[validate(length(max = 1000))]
+    education: String,
+    #[modify(capitalize)]
+    type_of_workplace: Vec<String>,
+    #[validate(is_in = "WORKING_HOURS")]
+    working_hours: String,
+    part_time_period: Option<String>,
+    #[modify(capitalize)]
+    #[validate(is_in = "CONTRACT_TYPES")]
+    contract_type: String,
+    indefinite_probation_period: bool,
+    #[validate(is_in = "ALLOWED_DURATIONS")]
+    indefinite_probation_period_duration: Option<i32>,
+    #[validate(is_in = "CAREER_LEVEL")]
+    career_level: String,
+    #[modify(capitalize)]
+    benefits: String,
+    #[validate(length(max = 60))]
+    meta_title: String,
+    #[validate(length(max = 160))]
+    meta_description: String,
+    #[validate(is_in = "ALLOWED_MIME")]
+    meta_image: String,
+    #[validate(custom = "greater_than_now")]
+    published_at: String,
+    #[validate(custom = "greater_than_now")]
+    expires_at: String,
+    #[validify]
+    languages: Vec<TestLanguages>,
+    #[validify]
+    tags: TestTags,
+}
+
+
+fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
+    let mut errs = ValidationErrors::new();
+    if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
+        errs.add(ValidationError::new_schema(
+            "Fulltime contract cannot have part time period",
+        ));
+    }
+
+    if bb.contract_type == "Fulltime"
+        && bb.indefinite_probation_period
+        && bb.indefinite_probation_period_duration.is_none()
+    {
+        errs.add(
+            ValidationError::new_schema("No probation duration")
+                .with_message("Indefinite probation duration must be specified".to_string()),
+        );
+    }
+    if errs.is_empty() {
+        return Ok(());
+    }
+    Err(errs)
+}
+
+fn greater_than_now(date: &str) -> Result<(), ValidationError> {
+    let parsed = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M:%S");
+    match parsed {
+        Ok(date) => {
+            if date
+                < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
+                    .unwrap()
+            {
+                Err(ValidationError::new_field(
+                    "Date cannot be less than now",
+                    "lmao",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        Err(e) => {
+            eprintln!("Error parsing date: {e}");
+            Err(ValidationError::new_field("Could not parse date", "lmao"))
+        }
+    }
+}
+
+#[validify]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct TestTags {
+    #[modify(trim)]
+    #[validate(length(min = 1, max = 10), custom = "validate_names")]
+    names: Vec<String>,
+}
+
+fn validate_names(names: &[String]) -> Result<(), ValidationError> {
+    for n in names.iter() {
+        if n.len() > 10 || n.is_empty() {
+            return Err(ValidationError::new_field(
+                "Maximum length of 10 exceeded for name",
+                "names",
+            ));
+        }
+    }
+    Ok(())
+}
+
+const PROFICIENCY: &[&str] = &["dunno", "killinit"];
+
+#[validify]
+#[derive(Serialize, Clone, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct TestLanguages {
+    company_opening_id: String,
+    #[modify(trim)]
+    language: String,
+    #[modify(trim)]
+    #[validate(is_in = "PROFICIENCY")]
+    proficiency: Option<String>,
+    required: Option<bool>,
+    created_by: String,
+}
+
+
+#[test]
+fn biggest_of_bois() {
+  let tags = TestTags {
+        // Invalid length due to `validate_names`
+        names: vec![
+            "taggggggggggggggggggggggggg".to_string(),
+            "tag".to_string(),
+            "tag".to_string(),
+        ],
+    };
+
+    let languages = vec![
+        TestLanguages {
+            company_opening_id: "yolo mcswag".to_string(),
+            language: "    tommorrowlang     ".to_string(),
+
+            // Invalid proficiency
+            proficiency: Some("invalid      ".to_string()),
+            required: Some(true),
+            created_by: "me".to_string(),
+        },
+        TestLanguages {
+            company_opening_id: "divops".to_string(),
+            language: "go".to_string(),
+
+            // Invalid proficiency
+            proficiency: Some("    invalid".to_string()),
+            required: None,
+            created_by: "they".to_string(),
+        },
+    ];
+
+    let big = BigBoi {
+        title: "me so big".to_string(),
+
+        // Invalid status
+        status: "invalid".to_string(),
+
+        city_country: "gradrzava".to_string(),
+        description_roles_responsibilites: "ask no questions tell no lies".to_string(),
+        education: "any".to_string(),
+        type_of_workplace: vec!["dumpster".to_string(), "mcdonalds".to_string()],
+
+        // Invalid working hours
+        working_hours: "invalid".to_string(),
+
+        // Part time period with fulltime contract type
+        part_time_period: Some(String::new()),
+        contract_type: "Fulltime".to_string(),
+
+        // Fulltime period with no duration
+        indefinite_probation_period: true,
+        indefinite_probation_period_duration: None,
+
+        // Invalid career level
+        career_level: "Over 100000".to_string(),
+
+        benefits: "none".to_string(),
+        meta_title: "this struct is getting pretty big".to_string(),
+        meta_description: "and it's king of annoying".to_string(),
+
+        // Invalid mime type
+        meta_image: "heic".to_string(),
+
+        // Invalid time
+        published_at: "1999-01-01 00:00:00".to_string(),
+
+        // Invalid time
+        expires_at: "1999-01-01 00:00:00".to_string(),
+        languages,
+        tags,
+    };
+
+    let res = BigBoi::validify(big.into());
+    assert!(matches!(res, Err(e) if e.errors().len() == 11));
+
+    let schema_errs = res.as_ref().unwrap_err().schema_errors();
+    let field_errs = res.unwrap_err().field_errors();
+
+    assert_eq!(schema_errs.len(), 2);
+    assert_eq!(field_errs.len(), 9);
+}
+
 ```

@@ -7,15 +7,10 @@ pub enum Validator {
         /// This is the name of the function that should be called
         function: String,
     },
-    // String is the name of the field to match
-    MustMatch(String),
-    // No implementation in this crate, it's all in validator_derive
-    Regex(String),
     Range {
         min: Option<ValueOrPath<f64>>,
         max: Option<ValueOrPath<f64>>,
     },
-    // Any value that impl HasLen can be validated with Length
     Length {
         min: Option<ValueOrPath<u64>>,
         max: Option<ValueOrPath<u64>>,
@@ -27,9 +22,13 @@ pub enum Validator {
     NonControlCharacter,
     Required,
     RequiredNested,
+    // Strings are the name of the item to match against
+    MustMatch(String),
+    Regex(String),
     Contains(String),
     DoesNotContain(String),
     In(String),
+    NotIn(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +56,17 @@ impl Validator {
             Validator::RequiredNested => "required_nested",
             Validator::DoesNotContain(_) => "does_not_contain",
             Validator::In(_) => "is_in",
+            Validator::NotIn(_) => "not_in",
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Modifier {
+    Trim,
+    Uppercase,
+    Lowercase,
+    Capitalize,
+    Custom { function: String },
+    Nested,
 }

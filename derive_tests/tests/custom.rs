@@ -1,4 +1,4 @@
-use validator::{Validate, ValidationError};
+use validify::{Validate, ValidationError};
 
 fn valid_custom_fn(_: &str) -> Result<(), ValidationError> {
     Ok(())

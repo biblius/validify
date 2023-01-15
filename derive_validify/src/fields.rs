@@ -1,4 +1,4 @@
-use traits::ModType;
+use types::Modifier;
 
 /// Holds the `syn::Field` in `field`, its type and all the annotated
 /// modifiers
@@ -7,7 +7,7 @@ pub(super) struct FieldInformation {
     pub field: syn::Field,
     pub field_type: String,
     pub name: String,
-    pub modifiers: Vec<ModType>,
+    pub modifiers: Vec<Modifier>,
 }
 
 impl FieldInformation {
@@ -15,7 +15,7 @@ impl FieldInformation {
         field: syn::Field,
         field_type: String,
         name: String,
-        modifiers: Vec<ModType>,
+        modifiers: Vec<Modifier>,
     ) -> Self {
         FieldInformation {
             field,

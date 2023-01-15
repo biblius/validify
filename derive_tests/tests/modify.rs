@@ -255,7 +255,7 @@ fn from_json() {
 
 fn mock_handler(data: actix_web::web::Json<<JsonTest as Validify>::Payload>) {
     let data = data.0;
-    let data = JsonTest::validate(data).unwrap();
+    let data = JsonTest::validify(data).unwrap();
     mock_service(data);
 }
 

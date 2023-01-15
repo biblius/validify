@@ -13,6 +13,4 @@ trybuild = "1.0.71"
 [dependencies]
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.91"
-traits = { version = "0.1.0", path = "../traits" }
-validator = { path = "../validator", version = "0.1.0" }
-validify = { version = "0.1.0", path = "../validify" }
+validify = { path = "../validify", version = "0.1.0" }

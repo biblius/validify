@@ -1,4 +1,4 @@
-use validator::{Validate, ValidationErrors};
+use validify::{Validate, ValidationErrors};
 
 #[derive(Validate)]
 #[validate(schema(function = "hey"))]

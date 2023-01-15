@@ -1,4 +1,4 @@
-use validator::{Validate, ValidationError, ValidationErrors};
+use validify::{Validate, ValidationError, ValidationErrors};
 
 #[test]
 fn can_validate_schema_fn_ok() {
@@ -21,7 +21,7 @@ fn can_validate_schema_fn_ok() {
 }
 
 mod some_defining_mod {
-    use validator::Validate;
+    use validify::Validate;
 
     #[derive(Debug, Validate)]
     #[validate(schema(function = "crate::some_validation_mod::valid_schema_fn"))]
@@ -37,7 +37,7 @@ mod some_defining_mod {
 }
 
 mod some_validation_mod {
-    use validator::{ValidationError, ValidationErrors};
+    use validify::{ValidationError, ValidationErrors};
 
     use crate::some_defining_mod::{TestStructInvalid, TestStructValid};
 

@@ -1,4 +1,4 @@
-use validator::Validate;
+use validify::Validate;
 
 #[derive(Validate)]
 struct Email {

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use validator::Validate;
+use validify::Validate;
 
 #[derive(Serialize)]
 struct ObjectRef {

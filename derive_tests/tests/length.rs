@@ -1,4 +1,4 @@
-use validator::Validate;
+use validify::Validate;
 
 const MIN_CONST: u64 = 1;
 const MAX_CONST: u64 = 10;

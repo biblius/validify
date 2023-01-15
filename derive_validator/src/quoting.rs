@@ -127,7 +127,7 @@ fn quote_error(
     };
 
     quote!(
-        let mut err = ::validator::ValidationError::new_field(#code, #field);
+        let mut err = ::validify::ValidationError::new_field(#code, #field);
         #add_message_quoted
     )
 }
@@ -181,7 +181,7 @@ pub fn quote_length_validation(
 
         let quoted_error = quote_error(validation, Some(field_name));
         let quoted = quote!(
-            if !::validator::validate_length(
+            if !::validify::validate_length(
                 #validator_param,
                 #min_tokens,
                 #max_tokens,
@@ -238,7 +238,7 @@ pub fn quote_range_validation(
 
         let quoted_error = quote_error(validation, Some(field_name));
         let quoted = quote!(
-            if !::validator::validate_range(
+            if !::validify::validate_range(
                 #quoted_ident as f64,
                 #min_tokens,
                 #max_tokens
@@ -266,7 +266,7 @@ pub fn quote_credit_card_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_credit_card(#validator_param) {
+        if !::validify::validate_credit_card(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -285,7 +285,7 @@ pub fn quote_phone_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_phone(#validator_param) {
+        if !::validify::validate_phone(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -304,7 +304,7 @@ pub fn quote_non_control_character_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_non_control_character(#validator_param) {
+        if !::validify::validate_non_control_character(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -323,7 +323,7 @@ pub fn quote_url_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_url(#validator_param) {
+        if !::validify::validate_url(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -342,7 +342,7 @@ pub fn quote_email_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_email(#validator_param) {
+        if !::validify::validate_email(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -363,7 +363,7 @@ pub fn quote_must_match_validation(
         let other_ident = syn::Ident::new(other, Span::call_site());
         let quoted_error = quote_error(validation, Some(field_name));
         let quoted = quote!(
-            if !::validator::validate_must_match(&self.#ident, &self.#other_ident) {
+            if !::validify::validate_must_match(&self.#ident, &self.#other_ident) {
                 #quoted_error
                 err.add_param(::std::borrow::Cow::from("value"), &self.#ident);
                 err.add_param(::std::borrow::Cow::from("other"), &self.#other_ident);
@@ -419,7 +419,7 @@ pub fn quote_contains_validation(
     if let Validator::Contains(ref needle) = validation.validator {
         let quoted_error = quote_error(validation, Some(field_name));
         let quoted = quote!(
-            if !::validator::validate_contains(#validator_param, &#needle) {
+            if !::validify::validate_contains(#validator_param, &#needle) {
                 #quoted_error
                 err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
                 err.add_param(::std::borrow::Cow::from("needle"), &#needle);
@@ -507,30 +507,70 @@ pub fn quote_validator(
         Validator::DoesNotContain(_) => {
             validations.push(quote_does_not_contain_validation(field_quoter, validation))
         }
-        Validator::In(_) => validations.push(quote_is_in_validation(field_quoter, validation)),
+        Validator::In(_) => validations.push(quote_in_validation(field_quoter, validation, false)),
+        Validator::NotIn(_) => {
+            validations.push(quote_in_validation(field_quoter, validation, true))
+        }
     }
 }
 
-pub fn quote_is_in_validation(
+/// This is a bit of a special case where we can't use the wrap if option since this is usually used with const slices where we'll
+/// usually need a double reference
+pub fn quote_in_validation(
     field_quoter: &FieldQuoter,
     validation: &FieldValidation,
+    not_in: bool,
 ) -> proc_macro2::TokenStream {
-    if let Validator::In(haystack) = &validation.validator {
+    if let Validator::In(haystack) | Validator::NotIn(haystack) = &validation.validator {
         let field_name = &field_quoter.name;
         let validator_param = field_quoter.quote_validator_param();
 
         let hs = syn::Ident::new(haystack, Span::call_site());
         let quoted_error = quote_error(validation, Some(field_name));
-        let quoted = quote!(
-            if !#hs.contains(#validator_param.as_str()) {
+
+        // Check for a string type
+        let as_str = if field_quoter._type.contains("String") {
+            quote!(.as_str())
+        } else {
+            quote!()
+        };
+
+        // Check which mode we're in
+        let contains = if not_in {
+            quote!(#hs.contains(#validator_param #as_str))
+        } else {
+            quote!(!#hs.contains(#validator_param #as_str))
+        };
+
+        let field_ident = &field_quoter.ident;
+
+        if field_quoter._type.starts_with("Option<") {
+            // Quote again for option
+            let contains = if not_in {
+                quote!(#hs.contains(&param #as_str))
+            } else {
+                quote!(!#hs.contains(&param #as_str))
+            };
+            return quote!(
+                if let Some(ref param) = self.#field_ident {
+                    if #contains {
+                        #quoted_error
+                        err.add_param(::std::borrow::Cow::from("value"), &self.#validator_param);
+                        err.add_param(::std::borrow::Cow::from("allowed"), &#hs);
+                        errors.add(err);
+                    }
+                }
+            );
+        }
+
+        return quote!(
+            if #contains {
                 #quoted_error
                 err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
-                err.add_param(::std::borrow::Cow::from("haystack"), &#hs);
+                err.add_param(::std::borrow::Cow::from("allowed"), &#hs);
                 errors.add(err);
             }
         );
-
-        return field_quoter.wrap_if_option(quoted);
     }
     unreachable!()
 }
@@ -573,7 +613,7 @@ pub fn quote_required_validation(
 
     let quoted_error = quote_error(validation, Some(field_name));
     let quoted = quote!(
-        if !::validator::validate_required(#validator_param) {
+        if !::validify::validate_required(#validator_param) {
             #quoted_error
             err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
             errors.add(err);
@@ -593,7 +633,7 @@ pub fn quote_does_not_contain_validation(
     if let Validator::DoesNotContain(ref needle) = validation.validator {
         let quoted_error = quote_error(validation, Some(field_name));
         let quoted = quote!(
-            if !::validator::validate_does_not_contain(#validator_param, &#needle) {
+            if !::validify::validate_does_not_contain(#validator_param, &#needle) {
                 #quoted_error
                 err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
                 err.add_param(::std::borrow::Cow::from("needle"), &#needle);

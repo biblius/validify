@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use validator::{ValidationError, ValidationErrors};
 use validify::{validify, Validify};
+use validify::{ValidationError, ValidationErrors};
 
 #[validify]
 #[derive(Debug, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ fn vec_mod() {
             "     SNACKBAR    ".to_string(),
         ]),
     };
-    let res = HasVec::validate(v.into());
+    let res = HasVec::validify(v.into());
     assert!(matches!(res, Ok(_)));
 
     let v = res.unwrap();
@@ -54,7 +54,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithVal::validate(t.into());
+    let res = WithVal::validify(t.into());
     assert!(matches!(res, Err(_)));
 
     let t = WithVal {
@@ -62,7 +62,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithVal::validate(t.into());
+    let res = WithVal::validify(t.into());
     assert!(matches!(res, Ok(_)));
 
     let res = res.unwrap();
@@ -114,7 +114,7 @@ fn validify1() {
         },
     };
 
-    let res = Testor::validate(test.into());
+    let res = Testor::validify(test.into());
     assert!(matches!(res, Ok(_)));
 
     let test = res.unwrap();
@@ -196,7 +196,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Ok(_)));
 
     // Condition b fails and a is empty, should fail
@@ -211,7 +211,7 @@ fn schema_mod_val() {
     };
 
     // 2 Errors in total
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Err(e) if e.errors().len() == 2));
 
     // Condition b fails, but a is not empty
@@ -225,7 +225,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Err(_)));
 
     // Condition b fails, but a is not empty
@@ -236,7 +236,7 @@ fn schema_mod_val() {
         c: NestedInput { a: None, b: None },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Err(e) if e.errors().len() == 1));
 
     // Condition b fails, but a is not empty
@@ -250,7 +250,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Ok(_)));
 
     // Condition b fails, but a is not empty
@@ -264,7 +264,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Ok(_)));
 
     let input = res.unwrap();
@@ -283,7 +283,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Ok(_)));
 
     let input = Input {
@@ -295,7 +295,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = Input::validate(input.into());
+    let res = Input::validify(input.into());
     assert!(matches!(res, Err(_)));
 }
 
@@ -304,6 +304,7 @@ const CAREER_LEVEL: &[&str] = &["One", "Two", "Over 9000"];
 const STATUSES: &[&str] = &["online", "offline", "za refaktorirat al neka ga"];
 const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
 const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
+const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
 
 #[validify]
 #[derive(Clone, Deserialize, Debug)]
@@ -329,6 +330,7 @@ struct BigBoi {
     #[validate(is_in = "CONTRACT_TYPES")]
     contract_type: String,
     indefinite_probation_period: bool,
+    #[validate(is_in = "ALLOWED_DURATIONS")]
     indefinite_probation_period_duration: Option<i32>,
     #[validate(is_in = "CAREER_LEVEL")]
     career_level: String,
@@ -359,6 +361,8 @@ struct TestTags {
     names: Vec<String>,
 }
 
+const PROFICIENCY: &[&str] = &["neznam", "sabijam"];
+
 #[validify]
 #[derive(Serialize, Clone, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -367,7 +371,7 @@ struct TestLanguages {
     #[modify(trim)]
     language: String,
     #[modify(trim)]
-    #[validate(custom = "validate_proficiency")]
+    #[validate(is_in = "PROFICIENCY")]
     proficiency: Option<String>,
     required: Option<bool>,
     created_by: String,
@@ -406,16 +410,6 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
         }
     }
     Ok(())
-}
-
-fn validate_proficiency(lang: &str) -> Result<(), ValidationError> {
-    vec!["neznam", "sabijam"]
-        .contains(&lang)
-        .then_some(())
-        .map_or_else(
-            || Err(ValidationError::new_field("Must be native", "proficiency")),
-            |_| Ok(()),
-        )
 }
 
 fn greater_than_now(date: &str) -> Result<(), ValidationError> {
@@ -473,7 +467,7 @@ fn biggest_of_bois() {
         part_time_period: None,
         contract_type: "Fulltime".to_string(),
         indefinite_probation_period: false,
-        indefinite_probation_period_duration: Some(23),
+        indefinite_probation_period_duration: Some(2),
         career_level: "Over 9000".to_string(),
         benefits: "svasta nesta".to_string(),
         meta_title: "a dokle vise".to_string(),
@@ -487,7 +481,7 @@ fn biggest_of_bois() {
 
     let big = big.into();
 
-    let res = BigBoi::validate(big);
+    let res = BigBoi::validify(big);
     assert!(matches!(res, Ok(_)));
 
     let big = res.unwrap();
@@ -572,6 +566,12 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let res = BigBoi::validate(big.into());
-    assert!(matches!(res, Err(e) if e.errors().len() == 11));
+    let res = BigBoi::validify(big.into());
+    assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
+
+    let schema_errs = res.as_ref().unwrap_err().schema_errors();
+    let field_errs = res.unwrap_err().field_errors();
+
+    assert_eq!(schema_errs.len(), 2);
+    assert_eq!(field_errs.len(), 9);
 }

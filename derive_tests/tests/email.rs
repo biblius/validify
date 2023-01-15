@@ -1,4 +1,4 @@
-use validator::Validate;
+use validify::Validate;
 
 #[test]
 fn can_validate_valid_email() {

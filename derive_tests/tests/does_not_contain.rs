@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use validator::Validate;
+use validify::Validate;
 
 #[test]
 fn can_validate_does_not_contain_ok() {

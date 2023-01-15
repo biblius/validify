@@ -1,4 +1,4 @@
-use validator::{Validate, ValidationErrors};
+use validify::{Validate, ValidationErrors};
 
 const MAX_CONST: usize = 10;
 const MIN_CONST: usize = 0;

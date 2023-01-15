@@ -1,4 +1,4 @@
-use validator::{Validate, ValidationError};
+use validify::{Validate, ValidationError};
 
 #[derive(Validate)]
 struct Test {

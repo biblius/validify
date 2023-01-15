@@ -8,8 +8,9 @@ use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::{parse_quote, spanned::Spanned};
-use traits::ModType;
+use types::Modifier;
 
+/// Shortcut for deriving both Validate and Validify traits in a one liner.
 #[proc_macro_attribute]
 pub fn validify(
     _meta: proc_macro::TokenStream,
@@ -17,7 +18,7 @@ pub fn validify(
 ) -> proc_macro::TokenStream {
     let input: proc_macro2::TokenStream = input.into();
     let out = quote! {
-        #[derive(::validator::Validate, ::validify::Validify)]
+        #[derive(::validify::Validate, ::validify::Validify)]
         #input
     };
     out.into()
@@ -36,7 +37,6 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let fields_info = collect_field_modifiers(ast);
     let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
     let (modifiers, validations) = quote_field_modifiers(fields_info);
-
     let (payload, payload_ident) = generate_payload_type(ast);
 
     quote!(
@@ -54,13 +54,13 @@ fn impl_validify(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
         type Payload = #payload_ident;
 
         /// Apply the provided modifiers to self and run validations
-        fn validate(payload: Self::Payload) -> Result<Self, ::validator::ValidationErrors> {
-            <Self::Payload as ::validator::Validate>::validate(&payload)?;
+        fn validify(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors> {
+            <Self::Payload as ::validify::Validate>::validate(&payload)?;
             let mut this = Self::from(payload);
-            let mut errors = ::validator::ValidationErrors::new();
+            let mut errors = ::validify::ValidationErrors::new();
             #(#validations)*
             <Self as ::validify::Modify>::modify(&mut this);
-            if let Err(errs) = <Self as ::validator::Validate>::validate(&this) {
+            if let Err(errs) = <Self as ::validify::Validate>::validate(&this) {
                 errors.merge(errs);
             }
             if !errors.is_empty() {
@@ -131,7 +131,7 @@ fn generate_payload_type(ast: &syn::DeriveInput) -> (proc_macro2::TokenStream, p
     // TODO: Include the visibility of the struct in the impl instead of defaulting to pub
     (
         quote!(
-            #[derive(Debug, Clone, ::validator::Validate, serde::Serialize, serde::Deserialize)]
+            #[derive(Debug, Clone, ::validify::Validate, serde::Deserialize)]
             pub struct #payload_ident #ty_generics #where_clause {
                 #(#payload_fields)*
             }
@@ -198,7 +198,7 @@ fn collect_fields(ast: &syn::DeriveInput) -> Vec<syn::Field> {
 
 /// Find everything we need to know about a field. Returns a boolean indicating whether the field has validations as the first element
 /// of the tuple and all the modifiers as the second element
-fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
+fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<Modifier>) {
     let rust_ident = field.ident.clone().unwrap().to_string();
     let field_ident = field.ident.clone().unwrap().to_string();
 
@@ -218,7 +218,7 @@ fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
         // Skip non-modifier attrs and nest if we have a validify call
         if attr.path != parse_quote!(modify) {
             if attr.path == parse_quote!(validify) {
-                modifiers.push(ModType::Nested);
+                modifiers.push(Modifier::Nested);
             }
             continue;
         }
@@ -240,16 +240,16 @@ fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
                             syn::Meta::Path(ref name) => {
                                 match name.get_ident().unwrap().to_string().as_ref() {
                                     "trim" => {
-                                        modifiers.push(ModType::Trim);
+                                        modifiers.push(Modifier::Trim);
                                     }
                                     "uppercase" => {
-                                        modifiers.push(ModType::Uppercase);
+                                        modifiers.push(Modifier::Uppercase);
                                     }
                                     "lowercase" => {
-                                        modifiers.push(ModType::Lowercase);
+                                        modifiers.push(Modifier::Lowercase);
                                     }
                                     "capitalize" => {
-                                        modifiers.push(ModType::Capitalize);
+                                        modifiers.push(Modifier::Capitalize);
                                     }
                                     _ => {
                                         let mut ident = proc_macro2::TokenStream::new();
@@ -266,7 +266,7 @@ fn find_modifiers_for_field(field: &syn::Field) -> (String, Vec<ModType>) {
                                 match ident.to_string().as_ref() {
                                     "custom" => {
                                         match lit_to_string(lit) {
-                                            Some(s) => modifiers.push(ModType::Custom{
+                                            Some(s) => modifiers.push(Modifier::Custom{
                                                 function: s,
 
                                             }),
@@ -369,7 +369,7 @@ fn extract_custom_modifiers(
     field: String,
     attr: &syn::Attribute,
     meta_items: &[syn::NestedMeta],
-) -> ModType {
+) -> Modifier {
     let mut function = None;
 
     let error = |span: Span, msg: &str| -> ! {
@@ -418,7 +418,7 @@ fn extract_custom_modifiers(
         );
     }
 
-    ModType::Custom {
+    Modifier::Custom {
         function: function.unwrap(),
     }
 }

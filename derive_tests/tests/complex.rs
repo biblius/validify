@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
 
-use validator::{Validate, ValidationError, ValidationErrors};
+use validify::{Validate, ValidationError, ValidationErrors};
 
 fn validate_unique_username(username: &str) -> Result<(), ValidationError> {
     if username == "xXxShad0wxXx" {
@@ -111,8 +111,7 @@ fn failed_validation_points_to_original_field_name() {
         }],
     };
     let res = signup.validate();
-    println!("RESULTAT:: {:?}", res);
-    // println!("{}", serde_json::to_string(&res).unwrap());
+    assert!(res.is_err())
 }
 
 #[test]

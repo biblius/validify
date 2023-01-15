@@ -1,15 +1,14 @@
 #![recursion_limit = "128"]
 
+use asserts::{assert_has_len, assert_has_range, assert_string_type, assert_type_matches};
+use lit::*;
 use proc_macro2::Span;
 use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
 use quote::ToTokens;
+use quoting::{quote_schema_validations, quote_validator, FieldQuoter};
 use std::{collections::HashMap, unreachable};
 use syn::{parse_quote, spanned::Spanned};
-
-use asserts::{assert_has_len, assert_has_range, assert_string_type, assert_type_matches};
-use lit::*;
-use quoting::{quote_schema_validations, quote_validator, FieldQuoter};
 use types::Validator;
 use validation::*;
 
@@ -39,9 +38,9 @@ fn impl_validate(ast: &syn::DeriveInput) -> proc_macro2::TokenStream {
 
     // The Validate trait implementation
     quote!(
-        impl #impl_generics ::validator::Validate for #ident #ty_generics #where_clause {
-            fn validate(&self) -> ::std::result::Result<(), ::validator::ValidationErrors> {
-                let mut errors = ::validator::ValidationErrors::new();
+        impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
+            fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
+                let mut errors = ::validify::ValidationErrors::new();
 
                 #(#validations)*
 
@@ -375,7 +374,13 @@ fn find_validators_for_field(
                                     "is_in" => {
                                         match lit_to_string(lit) {
                                             Some(s) => validators.push(FieldValidation::new(Validator::In(s))),
-                                            None => error(lit.span(), "Invalid argument for `in` validator: only strings are allowed"),
+                                            None => error(lit.span(), "Invalid argument for `is_in` validator: only strings are allowed"),
+                                        }
+                                    }
+                                    "not_in" => {
+                                        match lit_to_string(lit) {
+                                            Some(s) => validators.push(FieldValidation::new(Validator::NotIn(s))),
+                                            None => error(lit.span(), "Invalid argument for `not_in` validator: only strings are allowed"),
                                         }
                                     }
                                     v => abort!(
@@ -463,7 +468,7 @@ fn find_validators_for_field(
                                         }
                                         validators.push(validation);
                                     }
-                                    "is_in" => {
+                                    "is_in" | "not_in" => {
                                         validators.push(extract_one_arg_validation(
                                             "other",
                                             ident.to_string(),

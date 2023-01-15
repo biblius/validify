@@ -1,17 +1,6 @@
-use crate::error::ValidationErrors;
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-
-pub trait Validate {
-    fn validate(&self) -> Result<(), ValidationErrors>;
-}
-
-impl<T: Validate> Validate for &T {
-    fn validate(&self) -> Result<(), ValidationErrors> {
-        T::validate(*self)
-    }
-}
 
 /// Trait to implement if one wants to make the `length` validator
 /// work for more types

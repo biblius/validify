@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
-use validator::Validate;
+use validify::Validate;
 
 #[derive(Debug, Validate)]
 struct Root<'a> {

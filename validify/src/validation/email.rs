@@ -1,9 +1,8 @@
+use crate::validation::ip::validate_ip;
 use idna::domain_to_ascii;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::borrow::Cow;
-
-use crate::{validation::ip::validate_ip, HasLen};
 
 lazy_static! {
     // Regex from the specs
@@ -37,7 +36,7 @@ where
     // according to RFC5321 the max length of the local part is 64 characters
     // and the max length of the domain part is 255 characters
     // https://datatracker.ietf.org/doc/html/rfc5321#section-4.5.3.1.1
-    if user_part.length() > 64 || domain_part.length() > 255 {
+    if user_part.len() > 64 || domain_part.len() > 255 {
         return false;
     }
 
