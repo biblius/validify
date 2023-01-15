@@ -3,7 +3,7 @@ use validify::{Validate, ValidationError};
 fn valid_custom_fn(arr: &[u8; 2]) -> Result<(), ValidationError> {
     match arr[0] == 1 {
         true => Ok(()),
-        false => Err(ValidationError::new_field("meh", "array")),
+        false => Err(ValidationError::new_field("array", "meh")),
     }
 }
 

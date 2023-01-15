@@ -158,21 +158,46 @@ The macro automatically implements validator's `Validate` trait and validify's `
     }
 ```
 
-If you need schema level validations, schema validation from the validator crate is still supported, e.g.:
+Schema level validations can be performed using the following:
 
 ```rust
 #[validify]
 #[validate(schema(function = "validate_testor"))]
-struct Testor { /* ... */ }
+struct Testor { 
+    a: String,
+    b: usize,
+ }
 
-fn validate_testor(t: &Testor) {
-  /* ... */
+#[schema_validation]
+fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
+  if t.a == "yolo" && t.b < 2 {
+    validify::schema_err!("Invalid Yolo", "Cannot yolo with b < 2", errors);
+  }
 }
 ```
 
+The `#[schema_validation]` proc macro expands the function to:
+
+```rust
+fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
+    let mut errors = ValidationErrors::new();
+    if t.a == "yolo" && t.b < 2 {
+        errors.add(ValidationError::new_schema("Invalid Yolo").with_message("Cannot yolo with b < 2".to_string()));
+    }
+    if errors.is_empty() { Ok(()) } else { Err(errors) }
+}
+```
+
+This makes schema validations a bit more ergonomic and concise.
 Like field level validation, schema level validation is performed after modification.
 
-### **Example with route handler**
+### Errors
+
+The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are as the name suggests created when fields fail validation and are usually automatically gwnerated unless using custom handlers (custom field validation always must return a result whose Err variant is ValidationError). Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
+
+### **Examples**
+
+#### **With route handler**
 
 ```rust
     fn actix_test() {
@@ -208,7 +233,7 @@ Like field level validation, schema level validation is performed after modifica
     }
 ```
 
-### **Example with Big Boi**
+#### **Big Boi**
 
 ```rust
 
@@ -227,66 +252,79 @@ struct BigBoi {
     #[modify(trim)]
     #[validate(length(max = 300))]
     title: String,
+
     #[modify(trim)]
     #[validate(is_in = "STATUSES")]
     status: String,
+
     #[modify(capitalize, trim)]
     city_country: String,
+
     #[validate(length(max = 1000))]
     education: String,
+
     #[modify(capitalize)]
     type_of_workplace: Vec<String>,
+
     #[validate(is_in = "WORKING_HOURS")]
     working_hours: String,
+
     part_time_period: Option<String>,
+
     #[modify(capitalize)]
     #[validate(is_in = "CONTRACT_TYPES")]
     contract_type: String,
+
     indefinite_probation_period: bool,
+
     #[validate(is_in = "ALLOWED_DURATIONS")]
     indefinite_probation_period_duration: Option<i32>,
+
     #[validate(is_in = "CAREER_LEVEL")]
     career_level: String,
+
     #[modify(capitalize)]
     benefits: String,
+
     #[validate(length(max = 60))]
     meta_title: String,
+
     #[validate(length(max = 160))]
     meta_description: String,
+
     #[validate(is_in = "ALLOWED_MIME")]
     meta_image: String,
+
     #[validate(custom = "greater_than_now")]
     published_at: String,
+
     #[validate(custom = "greater_than_now")]
     expires_at: String,
+
     #[validify]
     languages: Vec<TestLanguages>,
+
     #[validify]
     tags: TestTags,
 }
 
 
+#[schema_validation]
 fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
-    let mut errs = ValidationErrors::new();
     if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        errs.add(ValidationError::new_schema(
-            "Fulltime contract cannot have part time period",
-        ));
+        schema_err!("Fulltime contract cannot have part time period", errors);
     }
 
     if bb.contract_type == "Fulltime"
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
-        errs.add(
-            ValidationError::new_schema("No probation duration")
-                .with_message("Indefinite probation duration must be specified".to_string()),
+        schema_err!(
+            "No probation duration",
+            "Indefinite probation duration must be specified",
+            errors
         );
     }
-    if errs.is_empty() {
-        return Ok(());
-    }
-    Err(errs)
 }
 
 fn greater_than_now(date: &str) -> Result<(), ValidationError> {
@@ -298,16 +336,15 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                     .unwrap()
             {
                 Err(ValidationError::new_field(
+                    "field",
                     "Date cannot be less than now",
-                    "lmao",
                 ))
             } else {
                 Ok(())
             }
         }
         Err(e) => {
-            eprintln!("Error parsing date: {e}");
-            Err(ValidationError::new_field("Could not parse date", "lmao"))
+            Err(ValidationError::new_field("field", "Could not parse date"))
         }
     }
 }
@@ -325,8 +362,8 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
     for n in names.iter() {
         if n.len() > 10 || n.is_empty() {
             return Err(ValidationError::new_field(
-                "Maximum length of 10 exceeded for name",
                 "names",
+                "Maximum length of 10 exceeded for name",
             ));
         }
     }
@@ -342,15 +379,15 @@ struct TestLanguages {
     company_opening_id: String,
     #[modify(trim)]
     language: String,
+
     #[modify(trim)]
     #[validate(is_in = "PROFICIENCY")]
     proficiency: Option<String>,
+
     required: Option<bool>,
     created_by: String,
 }
 
-
-#[test]
 fn biggest_of_bois() {
   let tags = TestTags {
         // Invalid length due to `validate_names`
@@ -424,7 +461,7 @@ fn biggest_of_bois() {
     };
 
     let res = BigBoi::validify(big.into());
-    assert!(matches!(res, Err(e) if e.errors().len() == 11));
+    assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
 
     let schema_errs = res.as_ref().unwrap_err().schema_errors();
     let field_errs = res.unwrap_err().field_errors();

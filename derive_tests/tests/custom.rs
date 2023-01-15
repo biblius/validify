@@ -5,7 +5,7 @@ fn valid_custom_fn(_: &str) -> Result<(), ValidationError> {
 }
 
 fn invalid_custom_fn(_: &str) -> Result<(), ValidationError> {
-    Err(ValidationError::new_field("meh", "val"))
+    Err(ValidationError::new_field("val", "meh"))
 }
 
 #[test]

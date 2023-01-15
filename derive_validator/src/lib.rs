@@ -8,14 +8,85 @@ use quote::quote;
 use quote::ToTokens;
 use quoting::{quote_schema_validations, quote_validator, FieldQuoter};
 use std::{collections::HashMap, unreachable};
+use syn::ItemFn;
 use syn::{parse_quote, spanned::Spanned};
-use types::Validator;
 use validation::*;
+use validify_types::Validator;
 
 mod asserts;
 mod lit;
 mod quoting;
 mod validation;
+
+#[proc_macro_attribute]
+/// A shortcut for ergonomic error creation in custom schema validator functions.
+///
+/// Prepends a `let mut errors = ValidationErrors::new()` to the beginning of the function block,
+/// and appends a `if errors.is_empty() { Ok(()) } else { Err(errors) }` to the end.
+///
+/// Designed to be used in conjuction with `field_err` and `schema_err` macros.
+///
+/// ```ignore
+/// use validify::{validify, ValidationErrors, Validify};
+///
+/// #[derive(Debug, Clone)]
+/// #[validify]
+/// #[validate(schema(function = "schema_validation"))]
+/// struct Foo {
+///     a: String,
+///     b: usize,
+/// }
+///
+/// #[schema_validation]
+/// fn schema_validation(foo: &Foo) -> Result<(), ValidationErrors> {
+///     if foo.a == "no" {
+///         field_err("a", "Can't be no", "Try again" errors);
+///     }
+///     if foo.b == 0 && foo.a == "no" {
+///         schema_err("super no", "Done goofd", errors);
+///     }
+/// }
+/// ```
+///
+/// `schema_validation` Desugars to:
+///
+/// ```ignore
+/// fn schema_validation(foo: &Foo) -> Result<(), ValidationErrors> {
+///     let mut errors = ::validify::ValidationErrors::new();
+///     if foo.a == "no" {
+///         errors.add(ValidationError::new_field("a", "Can't be no").with_message("Try again".to_string()));
+///     }
+///     if foo.b == 0 && foo.a == "no" {
+///         errors.add(ValidationError::new_schema("super no", "Done goofd"));
+///     }
+///     if errors.is_empty() { Ok(()) } else { Err(errors) }
+/// }
+/// ```
+pub fn schema_validation(
+    _attr: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let mut func: ItemFn = syn::parse(input).unwrap();
+
+    // Add error and return value
+    let err_tokens =
+        syn::parse(quote! { let mut errors = ::validify::ValidationErrors::new(); }.into())
+            .unwrap();
+
+    func.block.stmts.insert(0, err_tokens);
+    let return_tokens = syn::parse(
+        quote!(if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        })
+        .into(),
+    )
+    .unwrap();
+
+    func.block.stmts.push(return_tokens);
+    func.to_token_stream().into()
+}
 
 #[proc_macro_derive(Validate, attributes(validate))]
 #[proc_macro_error]

@@ -1,4 +1,4 @@
-use types::Modifier;
+use validify_types::Modifier;
 
 /// Holds the `syn::Field` in `field`, its type and all the annotated
 /// modifiers

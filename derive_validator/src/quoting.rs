@@ -1,9 +1,9 @@
 use crate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
 use crate::lit::{option_to_tokens, value_or_path_to_tokens};
 use crate::validation::{FieldValidation, SchemaValidation};
+use crate::Validator;
 use proc_macro2::{self, Span};
 use quote::quote;
-use types::Validator;
 
 /// Pass around all the information needed for creating a validation
 #[derive(Debug)]
@@ -127,7 +127,7 @@ fn quote_error(
     };
 
     quote!(
-        let mut err = ::validify::ValidationError::new_field(#code, #field);
+        let mut err = ::validify::ValidationError::new_field(#field, #code);
         #add_message_quoted
     )
 }

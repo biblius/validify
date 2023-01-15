@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use validify::{validify, Validify};
+use validify::{schema_err, schema_validation, validify, Validify};
 use validify::{ValidationError, ValidationErrors};
 
 #[validify]
@@ -377,35 +377,30 @@ struct TestLanguages {
     created_by: String,
 }
 
+#[schema_validation]
 fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
-    let mut errs = ValidationErrors::new();
     if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        errs.add(ValidationError::new_schema(
-            "Fulltime contract cannot have part time period",
-        ));
+        schema_err!("Fulltime contract cannot have part time period", errors);
     }
 
     if bb.contract_type == "Fulltime"
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
-        errs.add(
-            ValidationError::new_schema("No probation duration")
-                .with_message("Indefinite probation duration must be specified".to_string()),
+        schema_err!(
+            "No probation duration",
+            "Indefinite probation duration must be specified",
+            errors
         );
     }
-    if errs.is_empty() {
-        return Ok(());
-    }
-    Err(errs)
 }
 
 fn validate_names(names: &[String]) -> Result<(), ValidationError> {
     for n in names.iter() {
         if n.len() > 10 || n.is_empty() {
             return Err(ValidationError::new_field(
-                "Maximum length of 10 exceeded for name",
                 "names",
+                "Maximum length of 10 exceeded for name",
             ));
         }
     }
@@ -421,8 +416,8 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                     .unwrap()
             {
                 Err(ValidationError::new_field(
+                    "field",
                     "Date cannot be less than now",
-                    "lmao",
                 ))
             } else {
                 Ok(())
@@ -430,7 +425,7 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
         }
         Err(e) => {
             eprintln!("Error parsing date: {e}");
-            Err(ValidationError::new_field("Could not parse date", "lmao"))
+            Err(ValidationError::new_field("field", "Could not parse date"))
         }
     }
 }

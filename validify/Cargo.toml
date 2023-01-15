@@ -1,14 +1,13 @@
 [package]
 authors = ["biblius <crazycompanyxxl@gmail.com>"]
-categories = ["validation"]
 description = "An extension of the validator crate that enables payload modification"
 edition = "2021"
-exclude = ["derive_validify_tests/"]
+exclude = ["derive_tests/"]
 homepage = "https://github.com/biblius/validify"
-keywords = ["modify", "payload", "validate", "validation", "validify"]
+keywords = ["modify", "payload", "validate", "validify"]
 license = "MIT"
 name = "validify"
-readme = "README.md"
+readme = "../README.md"
 repository = "https://github.com/biblius/validify"
 version = "0.1.0"
 
@@ -16,7 +15,7 @@ version = "0.1.0"
 [dependencies]
 card-validate = { version = "2.2" }
 derive_validator = { version = "0.1.0", path = "../derive_validator" }
-derive_validify = { path = "../derive_validify" }
+derive_validify = { version = "0.1.0", path = "../derive_validify" }
 idna = "0.2"
 indexmap = { version = "1", features = ["serde-1"] }
 lazy_static = "1"

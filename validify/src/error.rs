@@ -20,7 +20,7 @@ pub enum ValidationError {
 }
 
 impl ValidationError {
-    pub fn new_field(code: &'static str, field: &'static str) -> ValidationError {
+    pub fn new_field(field: &'static str, code: &'static str) -> ValidationError {
         ValidationError::Field {
             name: Cow::from(field),
             code: Cow::from(code),

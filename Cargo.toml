@@ -3,6 +3,6 @@ members = [
   "derive_tests",
   "derive_validator",
   "derive_validify",
-  "types",
   "validify",
+  "validify_types",
 ]

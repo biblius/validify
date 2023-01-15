@@ -1,8 +1,8 @@
 use crate::lit::*;
+use crate::Validator;
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use syn::spanned::Spanned;
-use types::Validator;
 
 #[derive(Debug)]
 pub struct SchemaValidation {

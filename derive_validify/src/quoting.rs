@@ -1,7 +1,7 @@
 use crate::fields::FieldInformation;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use types::Modifier;
+use validify_types::Modifier;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
 pub(super) fn quote_field_modifiers(

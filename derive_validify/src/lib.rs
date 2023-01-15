@@ -8,9 +8,9 @@ use proc_macro_error::{abort, proc_macro_error};
 use quote::{quote, ToTokens};
 use std::collections::HashMap;
 use syn::{parse_quote, spanned::Spanned};
-use types::Modifier;
+use validify_types::Modifier;
 
-/// Shortcut for deriving both Validate and Validify traits in a one liner.
+/// Shortcut for deriving both the `Validate` and `Validify` traits in a one liner.
 #[proc_macro_attribute]
 pub fn validify(
     _meta: proc_macro::TokenStream,

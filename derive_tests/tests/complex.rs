@@ -7,8 +7,8 @@ use validify::{Validate, ValidationError, ValidationErrors};
 fn validate_unique_username(username: &str) -> Result<(), ValidationError> {
     if username == "xXxShad0wxXx" {
         return Err(ValidationError::new_field(
-            "terrible_username",
             "first_name",
+            "terrible_username",
         ));
     }
 
