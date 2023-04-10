@@ -16,7 +16,7 @@ version = "0.1.0"
 card-validate = { version = "2.2" }
 derive_validator = { version = "0.1.0", path = "../derive_validator" }
 derive_validify = { version = "0.1.0", path = "../derive_validify" }
-idna = "0.2"
+idna = "0.3"
 indexmap = { version = "1", features = ["serde-1"] }
 lazy_static = "1"
 phonenumber = { version = "0.3" }
