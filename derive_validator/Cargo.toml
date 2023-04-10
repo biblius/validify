@@ -22,5 +22,5 @@ proc-macro-error = "1"
 proc-macro2 = "1"
 quote = "1"
 regex = "1.5.5"
-syn = { version = "1", features = ["extra-traits", "full"] }
+syn = { version = "2", features = ["extra-traits", "full"] }
 validify_types = { path = "../validify_types", version = "0.1.0" }

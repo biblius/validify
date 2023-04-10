@@ -15,4 +15,4 @@ version = "0.1.0"
 
 [dependencies]
 proc-macro2 = "1"
-syn = { version = "1", features = ["extra-traits"] }
+syn = { version = "2", features = ["extra-traits"] }
