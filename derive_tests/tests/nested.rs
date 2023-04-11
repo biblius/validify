@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use validify::Validate;
 
 #[derive(Debug, Validate)]
-struct Root<'a> {
+struct Root {
     #[validate(length(min = 1))]
     value: String,
 
     #[validate]
-    a: &'a A,
+    a: A,
 }
 
 #[derive(Debug, Validate)]
@@ -40,13 +40,6 @@ struct ParentWithVectorOfChildren {
 }
 
 #[derive(Debug, Validate)]
-struct ParentWithSliceOfChildren<'a> {
-    #[validate]
-    #[validate(length(min = 1))]
-    child: &'a [Child],
-}
-
-#[derive(Debug, Validate)]
 struct ParentWithArrayOfChildren {
     #[validate]
     #[validate(length(min = 1))]
@@ -68,13 +61,6 @@ struct ParentWithMapOfChildren {
 }
 
 #[derive(Debug, Validate)]
-struct ParentWithRefMapOfChildren<'a> {
-    #[validate]
-    #[validate(length(min = 1))]
-    child: &'a HashMap<i8, Child>,
-}
-
-#[derive(Debug, Validate)]
 struct ParentWithOptionMapOfChildren {
     #[validate]
     #[validate(length(min = 1))]
@@ -86,13 +72,6 @@ struct ParentWithSetOfChildren {
     #[validate]
     #[validate(length(min = 1))]
     child: HashSet<Child>,
-}
-
-#[derive(Debug, Validate)]
-struct ParentWithRefSetOfChildren<'a> {
-    #[validate]
-    #[validate(length(min = 1))]
-    child: &'a HashSet<Child>,
 }
 
 #[derive(Debug, Validate)]
@@ -112,7 +91,7 @@ struct Child {
 fn is_fine_with_nested_validations() {
     let root = Root {
         value: "valid".to_string(),
-        a: &A {
+        a: A {
             value: "valid".to_string(),
             b: B {
                 value: "valid".to_string(),
@@ -127,7 +106,7 @@ fn is_fine_with_nested_validations() {
 fn failed_validation_points_to_original_field_names() {
     let root = Root {
         value: String::new(),
-        a: &A {
+        a: A {
             value: String::new(),
             b: B {
                 value: String::new(),
@@ -215,31 +194,6 @@ fn test_can_validate_vector_fields() {
 }
 
 #[test]
-fn test_can_validate_slice_fields() {
-    let child = vec![
-        Child {
-            value: "valid".to_string(),
-        },
-        Child {
-            value: String::new(),
-        },
-        Child {
-            value: "valid".to_string(),
-        },
-        Child {
-            value: String::new(),
-        },
-    ];
-    let instance = ParentWithSliceOfChildren { child: &child };
-
-    let res = instance.validate();
-    assert!(res.is_err());
-    let err = res.unwrap_err();
-    let errs = err.errors();
-    assert_eq!(errs.len(), 2);
-}
-
-#[test]
 fn test_can_validate_array_fields() {
     let instance = ParentWithArrayOfChildren {
         child: [
@@ -313,26 +267,6 @@ fn test_can_validate_map_fields() {
 }
 
 #[test]
-fn test_can_validate_ref_map_fields() {
-    let child = [(
-        0,
-        Child {
-            value: String::new(),
-        },
-    )]
-    .iter()
-    .cloned()
-    .collect();
-    let instance = ParentWithRefMapOfChildren { child: &child };
-
-    let res = instance.validate();
-    assert!(res.is_err());
-    let err = res.unwrap_err();
-    let errs = err.errors();
-    assert_eq!(errs.len(), 1);
-}
-
-#[test]
 fn test_can_validate_option_map_fields() {
     let instance = ParentWithOptionMapOfChildren {
         child: Some(
@@ -365,23 +299,6 @@ fn test_can_validate_set_fields() {
         .cloned()
         .collect(),
     };
-
-    let res = instance.validate();
-    assert!(res.is_err());
-    let err = res.unwrap_err();
-    let errs = err.errors();
-    assert_eq!(errs.len(), 1);
-}
-
-#[test]
-fn test_can_validate_ref_set_fields() {
-    let child = [Child {
-        value: String::new(),
-    }]
-    .iter()
-    .cloned()
-    .collect();
-    let instance = ParentWithRefSetOfChildren { child: &child };
 
     let res = instance.validate();
     assert!(res.is_err());

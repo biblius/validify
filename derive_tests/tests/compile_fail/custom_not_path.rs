@@ -2,8 +2,8 @@ use validify::Validate;
 
 #[derive(Validate)]
 struct Test {
-    #[validate(must_match(password2))]
-    password: String,
+    #[validate(custom(2))]
+    s: String,
 }
 
 fn main() {}

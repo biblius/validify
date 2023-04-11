@@ -134,6 +134,7 @@ impl<T> HasLen for IndexSet<T> {
     }
 }
 
+// TODO IMPL FOR NUMS
 /// Trait to implement if one wants to make the `contains` validator
 /// work for more types
 pub trait Contains {

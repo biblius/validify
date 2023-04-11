@@ -223,7 +223,7 @@ impl std::fmt::Display for ValidationError {
 impl std::fmt::Display for ValidationErrors {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for err in self.errors().iter() {
-            writeln!(fmt, "{}", err)?;
+            writeln!(fmt, "{err}")?;
         }
         Ok(())
     }

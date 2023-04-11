@@ -1,7 +1,0 @@
-error: proc-macro derive panicked
- --> tests/compile_fail/custom_reference.rs:3:10
-  |
-3 | #[derive(Validify)]
-  |          ^^^^^^^^
-  |
-  = help: message: Fields containing modifiers must contain owned data

@@ -6,26 +6,24 @@
 //!  ### Example
 //!
 //! ```
-//! use validify::{validify, Validify};
+//! use validify::Validify;
 //!
-//! #[validify]
-//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
 //! struct Testor {
 //!     #[modify(lowercase, trim)]
 //!     #[validate(length(equal = 8))]
 //!     pub a: String,
 //!     #[modify(trim, uppercase)]
 //!     pub b: Option<String>,
-//!     #[modify(custom = "do_something")]
+//!     #[modify(custom(do_something))]
 //!     pub c: String,
-//!     #[modify(custom = "do_something")]
+//!     #[modify(custom(do_something))]
 //!     pub d: Option<String>,
 //!     #[validify]
 //!     pub nested: Nestor,
 //! }
 //!
-//! #[validify]
-//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+//! #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
 //! struct Nestor {
 //!     #[modify(trim, uppercase)]
 //!     #[validate(length(equal = 12))]
@@ -73,20 +71,19 @@ mod validation;
 
 pub use validation::cards::validate_credit_card;
 pub use validation::contains::validate_contains;
-pub use validation::does_not_contain::validate_does_not_contain;
 pub use validation::email::validate_email;
 pub use validation::ip::{validate_ip, validate_ip_v4, validate_ip_v6};
 pub use validation::length::validate_length;
 pub use validation::must_match::validate_must_match;
-pub use validation::non_control_character::validate_non_control_character;
+pub use validation::non_control_char::validate_non_control_character;
 pub use validation::phone::validate_phone;
+pub use validation::r#in::validate_in;
 pub use validation::range::validate_range;
 pub use validation::required::validate_required;
 pub use validation::urls::validate_url;
 
-pub use derive_validator::{schema_validation, Validate};
-pub use derive_validify::{validify, Validify};
 pub use error::{ValidationError, ValidationErrors};
+pub use validify_derive::{schema_validation, Validate, Validify};
 
 /// Validates structs based on the provided `validate` parameters. Can be implemented on its own if one doesn't need payload modifications.
 pub trait Validate {

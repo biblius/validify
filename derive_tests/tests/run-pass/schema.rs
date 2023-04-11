@@ -1,7 +1,7 @@
 use validify::{Validate, ValidationErrors};
 
 #[derive(Validate)]
-#[validate(schema(function = "hey"))]
+#[validate(hey)]
 struct Test {
     s: String,
 }
@@ -11,7 +11,7 @@ fn hey(_: &Test) -> Result<(), ValidationErrors> {
 }
 
 #[derive(Validate)]
-#[validate(schema(function = "hey2"))]
+#[validate(hey2)]
 struct Test2 {
     s: String,
 }

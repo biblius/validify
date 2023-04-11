@@ -5,7 +5,7 @@ use validify::Validate;
 fn can_validate_does_not_contain_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(does_not_contain = "asdf")]
+        #[validate(contains_not("asdf"))]
         val: String,
     }
 
@@ -20,7 +20,7 @@ fn can_validate_does_not_contain_ok() {
 fn container_containing_needle_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(does_not_contain = "asdf")]
+        #[validate(contains_not("asdf"))]
         val: HashMap<String, usize>,
     }
 
@@ -33,14 +33,14 @@ fn container_containing_needle_fails_validation() {
     let err = res.unwrap_err();
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "does_not_contain");
+    assert_eq!(errs[0].code(), "contains_not");
 }
 
 #[test]
 fn string_containing_needle_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(does_not_contain = "he")]
+        #[validate(contains_not("he"))]
         val: String,
     }
 
@@ -52,14 +52,14 @@ fn string_containing_needle_fails_validation() {
     let err = res.unwrap_err();
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "does_not_contain");
+    assert_eq!(errs[0].code(), "contains_not");
 }
 
 #[test]
 fn can_specify_code_for_does_not_contain() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(does_not_contain(pattern = "he", code = "oops"))]
+        #[validate(contains_not(value = "he", code = "oops"))]
         val: String,
     }
     let s = TestStruct {
@@ -77,7 +77,7 @@ fn can_specify_code_for_does_not_contain() {
 fn can_specify_message_for_does_not_contain() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(does_not_contain(pattern = "he", message = "oops"))]
+        #[validate(contains_not(value = "he", message = "oops"))]
         val: String,
     }
     let s = TestStruct {

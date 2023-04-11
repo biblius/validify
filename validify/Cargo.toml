@@ -13,13 +13,11 @@ version = "0.1.0"
 
 
 [dependencies]
-card-validate = { version = "2.2" }
-derive_validator = { version = "0.1.0", path = "../derive_validator" }
-derive_validify = { version = "0.1.0", path = "../derive_validify" }
-idna = "0.2"
+card-validate = { version = "2.3" }
+idna = "0.3"
 indexmap = { version = "1", features = ["serde-1"] }
 lazy_static = "1"
-phonenumber = { version = "0.3" }
+phonenumber = { version = "0.3.2" }
 proc-macro2 = "1.0.47"
 regex = "1"
 serde = "1.0.152"
@@ -28,3 +26,4 @@ serde_json = "1"
 syn = { version = "1.0.103", features = ["full"] }
 unic-ucd-common = { version = "0.9" }
 url = "2"
+validify_derive = { version = "0.1.0", path = "../validify_derive" }

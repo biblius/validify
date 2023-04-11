@@ -1,7 +1,7 @@
 use validify::Validate;
 
 #[derive(Validate)]
-#[validate(schema())]
+#[validate(())]
 struct Test {
     s: i32,
 }

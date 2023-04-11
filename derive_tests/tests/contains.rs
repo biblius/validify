@@ -4,7 +4,7 @@ use validify::Validate;
 fn can_validate_contains_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(contains = "he")]
+        #[validate(contains("he"))]
         val: String,
     }
 
@@ -19,7 +19,7 @@ fn can_validate_contains_ok() {
 fn value_not_containing_needle_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(contains = "he")]
+        #[validate(contains("he"))]
         val: String,
     }
 
@@ -36,7 +36,7 @@ fn value_not_containing_needle_fails_validation() {
 fn can_specify_code_for_contains() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(contains(pattern = "he", code = "oops"))]
+        #[validate(contains(value = "he", code = "dis dont have he yo"))]
         val: String,
     }
     let s = TestStruct { val: String::new() };
@@ -45,14 +45,14 @@ fn can_specify_code_for_contains() {
     let err = res.unwrap_err();
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "oops");
+    assert_eq!(errs[0].code(), "dis dont have he yo");
 }
 
 #[test]
 fn can_specify_message_for_contains() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(contains(pattern = "he", message = "oops"))]
+        #[validate(contains(value = "he", message = "oops"))]
         val: String,
     }
     let s = TestStruct { val: String::new() };

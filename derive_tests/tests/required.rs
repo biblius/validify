@@ -9,7 +9,7 @@ struct ObjectRef {
 
 #[derive(Serialize, Validate)]
 struct CheckedObjectRef {
-    #[validate(range(min = 1))]
+    #[validate(range(min = 1.))]
     id: i32,
     #[validate(length(min = 1))]
     name: String,
@@ -23,7 +23,7 @@ struct Required {
 
 #[derive(Validate)]
 struct RequiredNested {
-    #[validate(required_nested)]
+    #[validate(required)]
     val: Option<CheckedObjectRef>,
 }
 

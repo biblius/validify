@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use validify::{schema_err, schema_validation, validify, Validify};
+use validify::{schema_err, schema_validation, Validify};
 use validify::{ValidationError, ValidationErrors};
 
-#[validify]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validify)]
 struct HasVec {
     #[modify(trim, uppercase)]
     #[validate(length(min = 2))]
@@ -32,14 +31,13 @@ fn vec_mod() {
     assert_eq!(v.b.unwrap()[1], "Snackbar");
 }
 
-#[validify]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validify)]
 struct WithVal {
     #[validate(length(equal = 13))]
     #[modify(trim)]
     a: String,
-    #[modify(custom = "make_me_9")]
-    #[validate(range(min = 1, max = 10))]
+    #[modify(custom(make_me_9))]
+    #[validate(range(min = 1., max = 10.))]
     b: usize,
 }
 
@@ -70,24 +68,22 @@ fn validify0() {
     assert_eq!(res.b, 9);
 }
 
-#[validify]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
     pub a: String,
     #[modify(trim, uppercase)]
     pub b: Option<String>,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     pub c: String,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     pub d: Option<String>,
     #[validify]
     pub nested: Nestor,
 }
 
-#[validify]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -131,21 +127,19 @@ fn validify1() {
  * NESTED
  */
 
-#[validify]
-#[validate(schema(function = "validate_input"))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[validate(validate_input)]
 struct Input {
     #[modify(trim, uppercase)]
     a: String,
-    #[validate(range(min = 1, max = 5))]
+    #[validate(range(min = 1., max = 5.))]
     b: usize,
     #[validify]
     c: NestedInput,
 }
 
-#[validify]
-#[validate(schema(function = "validate_nested"))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[validate(validate_nested)]
 struct NestedInput {
     a: Option<usize>,
     #[modify(trim, lowercase)]
@@ -306,14 +300,13 @@ const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
 const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
 const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
 
-#[validify]
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
-#[validate(schema(function = "schema_validation"))]
+#[validate(schema_validation)]
 struct BigBoi {
     #[validate(length(max = 300))]
     title: String,
-    #[validate(is_in = "STATUSES")]
+    #[validate(is_in(STATUSES))]
     status: String,
     #[modify(capitalize)]
     city_country: String,
@@ -323,16 +316,16 @@ struct BigBoi {
     education: String,
     #[modify(capitalize)]
     type_of_workplace: Vec<String>,
-    #[validate(is_in = "WORKING_HOURS")]
+    #[validate(is_in(WORKING_HOURS))]
     working_hours: String,
     part_time_period: Option<String>,
     #[modify(capitalize)]
-    #[validate(is_in = "CONTRACT_TYPES")]
+    #[validate(is_in(CONTRACT_TYPES))]
     contract_type: String,
     indefinite_probation_period: bool,
-    #[validate(is_in = "ALLOWED_DURATIONS")]
+    #[validate(is_in(ALLOWED_DURATIONS))]
     indefinite_probation_period_duration: Option<i32>,
-    #[validate(is_in = "CAREER_LEVEL")]
+    #[validate(is_in(CAREER_LEVEL))]
     career_level: String,
     #[modify(capitalize)]
     benefits: String,
@@ -340,11 +333,11 @@ struct BigBoi {
     meta_title: String,
     #[validate(length(max = 160))]
     meta_description: String,
-    #[validate(is_in = "ALLOWED_MIME")]
+    #[validate(is_in(ALLOWED_MIME))]
     meta_image: String,
-    #[validate(custom = "greater_than_now")]
+    #[validate(custom(greater_than_now))]
     published_at: String,
-    #[validate(custom = "greater_than_now")]
+    #[validate(custom(greater_than_now))]
     expires_at: String,
     #[validify]
     languages: Vec<TestLanguages>,
@@ -352,26 +345,24 @@ struct BigBoi {
     tags: TestTags,
 }
 
-#[validify]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestTags {
     #[modify(trim)]
-    #[validate(length(min = 1), custom = "validate_names")]
+    #[validate(length(min = 1), custom(validate_names))]
     names: Vec<String>,
 }
 
 const PROFICIENCY: &[&str] = &["neznam", "sabijam"];
 
-#[validify]
-#[derive(Serialize, Clone, Deserialize, Debug)]
+#[derive(Serialize, Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestLanguages {
     company_opening_id: String,
     #[modify(trim)]
     language: String,
     #[modify(trim)]
-    #[validate(is_in = "PROFICIENCY")]
+    #[validate(is_in(PROFICIENCY))]
     proficiency: Option<String>,
     required: Option<bool>,
     created_by: String,
@@ -423,10 +414,7 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                 Ok(())
             }
         }
-        Err(e) => {
-            eprintln!("Error parsing date: {e}");
-            Err(ValidationError::new_field("field", "Could not parse date"))
-        }
+        Err(_) => Err(ValidationError::new_field("field", "Could not parse date")),
     }
 }
 

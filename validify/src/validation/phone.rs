@@ -32,7 +32,6 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            println!("{} - {}", input, expected);
             assert_eq!(validate_phone(input), expected);
         }
     }

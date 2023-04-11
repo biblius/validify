@@ -1,14 +1,13 @@
-use crate::fields::FieldInformation;
+use crate::{fields::FieldInformation, quoter::FieldQuoter, types::Modifier};
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use validify_types::Modifier;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
 pub(super) fn quote_field_modifiers(
     mut fields: Vec<FieldInformation>,
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
     let mut modifications = vec![];
-    let mut validations = vec![];
+    let mut nested_validifies = vec![];
 
     fields.drain(..).for_each(|item| {
         let field_ident = item.field.ident.clone().unwrap();
@@ -18,23 +17,23 @@ pub(super) fn quote_field_modifiers(
             let (mods, valids) = quote_modifiers(&field_quoter, modifier);
             modifications.push(mods);
             if let Some(validation) = valids {
-                validations.push(validation)
+                nested_validifies.push(validation)
             }
         }
     });
 
-    (modifications, validations)
+    (modifications, nested_validifies)
 }
 
 /// Returns a modification and a validation (if it's nested) statement for the field.
 fn quote_modifiers(
-    fq: &FieldQuoter,
+    field_quoter: &FieldQuoter,
     mod_type: &Modifier,
 ) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
-    let (ty, span) = (fq._type.clone(), fq.ident.span());
-    let modifier_param = fq.quote_modifier_param();
-    let is_option = fq.check_option();
-    let is_vec = fq.check_vec();
+    let (ty, span) = (field_quoter._type.clone(), field_quoter.ident.span());
+    let modifier_param = field_quoter.quote_modifier_param();
+    let is_option = field_quoter.check_option();
+    let is_vec = field_quoter.check_vec();
 
     let (mods, valids) = match mod_type {
         Modifier::Trim => (quote_trim_modifier(modifier_param, is_option, is_vec), None),
@@ -61,8 +60,8 @@ fn quote_modifiers(
     };
 
     (
-        fq.wrap_if_option(mods),
-        valids.map(|tokens| fq.wrap_if_option(tokens)),
+        field_quoter.wrap_modifier_if_option(mods),
+        valids.map(|tokens| field_quoter.wrap_modifier_if_option(tokens)),
     )
 }
 
@@ -92,7 +91,7 @@ fn quote_nested_modifier(
         quote!(#param.modify();)
     };
 
-    let validations = if is_vec {
+    let nested_validifies = if is_vec {
         quote!(
             for el in #field_ident.iter_mut() {
                 if let Err(mut e) = <#ident as ::validify::Validify>::validify(el.clone().into()) {
@@ -107,22 +106,21 @@ fn quote_nested_modifier(
             }
         )
     };
-    (modifications, validations)
+    (modifications, nested_validifies)
 }
 
 fn quote_custom_modifier(
     param: proc_macro2::TokenStream,
-    function: &str,
+    function: &syn::Path,
     is_option: bool,
 ) -> proc_macro2::TokenStream {
-    let fn_ident: syn::Path = syn::parse_str(function).unwrap();
     if is_option {
         quote!(
-            #fn_ident(#param);
+            #function(#param);
         )
     } else {
         quote!(
-            #fn_ident(&mut #param);
+            #function(&mut #param);
         )
     }
 }
@@ -241,81 +239,6 @@ pub(super) fn quote_capitalize_modifier(
         quote!(
           #param = ::std::format!("{}{}", &#param[0..1].to_uppercase(), &#param[1..]);
         )
-    }
-}
-
-/// Contains the field ident and its type
-#[derive(Debug)]
-pub(super) struct FieldQuoter {
-    ident: syn::Ident,
-    _name: String,
-    /// The field type
-    _type: String,
-}
-
-impl FieldQuoter {
-    pub fn new(ident: syn::Ident, _name: String, _type: String) -> FieldQuoter {
-        FieldQuoter {
-            ident,
-            _name,
-            _type,
-        }
-    }
-
-    /// Check if this field's type is an Option
-    pub fn check_option(&self) -> bool {
-        self._type.starts_with("Option")
-    }
-
-    /// Check if this field's type is an Option
-    pub fn check_vec(&self) -> bool {
-        self._type.starts_with("Vec") || self._type.starts_with("Option<Vec")
-    }
-
-    /// Returns `self.#ident`, unless the field is an option in which case it just
-    /// returns an `#ident` as we always do a `if let` check on Option fields
-    pub fn quote_modifier_param(&self) -> proc_macro2::TokenStream {
-        let ident = &self.ident;
-
-        if self._type.starts_with('&') {
-            panic!("Fields containing modifiers must contain owned data")
-        }
-
-        if self._type.starts_with("Option<") {
-            quote!(#ident)
-        } else {
-            quote!(self.#ident)
-        }
-    }
-
-    pub fn get_optional_modifier_param(&self) -> proc_macro2::TokenStream {
-        let ident = &self.ident;
-        if self._type.starts_with("Option<&") || self._type.starts_with("Option<Option<&") {
-            panic!("Fields containing modifiers must contain owned data")
-        } else {
-            quote!(#ident)
-        }
-    }
-
-    /// If `self._type` is an option, wrap the given tokens in an `if let Some()` statement
-    pub fn wrap_if_option(&self, tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-        let field_ident = &self.ident;
-        let optional_pattern_matched = self.get_optional_modifier_param();
-        if self._type.starts_with("Option<Option<") {
-            return quote!(
-                if let Some(Some(#optional_pattern_matched)) = self.#field_ident.as_mut() {
-                    #tokens
-                }
-            );
-        } else if self._type.starts_with("Option<") {
-            return quote!(
-                if let Some(#optional_pattern_matched) = self.#field_ident.as_mut() {
-                    #tokens
-                }
-            );
-        }
-
-        tokens
     }
 }
 

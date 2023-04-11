@@ -25,8 +25,8 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 | range                 |  Number     |     min, max    | Checks if the field's value is in the specified range.
 | must_match            |    Any      |       Any*      | Checks if the field matches the specified value
 | contains              | Collection  |      Item*      | Checks if the collection contains the specified value
-| does_not_contain      | Collection  |      Item*      | Checks if the collection doesn't contain the specified value
-| non_control_character |  String     |        --       | Checks if the field contains control characters
+| contains_not      | Collection  |      Item*      | Checks if the collection doesn't contain the specified value
+| non_control_char |  String     |        --       | Checks if the field contains control characters
 | custom                |  Function   |      FnItem*    | Executes custom validation on the field specified by the end user
 | regex                 |  String     |      Regex*     | Matches the provided regex against the field
 | credit_card           |  String     |        --       | Checks if the field's value is a valid credit card number

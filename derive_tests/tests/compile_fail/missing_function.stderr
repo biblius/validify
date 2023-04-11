@@ -1,5 +1,7 @@
-error: Invalid schema level validation: `function` is required
- --> $DIR/missing_function.rs:4:12
+error: proc-macro derive panicked
+ --> tests/compile_fail/missing_function.rs:3:10
   |
-4 | #[validate(schema())]
-  |            ^^^^^^
+3 | #[derive(Validate)]
+  |          ^^^^^^^^
+  |
+  = help: message: called `Result::unwrap()` on an `Err` value: Error("unexpected token in nested attribute, expected ident")
