@@ -1,3 +1,4 @@
+/// Validates whether or not a slice contains an element
 pub fn validate_in<T: PartialEq>(haystack: &[T], needle: &T, not: bool) -> bool {
     if not {
         !haystack.contains(needle)

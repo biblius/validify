@@ -1,6 +1,6 @@
 # Validify
 
-A procedural macro built on top of the [validator](https://docs.rs/validator/latest/validator/) crate that provides attributes for field modifiers. Particularly useful in the context of web payloads.
+A procedural macro that provides attributes for field validation and modifiers. Particularly useful in the context of web payloads.
 
 ## **Modifiers**
 
@@ -13,55 +13,54 @@ A procedural macro built on top of the [validator](https://docs.rs/validator/lat
 |  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
 |  validify*    |  Struct  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations
 
-\*Also works for Vec\<T> by running validate on each element.
+\*Also works for Vec\<T> by running `validify` on each element.
 
 ## **Validators**
 
-|       Validator       |    Type     |      Params     |        Description
-|-----------------------|-------------|-----------------|-----------------------
-| email                 |  String     |        --       | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).
-| url                   |  String     |        --       | Checks if the string is a URL.
-| length                | Collection  | min, max, equal | Checks if the field's collection length is within the specified params.
-| range                 |  Number     |     min, max    | Checks if the field's value is in the specified range.
-| must_match            |    Any      |       Any*      | Checks if the field matches the specified value
-| contains              | Collection  |      Item*      | Checks if the collection contains the specified value
-| contains_not      | Collection  |      Item*      | Checks if the collection doesn't contain the specified value
+|       Validator  |    Type     |      Params     |        Description
+|------------------|-------------|-----------------|-----------------------
+| email            |  String     |        --       | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).
+| ip               |  String     | format = v4/v6  | Checks if the string is an IP address.
+| url              |  String     |        --       | Checks if the string is a URL.
+| length           | Collection  | min, max, equal | Checks if the field's collection length is within the specified params.
+| range            |  Number     |     min, max    | Checks if the field's value is in the specified range.
+| must_match       |    Any      |       Any       | Checks if the field matches another field of the struct
+| contains         | Collection  |      StrLit     | Checks if the collection contains the specified value
+| contains_not     | Collection  |      StrLit     | Checks if the collection doesn't contain the specified value
 | non_control_char |  String     |        --       | Checks if the field contains control characters
-| custom                |  Function   |      FnItem*    | Executes custom validation on the field specified by the end user
-| regex                 |  String     |      Regex*     | Matches the provided regex against the field
-| credit_card           |  String     |        --       | Checks if the field's value is a valid credit card number
-| phone                 |  String     |        --       | Checks if the field's value is a valid phone number
-| required              |  Option     |        --       | Checks whether the field's value is Some
-| is_in                 |  String/Num |    Collection*  | Checks whether the field's value is in the provided collection
-| not_in                |  String/Num |    Collection*  | Checks whether the field's value is not in the provided collection
+| custom           |  Function   |      FnItem     | Executes custom validation on the field specified by the end user
+| regex            |  String     |      Regex      | Matches the provided regex against the field
+| credit_card      |  String     |        --       | Checks if the field's value is a valid credit card number
+| phone            |  String     |        --       | Checks if the field's value is a valid phone number
+| required         |  Option     |        --       | Checks whether the field's value is Some
+| is_in            |  String/Num |    Collection   | Checks whether the field's value is in the provided collection
+| not_in           |  String/Num |    Collection   | Checks whether the field's value is not in the provided collection
 
-\* Params are specified in string notation, i.e. `"param"`.
-
-The crate provides the `Validify` trait and the `validify` attribute macro and supports all the functionality of the validator crate. The main addition here is that payloads can be modified before being validated.
+The crate provides the `Validify` trait and its derive macro as well as an updated version of the `Validate` trait, based on [the validator crate](https://docs.rs/validator/latest/validator/). The main addition here is that payloads can be modified before being validated.
 
 This is useful, for example, when a payload's `String` field has a minimum length restriction and you don't want it to be just spaces. Validify allows you to modify the field before it gets validated so as to mitigate this problem.
 
-Annotate the struct you want to modify and validate with the `validify` macro:
+Annotate the struct you want to modify and validate with the `Validify` attribute (if you do not need payload modification, derive the `validify::Validate` trait):
 
 ```rust
-use validify::{validify, Validify};
-#[validify]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+use validify::Validify;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
     pub a: String,
     #[modify(trim, uppercase)]
     pub b: Option<String>,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     pub c: String,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     pub d: Option<String>,
     #[validify]
     pub nested: Nestor,
 }
-#[validify]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -70,9 +69,11 @@ struct Nestor {
     #[validate(length(equal = 14))]
     b: String,
 }
+
 fn do_something(input: &mut String) {
     *input = String::from("modified");
 }
+
 let mut test = Testor {
   a: "   LOWER ME     ".to_string(),
   b: Some("  makemeshout   ".to_string()),
@@ -83,12 +84,14 @@ let mut test = Testor {
       b: "capitalize me.".to_string(),
   },
 };
+
 // The magic line
 let res = Testor::validify(test.into());
 
 assert!(matches!(res, Ok(_)));
 
 let test = res.unwrap();
+
 // Parent
 assert_eq!(test.a, "lower me");
 assert_eq!(test.b, Some("MAKEMESHOUT".to_string()));
@@ -103,10 +106,10 @@ Notice how even though field `d` is an option, the function used to modify the f
 
 ## How it works
 
-Every struct annotated with `#[validify]` gets an associated payload struct, e.g.
+Every struct annotated with `#[derive(Validify)]` gets an associated payload struct, e.g.
 
 ```rust
-#[validify]
+#[derive(Validify)]
 struct Something {
   a: usize,
   b: String,
@@ -133,7 +136,7 @@ Note that every field that isn't an option will be an 'optional' required field 
 
 Validify's `validify` method always takes in the generated payload and outputs the original struct if all validations have passed.
 
-The macro automatically implements validator's `Validate` trait and validify's `Modify` trait in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which in the above example expands to:
+The macro automatically implements the `Validate` and `Modify` traits in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which in the above example expands to:
 
 ```rust
     fn validify(payload: Self::Payload) -> Result<(), ValidationErrors> {
@@ -161,8 +164,8 @@ The macro automatically implements validator's `Validate` trait and validify's `
 Schema level validations can be performed using the following:
 
 ```rust
-#[validify]
-#[validate(schema(function = "validate_testor"))]
+#[derive(Validify)]
+#[validate(validate_testor)]
 struct Testor { 
     a: String,
     b: usize,
@@ -193,7 +196,20 @@ Like field level validation, schema level validation is performed after modifica
 
 ### Errors
 
-The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are as the name suggests created when fields fail validation and are usually automatically gwnerated unless using custom handlers (custom field validation always must return a result whose Err variant is ValidationError). Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
+The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are, as the name suggests, created when fields fail validation and are usually automatically generated unless using custom handlers (custom field validation always must return a result whose Err variant is ValidationError).
+
+If you want to provide a message along with the error, you can directly specify it in the attribute (the same goes for the code),
+for example:
+
+`#[validate(contains(value = "something", message = "Does not contain something", code = "MUST_CONTAIN"))]`
+
+Keep in mind, when specifying validations this way, all attribute parameters MUST be specified as [NameValue](https://docs.rs/syn/latest/syn/struct.MetaNameValue.html) pairs. This means that if you write
+
+`#[validate("something", message = "Bla")]`,
+
+you will get an error, as the parser expects either a single value or multiple name value pairs.
+
+Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
 
 ### **Examples**
 
@@ -201,8 +217,7 @@ The main ValidationError is an enum with 2 variants, Field and Schema. Field err
 
 ```rust
     fn actix_test() {
-      #[validify]
-      #[derive(Debug, Serialize)]
+      #[derive(Debug, Serialize, Validify)]
       struct JsonTest {
           #[modify(lowercase)]
           a: String,
@@ -244,17 +259,16 @@ const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
 const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
 const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
 
-#[validify]
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
-#[validate(schema(function = "schema_validation"))]
+#[validate(schema_validation)]
 struct BigBoi {
     #[modify(trim)]
     #[validate(length(max = 300))]
     title: String,
 
     #[modify(trim)]
-    #[validate(is_in = "STATUSES")]
+    #[validate(is_in(STATUSES))]
     status: String,
 
     #[modify(capitalize, trim)]
@@ -266,21 +280,21 @@ struct BigBoi {
     #[modify(capitalize)]
     type_of_workplace: Vec<String>,
 
-    #[validate(is_in = "WORKING_HOURS")]
+    #[validate(is_in(WORKING_HOURS))]
     working_hours: String,
 
     part_time_period: Option<String>,
 
     #[modify(capitalize)]
-    #[validate(is_in = "CONTRACT_TYPES")]
+    #[validate(is_in(CONTRACT_TYPES))]
     contract_type: String,
 
     indefinite_probation_period: bool,
 
-    #[validate(is_in = "ALLOWED_DURATIONS")]
+    #[validate(is_in(ALLOWED_DURATIONS))]
     indefinite_probation_period_duration: Option<i32>,
 
-    #[validate(is_in = "CAREER_LEVEL")]
+    #[validate(is_in(CAREER_LEVEL))]
     career_level: String,
 
     #[modify(capitalize)]
@@ -292,13 +306,13 @@ struct BigBoi {
     #[validate(length(max = 160))]
     meta_description: String,
 
-    #[validate(is_in = "ALLOWED_MIME")]
+    #[validate(is_in(ALLOWED_MIME))]
     meta_image: String,
 
-    #[validate(custom = "greater_than_now")]
+    #[validate(custom(greater_than_now))]
     published_at: String,
 
-    #[validate(custom = "greater_than_now")]
+    #[validate(custom(greater_than_now))]
     expires_at: String,
 
     #[validify]
@@ -349,12 +363,11 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
     }
 }
 
-#[validify]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestTags {
     #[modify(trim)]
-    #[validate(length(min = 1, max = 10), custom = "validate_names")]
+    #[validate(length(min = 1, max = 10), custom(validate_names))]
     names: Vec<String>,
 }
 
@@ -372,8 +385,7 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
 
 const PROFICIENCY: &[&str] = &["dunno", "killinit"];
 
-#[validify]
-#[derive(Serialize, Clone, Deserialize, Debug)]
+#[derive(Serialize, Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestLanguages {
     company_opening_id: String,
@@ -381,7 +393,7 @@ struct TestLanguages {
     language: String,
 
     #[modify(trim)]
-    #[validate(is_in = "PROFICIENCY")]
+    #[validate(is_in(PROFICIENCY))]
     proficiency: Option<String>,
 
     required: Option<bool>,
@@ -446,7 +458,7 @@ fn biggest_of_bois() {
 
         benefits: "none".to_string(),
         meta_title: "this struct is getting pretty big".to_string(),
-        meta_description: "and it's king of annoying".to_string(),
+        meta_description: "and it's kind of annoying".to_string(),
 
         // Invalid mime type
         meta_image: "heic".to_string(),

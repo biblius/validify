@@ -21,9 +21,9 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
     let field_info = collect_field_info(input, false).unwrap();
 
-    let (modifiers, validations) = quote_field_modifiers(field_info);
+    let (modifiers, nested_validifies) = quote_field_modifiers(field_info);
 
-    let validate_impl = impl_validate(&input);
+    let validate_impl = impl_validate(input);
 
     let (payload_impl, payload_ident) = generate_payload_type(input);
 
@@ -49,9 +49,9 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
         fn validify(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors> {
             <Self::Payload as ::validify::Validate>::validate(&payload)?;
             let mut this = Self::from(payload);
-            <Self as ::validify::Modify>::modify(&mut this);
             let mut errors = ::validify::ValidationErrors::new();
-            #(#validations)*
+            #(#nested_validifies)*
+            <Self as ::validify::Modify>::modify(&mut this);
             if let Err(errs) = <Self as ::validify::Validate>::validate(&this) {
                 errors.merge(errs);
             }

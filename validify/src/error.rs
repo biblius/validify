@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use serde::ser::Serialize;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{to_value, Value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]

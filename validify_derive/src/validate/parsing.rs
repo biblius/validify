@@ -1,5 +1,5 @@
 use crate::types::{
-    Contains, CreditCard, Custom, Email, In, Length, MustMatch, NonControlChar, Phone, Range,
+    Contains, CreditCard, Custom, Email, In, Ip, Length, MustMatch, NonControlChar, Phone, Range,
     Regex, Required, Url, ValueOrPath,
 };
 use proc_macro2::Span;
@@ -109,6 +109,7 @@ pub fn parse_length(meta: &ParseNestedMeta) -> Result<Length, syn::Error> {
 
 pub fn parse_range(meta: &ParseNestedMeta) -> Result<Range, syn::Error> {
     let mut validation = Range::default();
+
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("min") {
             let content = meta.value()?;
@@ -148,6 +149,7 @@ pub fn parse_range(meta: &ParseNestedMeta) -> Result<Range, syn::Error> {
 
 pub fn parse_contains_full(meta: &ParseNestedMeta, not: bool) -> Result<Contains, syn::Error> {
     let mut validation = Contains::new(String::new(), not);
+
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("value") {
             let content = meta.value()?;
@@ -181,6 +183,7 @@ pub fn parse_must_match_full(meta: &ParseNestedMeta) -> Result<MustMatch, syn::E
         code: None,
         message: None,
     };
+
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("value") {
             let content = meta.value()?;
@@ -218,6 +221,7 @@ pub fn parse_custom_full(meta: &ParseNestedMeta) -> Result<Custom, syn::Error> {
         code: None,
         message: None,
     };
+
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("path") {
             let content = meta.value()?;
@@ -288,6 +292,7 @@ pub fn parse_in_full(meta: &ParseNestedMeta, not: bool) -> Result<In, syn::Error
         },
         not,
     );
+
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("value") {
             let content = meta.value()?;
@@ -308,6 +313,33 @@ pub fn parse_in_full(meta: &ParseNestedMeta, not: bool) -> Result<In, syn::Error
     if validation.path.segments.is_empty() {
         abort!(meta.input.span(), "[not_]in validation must have a path")
     }
+
+    Ok(validation)
+}
+
+pub fn parse_ip_full(meta: &ParseNestedMeta) -> Result<Ip, syn::Error> {
+    let mut validation = Ip::default();
+
+    meta.parse_nested_meta(|meta| {
+        if meta.path.is_ident("format") {
+            let content = meta.value()?;
+            match content.parse::<syn::LitStr>() {
+                Ok(format) => match format.value().as_str() {
+                    "v4" => validation.format = Some(crate::types::IpFormat::V4),
+                    "v6" => validation.format = Some(crate::types::IpFormat::V6),
+                    _ => abort!(format.span(), "Invalid IP format, accepted are: v4, v6"),
+                },
+                Err(_) => {
+                    return Err(meta.error("ip format must be a string literal: \"v4\"/\"v6\""))
+                }
+            }
+            return Ok(());
+        }
+
+        code_and_message!(validation, meta);
+
+        Err(meta.error("Unrecognized ip parameter, accepted are: format, code, message"))
+    })?;
 
     Ok(validation)
 }

@@ -1,4 +1,4 @@
-use crate::validate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
+use crate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
 use proc_macro2::{self};
 use proc_macro_error::abort;
 use quote::quote;
@@ -16,10 +16,15 @@ impl FieldQuoter {
         FieldQuoter { ident, name, _type }
     }
 
-    /// Don't put a & in front a pointer since we are going to pass
-    /// a reference to the validator
-    /// Also just use the ident without `if` as it's optional and will go through
-    /// an if let first
+    /// Quotes the field as necessary for passing the resulting tokens into a validation
+    /// function.
+    ///
+    /// If the field is an `Option`, we simply quote the field as we always
+    /// wrap optional fields in an `if let Some`.
+    ///
+    /// If the field is a reference the returned tokens are `self.field`.
+    ///
+    /// If the field is owned, the tokens are `&self.field`.
     pub fn quote_validator_param(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
 

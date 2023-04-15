@@ -3,7 +3,7 @@ authors = [
   "Vincent Prouillet <hello@vincentprouillet.com",
   "biblius <crazycompanyxxl@gmail.com>",
 ]
-description = "Derive macros for the Validate trait of `validify`"
+description = "Derive macros for the validify crate"
 edition = "2021"
 homepage = "https://github.com/biblius/validify"
 keywords = ["modify", "payload", "validate", "validify"]
@@ -11,15 +11,15 @@ license = "MIT"
 name = "validify_derive"
 readme = "../README.md"
 repository = "https://github.com/biblius/validify"
-version = "0.1.0"
+version = "1.0.0"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-lazy_static = "1"
-proc-macro-error = "1"
-proc-macro2 = "1"
-quote = "1"
+lazy_static = "1.4.0"
+proc-macro-error = "1.0.4"
+proc-macro2 = "1.0.56"
+quote = "1.0.26"
 regex = "1.5.5"
-syn = { version = "2.0.14", features = ["extra-traits", "full"] }
+syn = { version = "2.0.15", features = ["extra-traits", "full"] }

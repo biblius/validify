@@ -2,8 +2,8 @@ use super::parsing::option_to_tokens;
 use crate::fields::FieldInformation;
 use crate::quoter::FieldQuoter;
 use crate::types::{
-    Contains, CreditCard, Custom, Describe, Email, In, Length, MustMatch, NonControlChar, Phone,
-    Range, Regex, Required, SchemaValidation, Url, ValueOrPath,
+    Contains, CreditCard, Custom, Describe, Email, In, Ip, Length, MustMatch, NonControlChar,
+    Phone, Range, Regex, Required, SchemaValidation, Url, ValueOrPath,
 };
 use crate::Validator;
 use proc_macro2::{self};
@@ -95,6 +95,9 @@ pub fn quote_validator(
         Validator::In(validation) => {
             validations.push(quote_in_validation(field_quoter, validation))
         }
+        Validator::Ip(validation) => {
+            validations.push(quote_ip_validation(field_quoter, validation))
+        }
     }
 }
 
@@ -112,6 +115,32 @@ pub fn quote_struct_validation(validation: &SchemaValidation) -> proc_macro2::To
             },
         };
     )
+}
+
+pub fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::TokenStream {
+    let field_name = &field_quoter.name;
+    let validator_param = field_quoter.quote_validator_param();
+    let quoted_error = quote_error(&ip, field_name);
+
+    let Ip { ref format, .. } = ip;
+
+    let validate_fn = match format {
+        Some(format) => match format {
+            crate::types::IpFormat::V4 => quote!(validate_ip_v4),
+            crate::types::IpFormat::V6 => quote!(validate_ip_v6),
+        },
+        None => quote!(validate_ip),
+    };
+
+    let quoted = quote!(
+        if !::validify::#validate_fn(#validator_param) {
+            #quoted_error
+            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            errors.add(err);
+        }
+    );
+
+    field_quoter.wrap_validator_if_option(quoted)
 }
 
 pub fn quote_length_validation(
@@ -171,7 +200,7 @@ pub fn quote_length_validation(
             .map(|x| quote!(#x as u64)),
     );
 
-    let quoted_error = quote_error(&length, &field_name);
+    let quoted_error = quote_error(&length, field_name);
 
     let quoted = quote!(
         if !::validify::validate_length(
@@ -420,7 +449,7 @@ pub fn quote_nested_validation(field_quoter: &FieldQuoter) -> proc_macro2::Token
 pub fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
 
-    let validator_param = field_quoter.quote_validator_param();
+    let field_ident = &field_quoter.ident;
     let In { ref path, not, .. } = r#in;
     let quoted_error = quote_error(&r#in, field_name);
 
@@ -434,10 +463,10 @@ pub fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2:
 
     if field_quoter._type.starts_with("Option<") {
         return quote!(
-            if let Some(ref param) = self.#validator_param {
+            if let Some(ref param) = self.#field_ident {
                 if !::validify::validate_in(#path, &param #as_str, #not) {
                     #quoted_error
-                    err.add_param(::std::borrow::Cow::from("value"), &self.#validator_param);
+                    err.add_param(::std::borrow::Cow::from("value"), &self.#field_ident);
                     err.add_param(::std::borrow::Cow::from("disallowed"), &#path);
                     errors.add(err);
                 }
@@ -446,9 +475,9 @@ pub fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2:
     }
 
     quote!(
-        if !::validify::validate_in(#path, &#validator_param #as_str, #not) {
+        if !::validify::validate_in(#path, &self.#field_ident #as_str, #not) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), #validator_param);
+            err.add_param(::std::borrow::Cow::from("value"), &self.#field_ident);
             err.add_param(::std::borrow::Cow::from("disallowed"), &#path);
             errors.add(err);
     })

@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use proc_macro_error::abort;
 use regex::Regex;
-use syn::{spanned::Spanned, meta::ParseNestedMeta};
+use syn::{meta::ParseNestedMeta, spanned::Spanned};
 
 lazy_static! {
     pub static ref COW_TYPE: Regex = Regex::new(r"Cow<'[a-z]+,str>").unwrap();
@@ -52,12 +52,15 @@ pub static NUMBER_TYPES: [&str; 38] = [
 ];
 
 pub fn is_full_pattern(meta: &ParseNestedMeta) -> bool {
-    meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).is_some()
+    meta.input
+        .cursor()
+        .group(proc_macro2::Delimiter::Parenthesis)
+        .is_some()
 }
 
 /// Returns `true` if the given group contains only a single literal
 pub fn is_single_lit(meta: &ParseNestedMeta, validator: &str) -> bool {
-    let group_cursor = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(|| 
+    let group_cursor = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
         abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
     ).0;
     group_cursor.literal().is_some()
@@ -65,7 +68,7 @@ pub fn is_single_lit(meta: &ParseNestedMeta, validator: &str) -> bool {
 
 /// Returns `true` if the given group contains only a single path
 pub fn is_single_path(meta: &ParseNestedMeta, validator: &str) -> bool {
-    let (group_cursor, _, _) = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(|| 
+    let (group_cursor, _, _) = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
         abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
     );
     let size = group_cursor.token_stream().into_iter().size_hint().0;

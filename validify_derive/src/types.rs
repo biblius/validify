@@ -16,6 +16,7 @@ pub enum Validator {
     Regex(Regex),
     Contains(Contains),
     In(In),
+    Ip(Ip),
     Nested,
 }
 
@@ -83,13 +84,6 @@ macro_rules! validation {
     };
 }
 
-validation!(
-    In : "in",
-    Clone;
-    path: syn::Path,
-    not: bool
-);
-
 impl In {
     pub fn new(path: syn::Path, not: bool) -> Self {
         Self {
@@ -156,41 +150,6 @@ impl MustMatch {
     }
 }
 
-#[derive(Debug)]
-pub struct Contains {
-    pub not: bool,
-    pub value: String,
-    pub code: Option<String>,
-    pub message: Option<String>,
-}
-
-impl Describe for Contains {
-    fn code(&self) -> &str {
-        if let Some(ref code) = self.code {
-            code
-        } else if self.not {
-            "contains_not"
-        } else {
-            "contains"
-        }
-    }
-
-    fn message<'a>(&'a self) -> Option<&'a str> {
-        self.message.as_ref().map(|s| s.as_str())
-    }
-}
-
-impl Contains {
-    pub fn new(value: String, not: bool) -> Self {
-        Self {
-            not,
-            value,
-            code: None,
-            message: None,
-        }
-    }
-}
-
 validation!(
     Nested : "nested",
     Default;
@@ -226,6 +185,77 @@ impl Regex {
     pub fn new(path: syn::Path) -> Self {
         Self {
             path,
+            code: None,
+            message: None,
+        }
+    }
+}
+
+validation!(
+    Ip : "ip",
+    Clone, Default;
+    format: Option<IpFormat>
+);
+
+#[derive(Debug, Clone)]
+pub enum IpFormat {
+    V4,
+    V6,
+}
+
+#[derive(Debug)]
+pub struct In {
+    pub not: bool,
+    pub path: syn::Path,
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
+impl Describe for In {
+    fn code(&self) -> &str {
+        if let Some(ref code) = self.code {
+            code
+        } else if self.not {
+            "not_in"
+        } else {
+            "in"
+        }
+    }
+
+    fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+}
+
+#[derive(Debug)]
+pub struct Contains {
+    pub not: bool,
+    pub value: String,
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
+impl Describe for Contains {
+    fn code(&self) -> &str {
+        if let Some(ref code) = self.code {
+            code
+        } else if self.not {
+            "contains_not"
+        } else {
+            "contains"
+        }
+    }
+
+    fn message(&self) -> Option<&str> {
+        self.message.as_deref()
+    }
+}
+
+impl Contains {
+    pub fn new(value: String, not: bool) -> Self {
+        Self {
+            not,
+            value,
             code: None,
             message: None,
         }

@@ -1,9 +1,14 @@
-use crate::fields::{collect_field_info};
-use crate::types::{Validator, Email, Url, Contains, MustMatch, NonControlChar, Custom, Regex, CreditCard, Phone, Required, In, SchemaValidation};
+use super::parsing::*;
 use super::quoting::quote_field_validations;
 use super::quoting::quote_struct_validations;
-use super::asserts::{assert_has_len, assert_has_range, is_full_pattern, is_single_path, is_single_lit};
-use super::parsing::*;
+use crate::asserts::{
+    assert_has_len, assert_has_range, is_full_pattern, is_single_lit, is_single_path,
+};
+use crate::fields::collect_field_info;
+use crate::types::{
+    Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
+    SchemaValidation, Url, Validator,
+};
 use proc_macro_error::abort;
 use quote::quote;
 use syn::parenthesized;
@@ -24,8 +29,8 @@ const PHONE: &str = "phone";
 const REQUIRED: &str = "required";
 const IS_IN: &str = "is_in";
 const NOT_IN: &str = "not_in";
+const IP: &str = "ip";
 const VALIDATE: &str = "validate";
-
 
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let field_validations = collect_field_info(input, true).unwrap();
@@ -61,7 +66,9 @@ pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
 }
 
 /// Find if a struct has some schema validation and returns the info if so
-fn collect_struct_validation(attrs: &[syn::Attribute]) -> Result<Vec<SchemaValidation>, syn::Error> {
+fn collect_struct_validation(
+    attrs: &[syn::Attribute],
+) -> Result<Vec<SchemaValidation>, syn::Error> {
     let mut validations = vec![];
     let filtered = attrs
         .iter()
@@ -78,7 +85,6 @@ fn collect_struct_validation(attrs: &[syn::Attribute]) -> Result<Vec<SchemaValid
     Ok(validations)
 }
 
-
 pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, field_type: &str) {
     let field_ident = field.ident.as_ref().unwrap().to_string();
     for attr in field.attrs.iter() {
@@ -90,7 +96,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             let syn::Meta::Path(ref path) = attr.meta else {
                 abort!(
                     attr.meta.span(),
-                    "Validate must be applied as a list, i.e. `validate(/*...*/)`"
+                    "Validate must be applied as a list, i.e. `validate(/*...*/)` or as a path `validate` for nested validation"
                 )
             };
             if path.is_ident(VALIDATE) {
@@ -117,7 +123,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
                 } else {
                     validators.push(Validator::Url(Url::default()));
                 }
-                
+
                 return Ok(());
             }
 
@@ -281,6 +287,18 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
                 }
                 return Ok(());
             }
+
+            if meta.path.is_ident(IP) {
+                if is_full_pattern(&meta) {
+                    let validation = parse_ip_full(&meta)?;
+                    validators.push(Validator::Ip(validation));
+                } else {
+                    validators.push(Validator::Ip(Ip::default()));
+                }
+
+                return Ok(());
+            }
+
 
 
             Err(meta.error("Uncrecognized validate parameter")

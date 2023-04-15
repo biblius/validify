@@ -1,16 +1,14 @@
 use crate::traits::Contains;
 
 /// Validates whether the value contains the needle
-/// The value needs to implement the Contains trait, which is implement on String, str and Hashmap<String>
+/// The value needs to implement the Contains trait, which is implemented on String, str and `Hashmap<String>`
 /// by default.
-///
-/// All validations fail if the
 #[must_use]
-pub fn validate_contains<T: Contains>(val: T, needle: &str, not: bool) -> bool {
+pub fn validate_contains<T: Contains>(haystack: T, needle: &str, not: bool) -> bool {
     if not {
-        !val.has_element(needle)
+        !haystack.has_element(needle)
     } else {
-        val.has_element(needle)
+        haystack.has_element(needle)
     }
 }
 

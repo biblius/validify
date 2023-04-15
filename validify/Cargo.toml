@@ -1,6 +1,9 @@
 [package]
-authors = ["biblius <crazycompanyxxl@gmail.com>"]
-description = "An extension of the validator crate that enables payload modification"
+authors = [
+  "Vincent Prouillet <hello@vincentprouillet.com",
+  "biblius <crazycompanyxxl@gmail.com>",
+]
+description = "Provides struct validation and modification functionality through the use of derive macros"
 edition = "2021"
 exclude = ["derive_tests/"]
 homepage = "https://github.com/biblius/validify"
@@ -9,21 +12,20 @@ license = "MIT"
 name = "validify"
 readme = "../README.md"
 repository = "https://github.com/biblius/validify"
-version = "0.1.0"
+version = "1.0.0"
 
 
 [dependencies]
 card-validate = { version = "2.3" }
 idna = "0.3"
 indexmap = { version = "1", features = ["serde-1"] }
-lazy_static = "1"
-phonenumber = { version = "0.3.2" }
-proc-macro2 = "1.0.47"
-regex = "1"
-serde = "1.0.152"
-serde_derive = "1"
+lazy_static = "1.4.0"
+phonenumber = "0.3.2"
+proc-macro2 = "1.0.56"
+regex = "1.7.3"
+serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1"
 syn = { version = "1.0.103", features = ["full"] }
 unic-ucd-common = { version = "0.9" }
-url = "2"
-validify_derive = { version = "0.1.0", path = "../validify_derive" }
+url = "2.3.1"
+validify_derive = { version = "1.0.0", path = "../validify_derive" }

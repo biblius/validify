@@ -17,7 +17,7 @@ struct T {
        not_in(DISALLOWED),
        contains(value = "YO", message = "hello"),
        custom(path = foo, code = "foo", message = "bar"),
-       custom(bar)
+       custom(bar),
     )]
     pub a: String,
     #[validify]
@@ -30,6 +30,8 @@ struct T {
     d: Option<String>,
     #[validate(is_in(NUMBERS), not_in(NO_NUMBERS), range(min = -20., max = 20.))]
     e: Option<i32>,
+    #[validate(ip)]
+    f: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
@@ -42,10 +44,10 @@ fn baz(_a: &mut String) {
     *_a = "YOLO".to_string()
 }
 
-fn foo(_a: &String) -> Result<(), ValidationError> {
+fn foo(_a: &str) -> Result<(), ValidationError> {
     Ok(())
 }
-fn bar(_a: &String) -> Result<(), ValidationError> {
+fn bar(_a: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
@@ -76,10 +78,12 @@ fn validate() {
         c: vec!["lmeo".to_string()],
         d: Some("testovanje".to_string()),
         e: None,
+        f: "0.0.0.0".to_string(),
     };
     let res = T::validify(_t.into());
     assert!(res.is_err());
     let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 2);
     assert_eq!(err.errors()[0].code(), "Invalid YOLO");
     assert_eq!(
         err.errors()[0].message(),
