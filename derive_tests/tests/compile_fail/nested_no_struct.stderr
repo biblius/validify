@@ -1,4 +1,4 @@
-error: Unexpected modifier: nested
+error: Unrecognized modify parameter
  --> tests/compile_fail/nested_no_struct.rs:7:14
   |
 7 |     #[modify(nested)]

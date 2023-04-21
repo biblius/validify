@@ -1,5 +1,5 @@
-error: Invalid attribute #[validate] on field `s`: Validator `range` requires at least 1 argument out of `min` and `max`
- --> $DIR/no_args.rs:5:5
+error: unexpected end of input, expected nested attribute
+ --> tests/compile_fail/no_args.rs:5:22
   |
 5 |     #[validate(range())]
-  |     ^
+  |                      ^

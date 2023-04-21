@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use serde::ser::Serialize;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{to_value, Value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
@@ -223,7 +222,7 @@ impl std::fmt::Display for ValidationError {
 impl std::fmt::Display for ValidationErrors {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for err in self.errors().iter() {
-            writeln!(fmt, "{}", err)?;
+            writeln!(fmt, "{err}")?;
         }
         Ok(())
     }

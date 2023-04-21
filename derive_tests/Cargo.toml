@@ -1,16 +1,16 @@
 [package]
 edition = "2021"
 name = "derive_tests"
-version = "0.1.0"
+version = "1.0.0"
 
 [dev-dependencies]
 actix-web = "4.2.1"
-chrono = { version = "0.4.23", features = ["serde"] }
 lazy_static = "1.4.0"
 regex = "1.7.1"
 trybuild = "1.0.71"
 
 [dependencies]
+chrono = { version = "0.4.23", features = ["serde"] }
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.91"
-validify = { path = "../validify", version = "0.1.0" }
+validify = { path = "../validify", version = "1.0.0" }

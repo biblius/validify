@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use proc_macro_error::abort;
 use regex::Regex;
-use syn::spanned::Spanned;
+use syn::{meta::ParseNestedMeta, spanned::Spanned};
 
 lazy_static! {
     pub static ref COW_TYPE: Regex = Regex::new(r"Cow<'[a-z]+,str>").unwrap();
@@ -51,29 +51,28 @@ pub static NUMBER_TYPES: [&str; 38] = [
     "Option<Option<f64>>",
 ];
 
-pub fn assert_string_type(name: &str, type_name: &str, field_type: &syn::Type) {
-    if !type_name.contains("String") && !type_name.contains("str") {
-        abort!(
-            field_type.span(),
-            "`{}` validator can only be used on String, &str, Cow<'_,str> or an Option of those",
-            name
-        );
-    }
+pub fn is_full_pattern(meta: &ParseNestedMeta) -> bool {
+    meta.input
+        .cursor()
+        .group(proc_macro2::Delimiter::Parenthesis)
+        .is_some()
 }
 
-pub fn assert_type_matches(
-    field_name: String,
-    field_type: &str,
-    field_type2: Option<&String>,
-    field_attr: &syn::Attribute,
-) {
-    if let Some(t2) = field_type2 {
-        if field_type != t2 {
-            abort!(field_attr.span(), "Invalid argument for `must_match` validator of field `{}`: types of field can't match", field_name);
-        }
-    } else {
-        abort!(field_attr.span(), "Invalid argument for `must_match` validator of field `{}`: the other field doesn't exist in struct", field_name);
-    }
+/// Returns `true` if the given group contains only a single literal
+pub fn is_single_lit(meta: &ParseNestedMeta, validator: &str) -> bool {
+    let group_cursor = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
+        abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
+    ).0;
+    group_cursor.literal().is_some()
+}
+
+/// Returns `true` if the given group contains only a single path
+pub fn is_single_path(meta: &ParseNestedMeta, validator: &str) -> bool {
+    let (group_cursor, _, _) = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
+        abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
+    );
+    let size = group_cursor.token_stream().into_iter().size_hint().0;
+    group_cursor.ident().is_some() && size == 1
 }
 
 pub fn assert_has_len(field_name: String, type_name: &str, field_type: &syn::Type) {
@@ -95,7 +94,7 @@ pub fn assert_has_len(field_name: String, type_name: &str, field_type: &syn::Typ
         && !COW_TYPE.is_match(type_name)
     {
         abort!(field_type.span(),
-                "Validator `length` can only be used on types `String`, `&str`, Cow<'_,str>, `Vec`, slice, or map/set types (BTree/Hash/Index) but found `{}` for field `{}`",
+                "Validator `length` can only be used on types `String`, `&str`, Cow<'_,str>, `Vec`, or map/set types (BTree/Hash/Index) but found `{}` for field `{}`",
                 type_name, field_name
             );
     }

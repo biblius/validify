@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
-
 use validify::{Validate, ValidationError, ValidationErrors};
 
 fn validate_unique_username(username: &str) -> Result<(), ValidationError> {
@@ -27,16 +26,16 @@ fn validate_signup(data: &SignupData) -> Result<(), ValidationErrors> {
 }
 
 #[derive(Debug, Validate, Deserialize)]
-#[validate(schema(function = "validate_signup"))]
+#[validate(validate_signup)]
 struct SignupData {
     #[validate(email)]
     mail: String,
     #[validate(url)]
     site: String,
-    #[validate(length(min = 1), custom = "validate_unique_username")]
+    #[validate(length(min = 1), custom(validate_unique_username))]
     #[serde(rename = "firstName")]
     first_name: String,
-    #[validate(range(min = 18, max = 20))]
+    #[validate(range(min = 18., max = 20.))]
     age: u32,
     #[validate]
     phone: Phone,
@@ -56,7 +55,7 @@ struct Phone {
 struct Card {
     #[validate(credit_card)]
     number: String,
-    #[validate(range(min = 100, max = 9999))]
+    #[validate(range(min = 100., max = 9999.))]
     cvv: u32,
 }
 
@@ -126,19 +125,19 @@ fn test_can_validate_option_fields_with_lifetime() {
         name: Option<&'a str>,
         #[validate(length(min = 1, max = 10))]
         address: Option<Option<&'a str>>,
-        #[validate(range(min = 1, max = 100))]
+        #[validate(range(min = 1., max = 100.))]
         age: Option<Option<usize>>,
-        #[validate(range(min = 1, max = 10))]
+        #[validate(range(min = 1., max = 10.))]
         range: Option<usize>,
         #[validate(email)]
         email: Option<&'a str>,
         #[validate(url)]
         url: Option<&'a str>,
-        #[validate(contains = "@")]
+        #[validate(contains("@"))]
         text: Option<&'a str>,
-        #[validate(regex = "RE2")]
+        #[validate(regex(RE2))]
         re: Option<&'a str>,
-        #[validate(custom = "check_str")]
+        #[validate(custom(check_str))]
         custom: Option<&'a str>,
     }
 
@@ -176,19 +175,19 @@ fn test_can_validate_option_fields_without_lifetime() {
         ids: Option<Vec<usize>>,
         #[validate(length(min = 1, max = 10))]
         opt_ids: Option<Option<Vec<usize>>>,
-        #[validate(range(min = 1, max = 100))]
+        #[validate(range(min = 1., max = 100.))]
         age: Option<Option<usize>>,
-        #[validate(range(min = 1, max = 10))]
+        #[validate(range(min = 1., max = 10.))]
         range: Option<usize>,
         #[validate(email)]
         email: Option<String>,
         #[validate(url)]
         url: Option<String>,
-        #[validate(contains = "@")]
+        #[validate(contains("@"))]
         text: Option<String>,
-        #[validate(regex = "RE2")]
+        #[validate(regex(RE2))]
         re: Option<String>,
-        #[validate(custom = "check_str")]
+        #[validate(custom(check_str))]
         custom: Option<String>,
     }
 
@@ -242,9 +241,9 @@ fn test_works_with_none_values() {
         name: Option<String>,
         #[validate(length(min = 1, max = 10))]
         address: Option<Option<String>>,
-        #[validate(range(min = 1, max = 100))]
+        #[validate(range(min = 1., max = 100.))]
         age: Option<Option<usize>>,
-        #[validate(range(min = 1, max = 10))]
+        #[validate(range(min = 1., max = 10.))]
         range: Option<usize>,
     }
 

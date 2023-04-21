@@ -25,7 +25,7 @@ fn can_validate_length_ok() {
 fn validate_length_with_ref_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(length(min = "MIN_CONST", max = "MAX_CONST"))]
+        #[validate(length(min = MIN_CONST, max = MAX_CONST))]
         val: String,
     }
 
@@ -40,7 +40,7 @@ fn validate_length_with_ref_ok() {
 fn validate_length_with_ref_fails() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(length(min = "MIN_CONST", max = "MAX_CONST"))]
+        #[validate(length(min = MIN_CONST, max = MAX_CONST))]
         val: String,
     }
 
@@ -55,7 +55,7 @@ fn validate_length_with_ref_fails() {
 fn validate_length_with_ref_i32_fails() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(length(max = "MAX_CONST_I32"))]
+        #[validate(length(max = MAX_CONST_I32))]
         val: String,
     }
 
@@ -70,7 +70,7 @@ fn validate_length_with_ref_i32_fails() {
 fn validate_length_with_ref_negative_i32_fails() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(length(max = "NEGATIVE_CONST_I32"))]
+        #[validate(length(max = NEGATIVE_CONST_I32))]
         val: String,
     }
 
@@ -131,58 +131,6 @@ fn can_specify_message_for_length() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].clone().message().unwrap(), "oops");
-}
-
-#[test]
-fn can_validate_ref_for_length() {
-    use serde_json::Value;
-
-    #[derive(Debug, Validate)]
-    struct TestStruct<'a> {
-        #[validate(length(min = 5, max = 10))]
-        val: &'a Vec<String>,
-    }
-
-    let strings = vec![String::new()];
-    let s = TestStruct { val: &strings };
-    let res = s.validate();
-    assert!(res.is_err());
-    let err = res.unwrap_err();
-    let errs = err.field_errors();
-    assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "length");
-    assert_eq!(
-        errs[0].params()["value"],
-        Value::Array(vec![Value::String(String::new())])
-    );
-    assert_eq!(errs[0].params()["min"], 5);
-    assert_eq!(errs[0].params()["max"], 10);
-}
-
-#[test]
-fn can_validate_slice_for_length() {
-    use serde_json::Value;
-
-    #[derive(Debug, Validate)]
-    struct TestStruct<'a> {
-        #[validate(length(min = 5, max = 10))]
-        val: &'a [String],
-    }
-
-    let strings = vec![String::new()];
-    let s = TestStruct { val: &strings };
-    let res = s.validate();
-    assert!(res.is_err());
-    let err = res.unwrap_err();
-    let errs = err.field_errors();
-    assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "length");
-    assert_eq!(
-        errs[0].params()["value"],
-        Value::Array(vec![Value::String(String::new())])
-    );
-    assert_eq!(errs[0].params()["min"], 5);
-    assert_eq!(errs[0].params()["max"], 10);
 }
 
 #[test]

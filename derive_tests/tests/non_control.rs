@@ -4,7 +4,7 @@ use validify::Validate;
 fn can_validate_utf8_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(non_control_character)]
+        #[validate(non_control_char)]
         val: String,
     }
 
@@ -19,7 +19,7 @@ fn can_validate_utf8_ok() {
 fn utf8_with_control_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(non_control_character)]
+        #[validate(non_control_char)]
         val: String,
     }
 
@@ -31,14 +31,14 @@ fn utf8_with_control_fails_validation() {
     let err = res.unwrap_err();
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
-    assert_eq!(errs[0].code(), "non_control_character");
+    assert_eq!(errs[0].code(), "non_control_char");
 }
 
 #[test]
 fn can_specify_code_for_non_control_character() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(non_control_character(code = "oops"))]
+        #[validate(non_control_char(code = "oops"))]
         val: String,
     }
     let s = TestStruct {
@@ -57,7 +57,7 @@ fn can_specify_code_for_non_control_character() {
 fn can_specify_message_for_non_control_character() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(non_control_character(message = "oops"))]
+        #[validate(non_control_char(message = "oops"))]
         val: String,
     }
     let s = TestStruct {

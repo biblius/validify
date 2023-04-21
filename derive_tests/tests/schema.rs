@@ -8,7 +8,7 @@ fn can_validate_schema_fn_ok() {
 
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "valid_schema_fn"))]
+    #[validate(valid_schema_fn)]
     struct TestStruct {
         val: String,
     }
@@ -24,13 +24,13 @@ mod some_defining_mod {
     use validify::Validate;
 
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "crate::some_validation_mod::valid_schema_fn"))]
+    #[validate(crate::some_validation_mod::valid_schema_fn)]
     pub struct TestStructValid {
         pub val: String,
     }
 
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "crate::some_validation_mod::invalid_schema_fn"))]
+    #[validate(crate::some_validation_mod::invalid_schema_fn)]
     pub struct TestStructInvalid {
         pub val: String,
     }
@@ -87,8 +87,8 @@ fn can_validate_multiple_schema_fn_ok() {
 
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "valid_schema_fn"))]
-    #[validate(schema(function = "valid_schema_fn2"))]
+    #[validate(valid_schema_fn)]
+    #[validate(valid_schema_fn2)]
     struct TestStruct {
         val: String,
     }
@@ -110,7 +110,7 @@ fn can_fail_schema_fn_validation() {
 
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "invalid_schema_fn"))]
+    #[validate(invalid_schema_fn)]
     struct TestStruct {
         val: String,
     }
@@ -140,8 +140,8 @@ fn can_fail_multiple_schema_fn_validation() {
 
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "invalid_schema_fn"))]
-    #[validate(schema(function = "invalid_schema_fn2"))]
+    #[validate(invalid_schema_fn)]
+    #[validate(invalid_schema_fn2)]
     struct TestStruct {
         val: String,
     }
@@ -160,13 +160,13 @@ fn can_fail_multiple_schema_fn_validation() {
 fn can_specify_message_for_schema_fn() {
     fn invalid_schema_fn(_: &TestStruct) -> Result<(), ValidationErrors> {
         let mut errors = ValidationErrors::new();
-        errors.add(ValidationError::new_schema("fuk"));
+        errors.add(ValidationError::new_schema("fuk").with_message("oops".to_string()));
         Err(errors)
     }
 
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "invalid_schema_fn", message = "oops"))]
+    #[validate(invalid_schema_fn)]
     struct TestStruct {
         val: String,
     }
@@ -188,10 +188,10 @@ fn can_choose_to_run_schema_validation_even_after_schema_errors() {
     }
     #[allow(dead_code)]
     #[derive(Debug, Validate)]
-    #[validate(schema(function = "invalid_schema_fn"))]
+    #[validate(invalid_schema_fn)]
     struct TestStruct {
         val: String,
-        #[validate(range(min = 1, max = 10))]
+        #[validate(range(min = 1., max = 10.))]
         num: usize,
     }
 

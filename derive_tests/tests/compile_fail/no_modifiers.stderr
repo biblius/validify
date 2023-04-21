@@ -1,5 +1,5 @@
-error: Invalid attribute #[modify] on field `s`: Needs at least one modifier
- --> tests/compile_fail/no_modifiers.rs:5:5
+error: unexpected end of input, expected nested attribute
+ --> tests/compile_fail/no_modifiers.rs:5:14
   |
 5 |     #[modify()]
-  |     ^
+  |              ^

@@ -14,7 +14,7 @@ macro_rules! assert_float {
 fn can_validate_range_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = 5, max = 10))]
+        #[validate(range(min = 5., max = 10.))]
         val: usize,
     }
 
@@ -27,7 +27,7 @@ fn can_validate_range_ok() {
 fn can_validate_only_min_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = 5))]
+        #[validate(range(min = 5.))]
         val: usize,
     }
 
@@ -40,7 +40,7 @@ fn can_validate_only_min_ok() {
 fn can_validate_only_max_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(max = 50))]
+        #[validate(range(max = 50.))]
         val: usize,
     }
 
@@ -53,7 +53,7 @@ fn can_validate_only_max_ok() {
 fn can_validate_range_value_crate_path_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = "MIN_CONST", max = "MAX_CONST"))]
+        #[validate(range(min = MIN_CONST, max = MAX_CONST))]
         val: usize,
     }
 
@@ -66,7 +66,7 @@ fn can_validate_range_value_crate_path_ok() {
 fn value_out_of_range_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = 5, max = 10))]
+        #[validate(range(min = 5., max = 10.))]
         val: usize,
     }
 
@@ -83,7 +83,7 @@ fn value_out_of_range_fails_validation() {
 fn value_out_of_range_fails_validation_with_crate_path() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = "MIN_CONST", max = "MAX_CONST"))]
+        #[validate(range(min = MIN_CONST, max = MAX_CONST))]
         val: usize,
     }
 
@@ -92,7 +92,6 @@ fn value_out_of_range_fails_validation_with_crate_path() {
     let res = s.validate();
     assert!(res.is_err());
     let err = res.unwrap_err();
-    println!("{}", err);
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "range");
@@ -102,7 +101,7 @@ fn value_out_of_range_fails_validation_with_crate_path() {
 fn can_specify_code_for_range() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = 5, max = 10, code = "oops"))]
+        #[validate(range(min = 5., max = 10., code = "oops"))]
         val: usize,
     }
     let s = TestStruct { val: 11 };
@@ -121,7 +120,7 @@ fn can_specify_code_for_range() {
 fn can_specify_message_for_range() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(range(min = 5, max = 10, message = "oops"))]
+        #[validate(range(min = 5., max = 10., message = "oops"))]
         val: usize,
     }
     let s = TestStruct { val: 1 };
@@ -140,15 +139,17 @@ fn can_pass_reference_as_validate() {
 
     #[derive(Validate)]
     struct TestStruct {
-        #[validate(range(min = 100))]
-        num_field: u32,
+        #[validate(range(min = -1., max = 1.))]
+        num_field: f64,
     }
 
     fn validate<T: Validate>(value: T) -> Result<(), ValidationErrors> {
         value.validate()
     }
 
-    let val = TestStruct { num_field: 10 };
-    validate(&val).unwrap_err();
-    assert_eq!(val.num_field, 10);
+    let val = TestStruct { num_field: 0.32 };
+    assert!(validate(val).is_ok());
+
+    let val = TestStruct { num_field: 1.01 };
+    assert!(validate(val).is_err());
 }

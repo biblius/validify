@@ -1,27 +1,25 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use validify::{validify, Modify, Validify};
+use validify::{Modify, Validify};
 
 /**
  * SIMPLE
  */
-
-#[validify]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase)]
     pub a: String,
     #[modify(trim, uppercase)]
     pub b: Option<String>,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     pub c: String,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     #[serde(rename = "DDDDDD")]
     pub d: Option<String>,
-    #[modify(custom = "do_other")]
+    #[modify(custom(do_other))]
     pub e: usize,
-    #[modify(custom = "do_other")]
+    #[modify(custom(do_other))]
     pub f: Option<usize>,
 }
 
@@ -55,8 +53,7 @@ fn simple_modify() {
  * NESTED
  */
 
-#[validify]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Validify)]
 struct Testamentor {
     #[modify(trim, lowercase)]
     a: String,
@@ -64,12 +61,11 @@ struct Testamentor {
     nestor: Nestor,
 }
 
-#[validify]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
 struct Nestor {
-    #[modify(custom = "do_other")]
+    #[modify(custom(do_other))]
     a: usize,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     b: String,
 }
 
@@ -93,8 +89,7 @@ fn nested_modify() {
  * BIG BOY
  */
 
-#[validify]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Validify)]
 struct BigBoy {
     #[modify(uppercase)]
     a: String,
@@ -102,7 +97,7 @@ struct BigBoy {
     b: String,
     #[modify(trim, lowercase, capitalize)]
     c: String,
-    #[modify(custom = "do_something")]
+    #[modify(custom(do_something))]
     d: String,
     #[modify(uppercase, trim)]
     e: String,
@@ -111,7 +106,7 @@ struct BigBoy {
     f: String,
     #[modify(lowercase, trim)]
     g: Option<String>,
-    #[modify(custom = "do_something", lowercase)]
+    #[modify(custom(do_something), lowercase)]
     h: Option<String>,
     #[validify]
     j: Nestor,
@@ -150,27 +145,25 @@ fn big_boy() {
 /**
  * TYPES
  */
-
-#[validify]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Validify)]
 struct TypeTest {
-    #[modify(custom = "mutate_i32")]
+    #[modify(custom(mutate_i32))]
     a: i32,
-    #[modify(custom = "mutate_string")]
+    #[modify(custom(mutate_string))]
     b: String,
-    #[modify(custom = "mutate_map")]
+    #[modify(custom(mutate_map))]
     c: HashMap<usize, usize>,
-    #[modify(custom = "mutate_map")]
+    #[modify(custom(mutate_map))]
     d: Option<HashMap<usize, usize>>,
-    #[modify(custom = "mutate_date")]
+    #[modify(custom(mutate_date))]
     e: NaiveDate,
-    #[modify(custom = "mutate_date")]
+    #[modify(custom(mutate_date))]
     f: Option<NaiveDate>,
-    #[modify(custom = "mutate_vec")]
+    #[modify(custom(mutate_vec))]
     g: Vec<String>,
-    #[modify(custom = "mutate_vec")]
+    #[modify(custom(mutate_vec))]
     h: Option<Vec<String>>,
-    #[modify(custom = "mutate_nestor")]
+    #[modify(custom(mutate_nestor))]
     i: Nestor,
 }
 
@@ -233,8 +226,7 @@ fn custom_with_types() {
  * FROM JSON
  */
 
-#[validify]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Validify)]
 struct JsonTest {
     #[modify(lowercase)]
     a: String,
@@ -267,7 +259,6 @@ fn mock_service(data: JsonTest) {
 /**
  * COMPILE
  */
-
 #[test]
 fn compile_fail() {
     let t = trybuild::TestCases::new();

@@ -1,7 +1,5 @@
-error: proc-macro derive panicked
- --> tests/compile_fail/modifying_reference.rs:3:10
+error: Validify must be implemented for structs with owned data, if you just need validation and not modification, use Validate instead
+ --> tests/compile_fail/modifying_reference.rs:7:5
   |
-3 | #[derive(Validify)]
-  |          ^^^^^^^^
-  |
-  = help: message: Fields containing modifiers must contain owned data
+7 |     #[modify(trim, uppercase)]
+  |     ^

@@ -4,7 +4,7 @@ use validify::Validate;
 fn can_validate_valid_must_match() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(must_match = "val2")]
+        #[validate(must_match(val2))]
         val: String,
         val2: String,
     }
@@ -21,7 +21,7 @@ fn can_validate_valid_must_match() {
 fn not_matching_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(must_match = "val2")]
+        #[validate(must_match(val2))]
         val: String,
         val2: String,
     }
@@ -45,7 +45,7 @@ fn not_matching_fails_validation() {
 fn can_specify_code_for_must_match() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(must_match(other = "val2", code = "oops"))]
+        #[validate(must_match(value = val2, code = "oops"))]
         val: String,
         val2: String,
     }
@@ -65,7 +65,7 @@ fn can_specify_code_for_must_match() {
 fn can_specify_message_for_must_match() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(must_match(other = "val2", message = "oops"))]
+        #[validate(must_match(value = val2, message = "oops"))]
         val: String,
         val2: String,
     }

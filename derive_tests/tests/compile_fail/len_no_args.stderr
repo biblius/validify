@@ -1,5 +1,5 @@
-error: Invalid attribute #[validate] on field `s`: Validator `length` requires at least 1 argument out of `min`, `max` and `equal`
- --> tests/compile_fail/len_no_args.rs:5:5
+error: unexpected end of input, expected nested attribute
+ --> tests/compile_fail/len_no_args.rs:5:23
   |
 5 |     #[validate(length())]
-  |     ^
+  |                       ^

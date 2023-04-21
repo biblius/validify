@@ -1,5 +1,5 @@
-error: Invalid attribute #[validate] on field `s`: Needs at least one validator
- --> tests/compile_fail/no_validations.rs:5:5
+error: unexpected end of input, expected nested attribute
+ --> tests/compile_fail/no_validations.rs:5:16
   |
 5 |     #[validate()]
-  |     ^
+  |                ^

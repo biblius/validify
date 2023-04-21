@@ -12,7 +12,7 @@ fn invalid_custom_fn(_: &str) -> Result<(), ValidationError> {
 fn can_validate_custom_fn_ok() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(custom = "valid_custom_fn")]
+        #[validate(custom(valid_custom_fn))]
         val: String,
     }
 
@@ -27,7 +27,7 @@ fn can_validate_custom_fn_ok() {
 fn can_fail_custom_fn_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(custom = "invalid_custom_fn")]
+        #[validate(custom(function = invalid_custom_fn, code = "meh"))]
         val: String,
     }
 
@@ -45,7 +45,7 @@ fn can_fail_custom_fn_validation() {
 fn can_specify_message_for_custom_fn() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(custom(function = "invalid_custom_fn", message = "oops"))]
+        #[validate(custom(function = invalid_custom_fn, message = "oops"))]
         val: String,
     }
     let s = TestStruct { val: String::new() };
