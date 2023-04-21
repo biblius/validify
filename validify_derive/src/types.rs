@@ -67,6 +67,13 @@ where
             ValueOrPath::Path(path) => quote!(#path),
         }
     }
+
+    pub fn peek_value(&self) -> Option<&T> {
+        let Self::Value(ref value) = self else {
+            return None;
+        };
+        Some(value)
+    }
 }
 
 #[derive(Debug)]
@@ -411,6 +418,14 @@ impl Time {
                 if self.duration.is_none() {
                     abort!(meta.path.span(), "before_from_now must have interval");
                 }
+                if let Some(value) = self.duration.as_ref().unwrap().peek_value() {
+                    if *value < 0 {
+                        abort!(
+                            meta.path.span(),
+                            "before_from_now must have a positive duration, if you need to validate after use after_from_now"
+                        );
+                    }
+                }
             }
             TimeOp::AfterFromNow => {
                 if no_multiplier {
@@ -421,6 +436,14 @@ impl Time {
                 }
                 if self.duration.is_none() {
                     abort!(meta.path.span(), "after_from_now must have interval");
+                }
+                if let Some(value) = self.duration.as_ref().unwrap().peek_value() {
+                    if *value < 0 {
+                        abort!(
+                            meta.path.span(),
+                            "after_from_now must have a positive duration, if you need to validate before use before_from_now"
+                        );
+                    }
                 }
             }
             TimeOp::InPeriod => {

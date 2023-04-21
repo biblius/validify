@@ -3,7 +3,7 @@ permissions:
 on:
   push:
     branches: 
-      - "main"
+      - "master"
       - "feature/**"
       - "bugfix/**"
   pull_request:

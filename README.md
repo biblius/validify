@@ -1,5 +1,9 @@
 # Validify
 
+![build](https://img.shields.io/github/actions/workflow/status/biblius/validify/check.yml?label=build&style=plastic)
+![test](https://img.shields.io/github/actions/workflow/status/biblius/validify/test.yml?label=test&style=plastic)
+![coverage](https://img.shields.io/codecov/c/github/biblius/validify?style=plastic)
+
 A procedural macro that provides attributes for field validation and modifiers. Particularly useful in the context of web payloads.
 
 ## **Modifiers**
