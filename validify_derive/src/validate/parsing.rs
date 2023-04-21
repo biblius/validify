@@ -1,11 +1,11 @@
 use crate::types::{
     Contains, CreditCard, Custom, Email, In, Ip, Length, MustMatch, NonControlChar, Phone, Range,
-    Regex, Required, Url, ValueOrPath,
+    Regex, Required, Time, TimeMultiplier, TimeOp, Url, ValueOrPath,
 };
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use quote::quote;
-use syn::{meta::ParseNestedMeta, punctuated::Punctuated, LitFloat, LitInt, LitStr};
+use syn::{meta::ParseNestedMeta, punctuated::Punctuated, LitBool, LitFloat, LitInt, LitStr};
 
 macro_rules! parse_pattern {
     ($fn_id:ident, $id:ident) => {
@@ -148,19 +148,24 @@ pub fn parse_range(meta: &ParseNestedMeta) -> Result<Range, syn::Error> {
 }
 
 pub fn parse_contains_full(meta: &ParseNestedMeta, not: bool) -> Result<Contains, syn::Error> {
-    let mut validation = Contains::new(String::new(), not);
+    let mut validation = Contains {
+        not,
+        ..Default::default()
+    };
 
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("value") {
             let content = meta.value()?;
-            match content.parse::<LitStr>() {
+            match content.parse::<syn::Lit>() {
                 Ok(lit) => {
-                    if lit.value().is_empty() {
-                        abort!(lit.span(), "Value can not be empty")
-                    }
-                    validation.value = lit.value();
+                    validation.value = Some(ValueOrPath::Value(lit));
                 }
-                Err(_) => return Err(meta.error("Contains value must be an int literal or path")),
+                Err(_) => match content.parse::<syn::Path>() {
+                    Ok(path) => validation.value = Some(ValueOrPath::Path(path)),
+                    Err(_) => {
+                        return Err(meta.error("Contains parameter must be a literal or path"))
+                    }
+                },
             }
             return Ok(());
         }
@@ -170,7 +175,7 @@ pub fn parse_contains_full(meta: &ParseNestedMeta, not: bool) -> Result<Contains
         Err(meta.error("Unrecognized contains parameter, accepted are: value, code, message"))
     })?;
 
-    if validation.value.is_empty() {
+    if validation.value.is_none() {
         abort!(meta.input.span(), "Contains validation must have a value")
     }
 
@@ -179,7 +184,7 @@ pub fn parse_contains_full(meta: &ParseNestedMeta, not: bool) -> Result<Contains
 
 pub fn parse_must_match_full(meta: &ParseNestedMeta) -> Result<MustMatch, syn::Error> {
     let mut validation = MustMatch {
-        value: syn::Ident::new("_____NO_____", Span::call_site()),
+        value: syn::Ident::new("BAD_____NO_____BAD", Span::call_site()),
         code: None,
         message: None,
     };
@@ -205,7 +210,7 @@ pub fn parse_must_match_full(meta: &ParseNestedMeta) -> Result<MustMatch, syn::E
         Err(meta.error("Unrecognized contains parameter, accepted are: value, code, message"))
     })?;
 
-    if validation.value.to_string().as_str() == "_____NO_____" {
+    if validation.value.to_string().as_str() == "BAD_____NO_____BAD" {
         abort!(meta.input.span(), "must_match validation must have a value")
     }
 
@@ -223,7 +228,7 @@ pub fn parse_custom_full(meta: &ParseNestedMeta) -> Result<Custom, syn::Error> {
     };
 
     meta.parse_nested_meta(|meta| {
-        if meta.path.is_ident("path") {
+        if meta.path.is_ident("function") {
             let content = meta.value()?;
             match content.parse::<syn::Path>() {
                 Ok(path) => {
@@ -294,20 +299,20 @@ pub fn parse_in_full(meta: &ParseNestedMeta, not: bool) -> Result<In, syn::Error
     );
 
     meta.parse_nested_meta(|meta| {
-        if meta.path.is_ident("value") {
+        if meta.path.is_ident("collection") {
             let content = meta.value()?;
             match content.parse::<syn::Path>() {
                 Ok(path) => {
                     validation.path = path;
                 }
-                Err(_) => return Err(meta.error("[not_]in value must be a path")),
+                Err(_) => return Err(meta.error("[not_]in collection must be a valid path")),
             }
             return Ok(());
         }
 
         code_and_message!(validation, meta);
 
-        Err(meta.error("Unrecognized [not_]in parameter, accepted are: path, code, message"))
+        Err(meta.error("Unrecognized [not_]in parameter, accepted are: collection, code, message"))
     })?;
 
     if validation.path.segments.is_empty() {
@@ -340,6 +345,155 @@ pub fn parse_ip_full(meta: &ParseNestedMeta) -> Result<Ip, syn::Error> {
 
         Err(meta.error("Unrecognized ip parameter, accepted are: format, code, message"))
     })?;
+
+    Ok(validation)
+}
+
+pub fn parse_time(meta: &ParseNestedMeta, field_type: &str) -> Result<Time, syn::Error> {
+    const INTERVALS: [&str; 5] = ["seconds", "minutes", "hours", "days", "weeks"];
+
+    let mut validation = Time::default();
+
+    meta.parse_nested_meta(|meta| {
+        if meta.path.is_ident("op") {
+            let content = meta.value()?;
+            match content.parse::<syn::Ident>() {
+                Ok(id) => {
+                    validation.op = id.to_string().into();
+                    if matches!(validation.op, TimeOp::None) {
+                        return Err(meta.error(
+                            "op must be a path corresponding to one of the time validation functions"
+                        ))
+                    }
+                },
+                Err(_) => return Err(meta.error(
+                    "op must be a path corresponding to one of the time validation functions"
+                )),
+            }
+            return Ok(());
+        }
+
+        if meta.path.is_ident("target") {
+            let content = meta.value()?;
+            match content.parse::<LitStr>() {
+                Ok(date) => {
+                    if date.value().is_empty() {
+                        return Err(meta.error("target cannot be empty"));
+                    }
+                    validation.target = Some(ValueOrPath::Value(date.value()))
+                },
+                Err(_) => match content.parse::<syn::Path>() {
+                    Ok(path) => {
+                        validation.target = Some(ValueOrPath::Path(path))
+                    },
+                    Err(e) => {
+                        return Err(
+                            meta.error(format!("target must be a path or a string literal: {e}"))
+                        )
+                    }
+                },
+            }
+            return Ok(());
+        }
+
+        if meta.path.is_ident("format") {
+            let content = meta.value()?;
+            match content.parse::<LitStr>() {
+                Ok(format) => {
+                    if format.value().is_empty() {
+                        return Err(meta.error("format cannot be empty"));
+                    }
+                    validation.format = Some(format.value())
+                },
+                Err(_) => return Err(meta.error("format must be a string literal"))
+            }
+            return Ok(());
+        }
+
+        if meta.path.is_ident("inclusive") {
+            let content = meta.value()?;
+            match content.parse::<LitBool>() {
+                Ok(inclusive) => validation.inclusive = inclusive.value(),
+                Err(_) => return Err(meta.error("inclusive must be a bool literal"))
+            }
+            return Ok(());
+        }
+
+        for (i, interval) in INTERVALS.iter().enumerate() {
+            if meta.path.is_ident(interval) {
+                let content = meta.value()?;
+                match content.parse::<syn::LitInt>() {
+                    Ok(amount) => {
+                        if validation.duration.is_some() {
+                            return Err(meta.error("Interval already set"))
+                        }
+                        let amount = amount.base10_parse()?;
+                        if amount == 0 {
+                            return Err(meta.error("Interval cannot be 0"))
+                        }
+                        match INTERVALS[i] {
+                          "seconds" => {
+                            validation.path_type = TimeMultiplier::Seconds;
+                            validation.duration = Some(ValueOrPath::Value(chrono::Duration::seconds(amount).num_seconds()))
+                          },
+                          "minutes" => {
+                            validation.path_type = TimeMultiplier::Minutes;
+                            validation.duration = Some(ValueOrPath::Value(chrono::Duration::minutes(amount).num_seconds()))
+                          },
+                          "hours" => {
+                            validation.path_type = TimeMultiplier::Hours;
+                            validation.duration = Some(ValueOrPath::Value(chrono::Duration::hours(amount).num_seconds()))
+                          },
+                          "days" => {
+                            validation.path_type = TimeMultiplier::Days;
+                            validation.duration = Some(ValueOrPath::Value(chrono::Duration::days(amount).num_seconds()))
+                          },
+                          "weeks" => {
+                            validation.path_type = TimeMultiplier::Weeks;
+                            validation.duration = Some(ValueOrPath::Value(chrono::Duration::weeks(amount).num_seconds()))
+                          },
+                          _=> unreachable!()
+                        }
+                    },
+                    Err(_) => {
+                        match content.parse::<syn::Path>() {
+                            Ok(path) => {
+                                validation.duration = Some(ValueOrPath::Path(path));
+                                match INTERVALS[i] {
+                                    "seconds" => {
+                                      validation.path_type = TimeMultiplier::Seconds;
+                                    },
+                                    "minutes" => {
+                                      validation.path_type = TimeMultiplier::Minutes;
+                                    },
+                                    "hours" => {
+                                      validation.path_type = TimeMultiplier::Hours;
+                                    },
+                                    "days" => {
+                                      validation.path_type = TimeMultiplier::Days;
+                                    },
+                                    "weeks" => {
+                                      validation.path_type = TimeMultiplier::Weeks;
+                                    },
+                                    _=> unreachable!()
+                                  }
+                            },
+                            Err(_) => {
+                                return Err(meta.error(format!("interval must be one of the following: {INTERVALS:?} and must be an int literal or path")))
+                            },
+                        }
+                    },
+                }
+                return Ok(());
+            }
+        }
+
+        code_and_message!(validation, meta);
+
+        Err(meta.error("Unrecognized time parameter"))
+    })?;
+
+    validation.assert(meta, field_type)?;
 
     Ok(validation)
 }

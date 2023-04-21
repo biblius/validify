@@ -1,3 +1,4 @@
+use serde::Serialize;
 use validify::Validate;
 
 #[test]
@@ -16,7 +17,7 @@ fn can_validate_contains_ok() {
 }
 
 #[test]
-fn value_not_containing_needle_fails_validation() {
+fn string_not_containing_needle_fails_validation() {
     #[derive(Debug, Validate)]
     struct TestStruct {
         #[validate(contains("he"))]
@@ -30,6 +31,73 @@ fn value_not_containing_needle_fails_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "contains");
+}
+
+#[test]
+fn validates_number_vec() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(contains(3))]
+        val: Vec<u64>,
+    }
+
+    let s = TestStruct {
+        val: vec![32, 4, 2],
+    };
+    let res = s.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "contains");
+
+    let s = TestStruct {
+        val: vec![32, 4, 2, 3],
+    };
+    let res = s.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn validates_struct_vec() {
+    #[derive(Debug, PartialEq, Serialize)]
+    struct Params {
+        a: u64,
+        b: &'static str,
+    }
+
+    const PARAM: Params = Params {
+        a: 2,
+        b: "hello_world",
+    };
+
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(contains(PARAM))]
+        val: Vec<Params>,
+    }
+
+    let s = TestStruct {
+        val: vec![Params { a: 3, b: "Hello" }, Params { a: 4, b: "world" }],
+    };
+    let res = s.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "contains");
+
+    let s = TestStruct {
+        val: vec![
+            Params {
+                a: 2,
+                b: "hello_world",
+            },
+            Params { a: 4, b: "world" },
+        ],
+    };
+
+    assert!(s.validate().is_ok())
 }
 
 #[test]

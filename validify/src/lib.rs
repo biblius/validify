@@ -83,6 +83,7 @@ mod traits;
 mod validation;
 
 pub use error::{ValidationError, ValidationErrors};
+pub use validation::time;
 pub use validation::{
     cards::validate_credit_card,
     contains::validate_contains,

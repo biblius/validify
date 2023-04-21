@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::Deserialize;
-
 use validify::{Validate, ValidationError, ValidationErrors};
 
 fn validate_unique_username(username: &str) -> Result<(), ValidationError> {

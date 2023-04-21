@@ -82,6 +82,7 @@ pub fn map_field_types(fields: &[syn::Field], allow_refs: bool) -> HashMap<Strin
             .clone()
             .expect("Found unnamed field")
             .to_string();
+
         let field_type = match field.ty {
             syn::Type::Path(syn::TypePath { ref path, .. }) => {
                 let mut tokens = proc_macro2::TokenStream::new();
@@ -106,9 +107,9 @@ pub fn map_field_types(fields: &[syn::Field], allow_refs: bool) -> HashMap<Strin
                 elem.to_tokens(&mut tokens);
                 tokens.to_string().replace(' ', "")
             }
-            _ => {
+            ref ty => {
                 let mut field_type = proc_macro2::TokenStream::new();
-                field.ty.to_tokens(&mut field_type);
+                ty.to_tokens(&mut field_type);
                 field_type.to_string().replace(' ', "")
             }
         };
@@ -133,6 +134,7 @@ pub fn collect_fields(input: &syn::DeriveInput) -> Vec<syn::Field> {
                     "#[derive(Validate/Validify)] can only be used on structs with named fields"
                 );
             }
+
             fields.iter().cloned().collect::<Vec<syn::Field>>()
         }
         _ => abort!(

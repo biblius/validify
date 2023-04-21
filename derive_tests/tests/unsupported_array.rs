@@ -49,7 +49,7 @@ fn can_fail_custom_with_unsupported_array() {
     struct TestStruct {
         #[validate(email)]
         val: String,
-        #[validate(custom(path = valid_custom_fn, code = "meh"))]
+        #[validate(custom(function = valid_custom_fn, code = "meh"))]
         array: [u8; 2],
     }
 

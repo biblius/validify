@@ -1,6 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::hash::BuildHasher;
 
 /// Trait to implement if one wants to make the `length` validator
 /// work for more types
@@ -134,57 +135,79 @@ impl<T> HasLen for IndexSet<T> {
     }
 }
 
-// TODO IMPL FOR NUMS
 /// Trait to implement if one wants to make the `contains` validator
 /// work for more types
 pub trait Contains {
+    type Needle<'a>
+    where
+        Self: 'a;
     #[must_use]
-    fn has_element(&self, needle: &str) -> bool;
+    fn has_element(&self, needle: Self::Needle<'_>) -> bool;
+}
+
+impl<T> Contains for Vec<T>
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+    fn has_element(&self, needle: Self::Needle<'_>) -> bool {
+        self.iter().any(|a| a == needle)
+    }
+}
+
+impl<T> Contains for &Vec<T>
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.iter().any(|a| a == needle)
+    }
 }
 
 impl Contains for String {
+    type Needle<'a> = &'a str;
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
     }
 }
 
-impl Contains for Vec<String> {
-    fn has_element(&self, needle: &str) -> bool {
-        self.iter().any(|a| a == needle)
-    }
-}
-
-impl Contains for &Vec<String> {
-    fn has_element(&self, needle: &str) -> bool {
-        self.iter().any(|a| a == needle)
-    }
-}
-
-impl<'a> Contains for &'a String {
+impl Contains for &String {
+    type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
     }
 }
 
-impl<'a> Contains for &'a str {
+impl Contains for &str {
+    type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
     }
 }
 
-impl<'a> Contains for Cow<'a, str> {
+impl Contains for Cow<'_, str> {
+    type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
     }
 }
 
-impl<S, H: ::std::hash::BuildHasher> Contains for HashMap<String, S, H> {
+impl<S, H> Contains for HashMap<String, S, H>
+where
+    H: BuildHasher,
+{
+    type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains_key(needle)
     }
 }
 
-impl<'a, S, H: ::std::hash::BuildHasher> Contains for &'a HashMap<String, S, H> {
+impl<S, H> Contains for &HashMap<String, S, H>
+where
+    H: BuildHasher,
+{
+    type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains_key(needle)
     }

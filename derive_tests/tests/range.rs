@@ -139,15 +139,17 @@ fn can_pass_reference_as_validate() {
 
     #[derive(Validate)]
     struct TestStruct {
-        #[validate(range(min = 100.))]
-        num_field: u32,
+        #[validate(range(min = -1., max = 1.))]
+        num_field: f64,
     }
 
     fn validate<T: Validate>(value: T) -> Result<(), ValidationErrors> {
         value.validate()
     }
 
-    let val = TestStruct { num_field: 10 };
-    validate(&val).unwrap_err();
-    assert_eq!(val.num_field, 10);
+    let val = TestStruct { num_field: 0.32 };
+    assert!(validate(val).is_ok());
+
+    let val = TestStruct { num_field: 1.01 };
+    assert!(validate(val).is_err());
 }

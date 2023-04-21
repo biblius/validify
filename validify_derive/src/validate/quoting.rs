@@ -3,27 +3,11 @@ use crate::fields::FieldInformation;
 use crate::quoter::FieldQuoter;
 use crate::types::{
     Contains, CreditCard, Custom, Describe, Email, In, Ip, Length, MustMatch, NonControlChar,
-    Phone, Range, Regex, Required, SchemaValidation, Url, ValueOrPath,
+    Phone, Range, Regex, Required, SchemaValidation, Time, TimeMultiplier, Url, ValueOrPath,
 };
 use crate::Validator;
 use proc_macro2::{self};
 use quote::quote;
-
-/// Quote an actual end-user error creation automatically
-fn quote_error(describe: &impl Describe, field_name: &str) -> proc_macro2::TokenStream {
-    let add_message_quoted = if let Some(ref m) = describe.message() {
-        quote!(err.set_message(String::from(#m));)
-    } else {
-        quote!()
-    };
-
-    let code = describe.code();
-
-    quote!(
-        let mut err = ::validify::ValidationError::new_field(#field_name, #code);
-        #add_message_quoted
-    )
-}
 
 pub fn quote_field_validations(
     mut fields: Vec<FieldInformation>,
@@ -48,7 +32,23 @@ pub fn quote_field_validations(
     (validations, nested_validations)
 }
 
-pub fn quote_validator(
+pub fn quote_struct_validations(validation: &[SchemaValidation]) -> Vec<proc_macro2::TokenStream> {
+    validation.iter().map(quote_struct_validation).collect()
+}
+
+fn quote_struct_validation(validation: &SchemaValidation) -> proc_macro2::TokenStream {
+    let fn_ident = &validation.function;
+    quote!(
+        match #fn_ident(&self) {
+            ::std::result::Result::Ok(()) => {},
+            ::std::result::Result::Err(mut errs) => {
+                errors.merge(errs);
+            },
+        };
+    )
+}
+
+fn quote_validator(
     field_quoter: &FieldQuoter,
     validator: Validator,
     validations: &mut Vec<proc_macro2::TokenStream>,
@@ -98,26 +98,233 @@ pub fn quote_validator(
         Validator::Ip(validation) => {
             validations.push(quote_ip_validation(field_quoter, validation))
         }
+        Validator::Time(validation) => {
+            validations.push(quote_time_validation(field_quoter, validation))
+        }
     }
 }
 
-pub fn quote_struct_validations(validation: &[SchemaValidation]) -> Vec<proc_macro2::TokenStream> {
-    validation.iter().map(quote_struct_validation).collect()
-}
+/// Quote an actual end-user error creation automatically
+fn quote_error(describe: &impl Describe, field_name: &str) -> proc_macro2::TokenStream {
+    let add_message_quoted = if let Some(ref m) = describe.message() {
+        quote!(err.set_message(String::from(#m));)
+    } else {
+        quote!()
+    };
 
-pub fn quote_struct_validation(validation: &SchemaValidation) -> proc_macro2::TokenStream {
-    let fn_ident = &validation.function;
+    let code = describe.code();
+
     quote!(
-        match #fn_ident(&self) {
-            ::std::result::Result::Ok(()) => {},
-            ::std::result::Result::Err(mut errs) => {
-                errors.merge(errs);
-            },
-        };
+        let mut err = ::validify::ValidationError::new_field(#field_name, #code);
+        #add_message_quoted
     )
 }
 
-pub fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::TokenStream {
+fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2::TokenStream {
+    let field_name = &field_quoter.name;
+    let validator_param = field_quoter.quote_validator_param();
+    let quoted_error = quote_error(&time, field_name);
+
+    let Time {
+        op,
+        inclusive,
+        path_type,
+        ref format,
+        ref duration,
+        ref target,
+        ..
+    } = time;
+
+    let code = time.code();
+    let quoted_parse_error = quote!(
+        let mut err = ::validify::ValidationError::new_field(#field_name, #code);
+        err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+        err.add_param(::std::borrow::Cow::from("format"), &#format);
+        errors.add(err);
+    );
+
+    let has_time = field_quoter._type.contains("Time");
+    let duration = if let Some(duration) = duration {
+        match duration {
+            ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
+            ValueOrPath::Path(path) => match path_type {
+                TimeMultiplier::Seconds => quote!(chrono::Duration::seconds(#path)),
+                TimeMultiplier::Minutes => quote!(chrono::Duration::minutes(#path)),
+                TimeMultiplier::Hours => quote!(chrono::Duration::hours(#path)),
+                TimeMultiplier::Days => quote!(chrono::Duration::days(#path)),
+                TimeMultiplier::Weeks => quote!(chrono::Duration::weeks(#path)),
+                TimeMultiplier::None => unreachable!(),
+            },
+        }
+    } else {
+        quote!()
+    };
+
+    use crate::types::TimeOp::*;
+    let validation_fn = match op {
+        BeforeNow => {
+            if has_time {
+                quote!(::validify::time::before_now(#validator_param, #inclusive))
+            } else {
+                quote!(::validify::time::before_today(#validator_param, #inclusive))
+            }
+        }
+        AfterNow => {
+            if has_time {
+                quote!(::validify::time::after_now(#validator_param, #inclusive))
+            } else {
+                quote!(::validify::time::after_today(#validator_param, #inclusive))
+            }
+        }
+        BeforeFromNow => {
+            if has_time {
+                quote!(::validify::time::before_from_now(#validator_param, #duration))
+            } else {
+                quote!(::validify::time::before_from_now_date(#validator_param, #duration))
+            }
+        }
+        AfterFromNow => {
+            if has_time {
+                quote!(::validify::time::after_from_now(#validator_param, #duration))
+            } else {
+                quote!(::validify::time::after_from_now_date(#validator_param, #duration))
+            }
+        }
+        Before => {
+            let validation = {
+                let validation_fn = if has_time {
+                    quote!(!::validify::time::before(#validator_param, target, #inclusive))
+                } else {
+                    quote!(!::validify::time::before_date(#validator_param, target, #inclusive))
+                };
+                quote!(
+                    if #validation_fn {
+                        #quoted_error
+                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+                        err.add_param(::std::borrow::Cow::from("target"), target);
+                        errors.add(err);
+                    }
+                )
+            };
+            let quoted = quote_time_with_target(
+                target.as_ref().unwrap(),
+                validation,
+                quoted_parse_error,
+                format.as_deref(),
+                has_time,
+            );
+            return field_quoter.wrap_validator_if_option(quoted);
+        }
+        After => {
+            let validation = {
+                let validation_fn = if has_time {
+                    quote!(!::validify::time::after(#validator_param, target, #inclusive))
+                } else {
+                    quote!(!::validify::time::after_date(#validator_param, target, #inclusive))
+                };
+                quote!(
+                    if #validation_fn {
+                        #quoted_error
+                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+                        err.add_param(::std::borrow::Cow::from("target"), target);
+                        errors.add(err);
+                    }
+                )
+            };
+            let quoted = quote_time_with_target(
+                target.as_ref().unwrap(),
+                validation,
+                quoted_parse_error,
+                format.as_deref(),
+                has_time,
+            );
+            return field_quoter.wrap_validator_if_option(quoted);
+        }
+        InPeriod => {
+            let validation = {
+                let validation_fn = if has_time {
+                    quote!(!::validify::time::in_period(#validator_param, target, #duration))
+                } else {
+                    quote!(!::validify::time::in_period_date(#validator_param, target, #duration))
+                };
+
+                // We can safely unwrap since we do a check for overflow before quoting
+                quote!(
+                    if #validation_fn {
+                        #quoted_error
+                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+                        let end = target.checked_add_signed(#duration).unwrap();
+                        if end < *target {
+                            err.add_param(::std::borrow::Cow::from("from"), &end);
+                            err.add_param(::std::borrow::Cow::from("to"), target);
+                        } else {
+                            err.add_param(::std::borrow::Cow::from("from"), target);
+                            err.add_param(::std::borrow::Cow::from("to"), &end);
+                        }
+                        errors.add(err);
+                    }
+                )
+            };
+            let quoted = quote_time_with_target(
+                target.as_ref().unwrap(),
+                validation,
+                quoted_parse_error,
+                format.as_deref(),
+                has_time,
+            );
+            return field_quoter.wrap_validator_if_option(quoted);
+        }
+        None => unreachable!(),
+    };
+
+    let quoted = quote!(
+        if !#validation_fn {
+            #quoted_error
+            err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+            errors.add(err);
+        }
+    );
+
+    field_quoter.wrap_validator_if_option(quoted)
+}
+
+/// Quotes the tokens based on the target `value_or_path`. If the target is a string,
+/// it will be parsed. A validation error can occur if the target string (not the actual)
+/// is not in the right format, however it is theoretically impossible since a check is made
+/// before quoting to ensure the provided target contains a correct format.
+fn quote_time_with_target(
+    value_or_path: &ValueOrPath<String>,
+    quoted_validation: proc_macro2::TokenStream,
+    quoted_parse_error: proc_macro2::TokenStream,
+    format: Option<&str>,
+    has_time: bool,
+) -> proc_macro2::TokenStream {
+    match value_or_path {
+        ValueOrPath::Value(value) => {
+            let format = format.unwrap();
+            let parse_fn = if has_time {
+                quote!(chrono::NaiveDateTime::parse_from_str(#value, #format))
+            } else {
+                quote!(chrono::NaiveDate::parse_from_str(#value, #format))
+            };
+            quote!(
+                if let Ok(ref target) = #parse_fn {
+                    #quoted_validation
+                } else {
+                    #quoted_parse_error
+                }
+            )
+        }
+        ValueOrPath::Path(target) => {
+            quote!(
+                let target = &#target();
+                #quoted_validation
+            )
+        }
+    }
+}
+
+fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
     let quoted_error = quote_error(&ip, field_name);
@@ -143,10 +350,7 @@ pub fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::T
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_length_validation(
-    field_quoter: &FieldQuoter,
-    length: Length,
-) -> proc_macro2::TokenStream {
+fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
 
@@ -221,10 +425,7 @@ pub fn quote_length_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_range_validation(
-    field_quoter: &FieldQuoter,
-    range: Range,
-) -> proc_macro2::TokenStream {
+fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let quoted_ident = field_quoter.quote_validator_param();
 
@@ -279,7 +480,7 @@ pub fn quote_range_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_credit_card_validation(
+fn quote_credit_card_validation(
     field_quoter: &FieldQuoter,
     credit_card: CreditCard,
 ) -> proc_macro2::TokenStream {
@@ -298,10 +499,7 @@ pub fn quote_credit_card_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_phone_validation(
-    field_quoter: &FieldQuoter,
-    phone: Phone,
-) -> proc_macro2::TokenStream {
+fn quote_phone_validation(field_quoter: &FieldQuoter, phone: Phone) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
 
@@ -317,7 +515,7 @@ pub fn quote_phone_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_non_control_character_validation(
+fn quote_non_control_character_validation(
     field_quoter: &FieldQuoter,
     non_cc: NonControlChar,
 ) -> proc_macro2::TokenStream {
@@ -336,7 +534,7 @@ pub fn quote_non_control_character_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2::TokenStream {
+fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
 
@@ -352,10 +550,7 @@ pub fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_email_validation(
-    field_quoter: &FieldQuoter,
-    email: Email,
-) -> proc_macro2::TokenStream {
+fn quote_email_validation(field_quoter: &FieldQuoter, email: Email) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
 
@@ -371,7 +566,7 @@ pub fn quote_email_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_must_match_validation(
+fn quote_must_match_validation(
     field_quoter: &FieldQuoter,
     must_match: MustMatch,
 ) -> proc_macro2::TokenStream {
@@ -391,10 +586,7 @@ pub fn quote_must_match_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_custom_validation(
-    field_quoter: &FieldQuoter,
-    custom: Custom,
-) -> proc_macro2::TokenStream {
+fn quote_custom_validation(field_quoter: &FieldQuoter, custom: Custom) -> proc_macro2::TokenStream {
     let validator_param = field_quoter.quote_validator_param();
     let field_name = &field_quoter.name;
     let Custom { ref path, .. } = custom;
@@ -414,10 +606,7 @@ pub fn quote_custom_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_regex_validation(
-    field_quoter: &FieldQuoter,
-    regex: Regex,
-) -> proc_macro2::TokenStream {
+fn quote_regex_validation(field_quoter: &FieldQuoter, regex: Regex) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
     let validator_param = field_quoter.quote_validator_param();
 
@@ -434,7 +623,7 @@ pub fn quote_regex_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_nested_validation(field_quoter: &FieldQuoter) -> proc_macro2::TokenStream {
+fn quote_nested_validation(field_quoter: &FieldQuoter) -> proc_macro2::TokenStream {
     let validator_field = field_quoter.quote_validator_field();
     let quoted = quote!(
         if let Err(errs) = #validator_field.validate() {
@@ -446,7 +635,7 @@ pub fn quote_nested_validation(field_quoter: &FieldQuoter) -> proc_macro2::Token
 
 /// This is a bit of a special case where we can't use the wrap if option since this is usually used with const slices where we'll
 /// usually need a double reference
-pub fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::TokenStream {
+fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::TokenStream {
     let field_name = &field_quoter.name;
 
     let field_ident = &field_quoter.ident;
@@ -483,7 +672,7 @@ pub fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2:
     })
 }
 
-pub fn quote_contains_validation(
+fn quote_contains_validation(
     field_quoter: &FieldQuoter,
     contains: Contains,
 ) -> proc_macro2::TokenStream {
@@ -492,6 +681,12 @@ pub fn quote_contains_validation(
     let Contains { not, ref value, .. } = contains;
 
     let quoted_error = quote_error(&contains, field_name);
+
+    let value = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
+        quote!(String::from(#value))
+    } else {
+        quote!(#value)
+    };
 
     let quoted = quote!(
         if !::validify::validate_contains(#validator_param, &#value, #not) {
@@ -505,7 +700,7 @@ pub fn quote_contains_validation(
     field_quoter.wrap_validator_if_option(quoted)
 }
 
-pub fn quote_required_validation(
+fn quote_required_validation(
     field_quoter: &FieldQuoter,
     required: Required,
 ) -> proc_macro2::TokenStream {

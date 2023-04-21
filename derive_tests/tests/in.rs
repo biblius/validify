@@ -1,3 +1,4 @@
+use serde::Serialize;
 use validify::Validate;
 
 const ALLOWED_STRS: &[&str] = &["YES", "GOOD"];
@@ -43,13 +44,13 @@ fn properly_validates() {
 fn properly_errors() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(is_in(value = ALLOWED_STRS, message = "NOT_IN_ALLOWED"))]
+        #[validate(is_in(collection = ALLOWED_STRS, message = "NOT_IN_ALLOWED"))]
         a: String,
-        #[validate(is_in(value = ALLOWED_NUMS, message = "NOT_IN_ALLOWED"))]
+        #[validate(is_in(collection = ALLOWED_NUMS, message = "NOT_IN_ALLOWED"))]
         b: u64,
-        #[validate(not_in(value = DISALLOWED_STRS, message = "IN_DISALLOWED"))]
+        #[validate(not_in(collection = DISALLOWED_STRS, message = "IN_DISALLOWED"))]
         c: String,
-        #[validate(not_in(value = DISALLOWED_NUMS, message = "IN_DISALLOWED"))]
+        #[validate(not_in(collection = DISALLOWED_NUMS, message = "IN_DISALLOWED"))]
         d: u64,
     }
 
@@ -103,5 +104,80 @@ fn properly_errors() {
     assert!(err.is_err());
     let err = err.unwrap_err();
     assert_eq!(err.errors()[0].code(), "not_in");
-    assert_eq!(err.errors()[0].message().unwrap(), "IN_DISALLOWED")
+    assert_eq!(err.errors()[0].message().unwrap(), "IN_DISALLOWED");
+    err.errors();
+}
+
+#[test]
+fn properly_validates_option() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(is_in(collection = ALLOWED_STRS, message = "NOT_IN_ALLOWED"))]
+        a: Option<String>,
+        #[validate(is_in(collection = ALLOWED_NUMS, code = "FUK", message = "NOT_IN_ALLOWED"))]
+        b: Option<u64>,
+    }
+
+    let test = TestStruct {
+        a: Some("NO".to_string()),
+        b: Some(1),
+    };
+
+    let res = test.validate();
+    assert!(res.is_err());
+    let res = res.unwrap_err();
+    assert_eq!(res.errors()[0].code(), "in");
+    assert_eq!(res.errors()[0].message().unwrap(), "NOT_IN_ALLOWED");
+
+    let test = TestStruct {
+        a: Some("NO".to_string()),
+        b: Some(0),
+    };
+
+    let res = test.validate();
+    assert!(res.is_err());
+    let res = res.unwrap_err();
+    assert_eq!(res.errors().len(), 2);
+    assert_eq!(res.errors()[0].code(), "in");
+    assert_eq!(res.errors()[0].message().unwrap(), "NOT_IN_ALLOWED");
+    assert_eq!(res.errors()[1].code(), "FUK");
+    assert_eq!(res.errors()[1].message().unwrap(), "NOT_IN_ALLOWED");
+}
+
+#[test]
+fn properly_validates_structs() {
+    #[derive(Debug, PartialEq, Serialize)]
+    struct Something(usize, usize);
+
+    const ALLOWED: &[Something] = &[Something(1, 2), Something(3, 4)];
+
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(is_in(collection = ALLOWED, message = "NOT_IN_ALLOWED"))]
+        a: Option<Something>,
+        #[validate(is_in(collection = ALLOWED, code = "FUK", message = "NOT_IN_ALLOWED"))]
+        b: Something,
+    }
+
+    let test = TestStruct {
+        a: Some(Something(5, 6)),
+        b: Something(7, 8),
+    };
+
+    let res = test.validate();
+    assert!(res.is_err());
+    let res = res.unwrap_err();
+    assert_eq!(res.errors().len(), 2);
+    assert_eq!(res.errors()[0].code(), "in");
+    assert_eq!(res.errors()[0].message().unwrap(), "NOT_IN_ALLOWED");
+    assert_eq!(res.errors()[1].code(), "FUK");
+    assert_eq!(res.errors()[1].message().unwrap(), "NOT_IN_ALLOWED");
+
+    let test = TestStruct {
+        a: Some(Something(1, 2)),
+        b: Something(3, 4),
+    };
+
+    let res = test.validate();
+    assert!(res.is_ok());
 }

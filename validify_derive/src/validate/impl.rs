@@ -5,6 +5,7 @@ use crate::asserts::{
     assert_has_len, assert_has_range, is_full_pattern, is_single_lit, is_single_path,
 };
 use crate::fields::collect_field_info;
+use crate::types::ValueOrPath;
 use crate::types::{
     Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
     SchemaValidation, Url, Validator,
@@ -31,19 +32,19 @@ const IS_IN: &str = "is_in";
 const NOT_IN: &str = "not_in";
 const IP: &str = "ip";
 const VALIDATE: &str = "validate";
+const TIME: &str = "time";
 
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
-    let field_validations = collect_field_info(input, true).unwrap();
-    let struct_validations = collect_struct_validation(&input.attrs).unwrap();
+    let ident = &input.ident;
 
-    let (validations, nested_validations) = quote_field_validations(field_validations);
+    let field_info = collect_field_info(input, true).unwrap();
+    let (validations, nested_validations) = quote_field_validations(field_info);
+
+    let struct_validations = collect_struct_validation(&input.attrs).unwrap();
     let schema_validations = quote_struct_validations(&struct_validations);
 
-    // Struct specific definitions
-    let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    // The Validate trait implementation
     quote!(
         impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
             fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
@@ -72,7 +73,7 @@ fn collect_struct_validation(
     let mut validations = vec![];
     let filtered = attrs
         .iter()
-        .filter(|attribute| attribute.path().is_ident("validate"));
+        .filter(|attribute| attribute.path().is_ident(VALIDATE));
 
     for attr in filtered {
         attr.parse_nested_meta(|meta| {
@@ -87,21 +88,20 @@ fn collect_struct_validation(
 
 pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, field_type: &str) {
     let field_ident = field.ident.as_ref().unwrap().to_string();
+
     for attr in field.attrs.iter() {
-        if !attr.path().is_ident("validate") {
+        if !attr.path().is_ident(VALIDATE) {
             continue;
         }
 
         let syn::Meta::List(ref list) = attr.meta else {
-            let syn::Meta::Path(ref path) = attr.meta else {
+            let syn::Meta::Path(_) = attr.meta else {
                 abort!(
                     attr.meta.span(),
                     "Validate must be applied as a list, i.e. `validate(/*...*/)` or as a path `validate` for nested validation"
                 )
             };
-            if path.is_ident(VALIDATE) {
-                validators.push(Validator::Nested)
-            }
+            validators.push(Validator::Nested);
             continue;
         };
 
@@ -158,14 +158,20 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(CONTAINS) {
-                let is_single = is_single_lit(&meta, "contains");
-                if is_single {
+                if is_single_lit(&meta, "contains") {
                     let content;
                     parenthesized!(content in meta.input);
-                    let Ok(lit) = content.parse::<syn::LitStr>() else {
-                        return Err(meta.error("Invalid value given for `contains` validation, must be a string literal"))
+                    let Ok(lit) = content.parse::<syn::Lit>() else {
+                        return Err(meta.error("Invalid value given for `contains` validation, must be a path or literal"))
                     };
-                    validators.push(Validator::Contains(Contains::new(lit.value(), false)));
+                    validators.push(Validator::Contains(Contains::new(ValueOrPath::Value(lit), false)));
+                } else if is_single_path(&meta, "contains") {
+                    let content;
+                    parenthesized!(content in meta.input);
+                    let Ok(path) = content.parse::<syn::Path>() else {
+                        return Err(meta.error("Invalid value given for `contains`, must be a literal or path"))
+                    };
+                    validators.push(Validator::Contains(Contains::new(ValueOrPath::Path(path), false)))
                 } else {
                     let validation = parse_contains_full(&meta, false)?;
                     validators.push(Validator::Contains(validation));
@@ -177,10 +183,17 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
                 if is_single_lit(&meta, "contains_not") {
                     let content;
                     parenthesized!(content in meta.input);
-                    let Ok(lit ) = content.parse::<syn::LitStr>() else {
-                        return Err(meta.error("Invalid value given for `contains_not` validation, must be a string literal"))
+                    let Ok(lit) = content.parse::<syn::Lit>() else {
+                        return Err(meta.error("Invalid value given for `contains` validation, must be a path or literal"))
                     };
-                    validators.push(Validator::Contains(Contains::new(lit.value(), true)));
+                    validators.push(Validator::Contains(Contains::new(ValueOrPath::Value(lit), true)));
+                } else if is_single_path(&meta, "contains") {
+                    let content;
+                    parenthesized!(content in meta.input);
+                    let Ok(path) = content.parse::<syn::Path>() else {
+                        return Err(meta.error("Invalid value given for `contains`, must be a literal or path"))
+                    };
+                    validators.push(Validator::Contains(Contains::new(ValueOrPath::Path(path), true)))
                 } else {
                     let validation = parse_contains_full(&meta, true)?;
                     validators.push(Validator::Contains(validation));
@@ -295,11 +308,14 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
                 } else {
                     validators.push(Validator::Ip(Ip::default()));
                 }
-
                 return Ok(());
             }
 
-
+            if meta.path.is_ident(TIME) {
+                let validation = parse_time(&meta, field_type)?;
+                validators.push(Validator::Time(validation));
+                return Ok(());
+            }
 
             Err(meta.error("Uncrecognized validate parameter")
             )
