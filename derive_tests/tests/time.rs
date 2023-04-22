@@ -513,7 +513,7 @@ fn in_period_positive() {
     const TWO_WEEKS: i64 = 2;
     fn sometime() -> NaiveDateTime {
         NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2022, 04, 20).unwrap(),
+            NaiveDate::from_ymd_opt(2022, 4, 20).unwrap(),
             NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
         )
     }
@@ -578,7 +578,7 @@ fn in_period_negative() {
     const MINUS_TWO_WEEKS: i64 = -2;
     fn sometime() -> NaiveDateTime {
         NaiveDateTime::new(
-            NaiveDate::from_ymd_opt(2022, 04, 20).unwrap(),
+            NaiveDate::from_ymd_opt(2022, 4, 20).unwrap(),
             NaiveTime::from_hms_opt(10, 0, 0).unwrap(),
         )
     }

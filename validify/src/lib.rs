@@ -1,13 +1,13 @@
 //! Validify is a procedural macro aimed to provide quick data validation and modification implementations.
 //! Its primary use case is aimed towards web payloads.
 //!
-//! The main exposed traits that you'll most likely be using are [Validify] and [Validate].
+//! The traits it exposes are [Validify] and [Validate].
 //!
 //! Deriving [Validify] will allow you to modify structs before they are validated by providing a few out of the box implementations
-//! as well as providing the user the ability to write custom ones. It will also generate a payload struct for the deriving struct,
+//! as well as the ability to write custom ones. It will also generate a payload struct for the deriving struct,
 //! which can be used in the context of web payloads. The payload struct is just a copy of the original, except will all the fields being
-//! `Option`s. This enables the payload to be fully deserialized before being validated and is necessary for better validation errors,
-//! as deserialization errors are generally not that descriptive.
+//! `Option`s. This enables the payload to be fully deserialized (given that all existing fields are of the correct type) before being validated
+//! to allow for better validation errors.
 //!
 //! Deriving [Validate] will allow you to specify struct validations, but does not create an associated
 //! payload struct. Validate can be derived on structs containing references, while Validify cannot due
@@ -117,7 +117,7 @@ pub trait Modify {
     fn modify(&mut self);
 }
 
-/// Combines `Validate` and `Modify` in one trait and provides the intermediary payload struct. This trait shouldn't be implemented manually.
+/// Combines `Validate` and `Modify` in one trait and provides the intermediary payload struct. This trait is not intended to be implemented manually.
 /// It should be derived with the `#[derive(Validify)]` attribute which automatically implements `Validate`, `Modify` and creates the payload
 /// struct.
 pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
@@ -134,12 +134,16 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
     /// #[validify]
     /// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     /// struct Data {
-    ///     a: String
+    ///     a: String,
+    ///     b: Option<String>
     /// }
     ///
     /// // expands to
+    /// #[derive(Debug, Validate, serde::Deserialize)]
     /// struct DataPayload {
-    ///     a: Option<String>
+    ///     #[validate(required)]
+    ///     a: Option<String>,
+    ///     b: Option<String>
     /// }
     ///
     /// /*

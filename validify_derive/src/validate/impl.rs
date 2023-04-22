@@ -317,8 +317,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
                 return Ok(());
             }
 
-            Err(meta.error("Uncrecognized validate parameter")
-            )
+            Err(meta.error("Uncrecognized validate parameter"))
         }).unwrap_or_else(|e| abort!(e.span(), e));
     }
 }

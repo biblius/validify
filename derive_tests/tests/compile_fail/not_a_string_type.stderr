@@ -1,23 +1,16 @@
-error[E0277]: the trait bound `Cow<'_, str>: From<&Vec<u8>>` is not satisfied
+error[E0277]: the trait bound `Vec<u8>: AsRef<str>` is not satisfied
  --> tests/compile_fail/not_a_string_type.rs:3:10
   |
 3 | #[derive(Validate)]
-  |          ^^^^^^^^ the trait `From<&Vec<u8>>` is not implemented for `Cow<'_, str>`
+  |          ^^^^^^^^ the trait `AsRef<str>` is not implemented for `Vec<u8>`
   |
-  = help: the following other types implement trait `From<T>`:
-            <Cow<'a, CStr> as From<&'a CStr>>
-            <Cow<'a, CStr> as From<&'a CString>>
-            <Cow<'a, CStr> as From<CString>>
-            <Cow<'a, OsStr> as From<&'a OsStr>>
-            <Cow<'a, OsStr> as From<&'a OsString>>
-            <Cow<'a, OsStr> as From<OsString>>
-            <Cow<'a, Path> as From<&'a Path>>
-            <Cow<'a, Path> as From<&'a PathBuf>>
-          and $N others
-  = note: required for `&Vec<u8>` to implement `Into<Cow<'_, str>>`
+  = help: the following other types implement trait `AsRef<T>`:
+            <Vec<T, A> as AsRef<Vec<T, A>>>
+            <Vec<T, A> as AsRef<[T]>>
+  = note: required for `&Vec<u8>` to implement `AsRef<str>`
 note: required by a bound in `validate_email`
  --> $WORKSPACE/validify/src/validation/email.rs
   |
-  |     T: Into<Cow<'a, str>>,
-  |        ^^^^^^^^^^^^^^^^^^ required by this bound in `validate_email`
+  |     T: AsRef<str>,
+  |        ^^^^^^^^^^ required by this bound in `validate_email`
   = note: this error originates in the derive macro `Validate` (in Nightly builds, run with -Z macro-backtrace for more info)

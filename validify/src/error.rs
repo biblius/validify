@@ -1,41 +1,51 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 use serde_json::{to_value, Value};
+use std::{collections::HashMap, fmt::Display};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ValidationError {
     Schema {
-        code: Cow<'static, str>,
+        code: &'static str,
         message: Option<String>,
+        location: String,
     },
     Field {
-        name: Cow<'static, str>,
-        code: Cow<'static, str>,
-        params: HashMap<Cow<'static, str>, Value>,
+        name: &'static str,
+        code: &'static str,
+        params: Box<HashMap<&'static str, Value>>,
         message: Option<String>,
+        location: String,
     },
 }
 
 impl ValidationError {
-    pub fn new_field(field: &'static str, code: &'static str) -> ValidationError {
+    pub fn new_field(name: &'static str, code: &'static str) -> ValidationError {
         ValidationError::Field {
-            name: Cow::from(field),
-            code: Cow::from(code),
+            name,
+            code,
             message: None,
-            params: HashMap::new(),
+            params: Box::<HashMap<&'static str, Value>>::default(),
+            location: String::new(),
+        }
+    }
+
+    pub fn field_name(&self) -> Option<&str> {
+        if let ValidationError::Field { ref name, .. } = self {
+            Some(name)
+        } else {
+            None
         }
     }
 
     pub fn new_schema(code: &'static str) -> ValidationError {
         ValidationError::Schema {
-            code: Cow::from(code),
+            code,
             message: None,
+            location: String::new(),
         }
     }
 
-    pub fn add_param<T: Serialize>(&mut self, name: Cow<'static, str>, val: &T) {
+    pub fn add_param<T: Serialize>(&mut self, name: &'static str, val: &T) {
         match self {
             ValidationError::Schema { .. } => {}
             ValidationError::Field { params, .. } => {
@@ -56,10 +66,46 @@ impl ValidationError {
         self
     }
 
-    pub fn params(&self) -> HashMap<Cow<'static, str>, Value> {
+    /// Insert the provided parent to the 0th position of the current location
+    pub fn set_location<T>(&mut self, parent: T)
+    where
+        T: Display,
+    {
+        match self {
+            ValidationError::Field {
+                ref mut location, ..
+            } => location.insert_str(0, &format!("/{parent}")),
+            ValidationError::Schema {
+                ref mut location, ..
+            } => location.insert_str(0, &format!("/{parent}")),
+        }
+    }
+
+    /// Used when the struct failing validation is nested in collections. It will concat the index
+    /// to the parent so as to follow the location. We always have the parent in string form in the field quoter.
+    pub fn set_location_idx<T: Display>(&mut self, idx: T, parent: &str) {
+        match self {
+            ValidationError::Field {
+                ref mut location, ..
+            } => location.insert_str(0, &format!("/{parent}/{idx}")),
+            ValidationError::Schema {
+                ref mut location, ..
+            } => location.insert_str(0, &format!("/{parent}/{idx}")),
+        }
+    }
+
+    /// Returns the apsolute location of the error in a similiar manner to JSON pointers.
+    pub fn location(&self) -> &str {
+        match self {
+            ValidationError::Schema { .. } => "/",
+            ValidationError::Field { ref location, .. } => location,
+        }
+    }
+
+    pub fn params(&self) -> HashMap<&'static str, Value> {
         match self {
             ValidationError::Schema { .. } => HashMap::new(),
-            ValidationError::Field { params, .. } => params.clone(),
+            ValidationError::Field { params, .. } => *params.clone(),
         }
     }
 
@@ -92,8 +138,8 @@ impl ValidationError {
 impl std::error::Error for ValidationError {
     fn description(&self) -> &str {
         match self {
-            ValidationError::Schema { ref code, .. } => code,
-            ValidationError::Field { ref code, .. } => code,
+            ValidationError::Schema { code, .. } => code,
+            ValidationError::Field { code, .. } => code,
         }
     }
 
@@ -141,8 +187,7 @@ impl ValidationErrors {
         self.0.append(&mut errors.0)
     }
 
-    /// Returns a map of field-level validation errors found for the struct that was validated and
-    /// any of it's nested structs that are tagged for validation.
+    /// Returns a slice of all the errors that ocurred during validation
     pub fn errors(&self) -> &[ValidationError] {
         &self.0
     }
@@ -192,12 +237,15 @@ impl std::error::Error for ValidationErrors {
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::Schema { code, ref message } => {
+            ValidationError::Schema {
+                code,
+                ref message,
+                ref location,
+            } => {
+                let message = message.as_ref().map_or_else(|| "", |f| f);
                 write!(
                     fmt,
-                    "Schema validation error: {} [{:?}]",
-                    code,
-                    message.as_ref().map_or_else(|| "", |msg| msg)
+                    "Schema validation error: {{ code: {code} message: {message}, location: {location} }}"
                 )
             }
             ValidationError::Field {
@@ -205,14 +253,12 @@ impl std::fmt::Display for ValidationError {
                 message,
                 name,
                 params,
+                location,
             } => {
+                let message = message.as_ref().map_or_else(|| "", |f| f);
                 write!(
                     fmt,
-                    "Field ({}) validation error: {}, {{ message: {}, params: {:?} }}",
-                    name,
-                    code,
-                    message.as_ref().map_or_else(|| "", |f| f),
-                    params,
+                    "Validation error: {{ code: {code} location: {location}, field: {name}, message: {message}, params: {params:?} }}",
                 )
             }
         }

@@ -12,24 +12,33 @@ use quote::quote;
 pub fn quote_field_validations(
     mut fields: Vec<FieldInformation>,
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-    let mut validations = vec![];
+    let mut quoted_validations = vec![];
     let mut nested_validations = vec![];
 
-    fields.drain(..).for_each(|x| {
-        let field_ident = x.field.ident.clone().unwrap();
-        let field_quoter = FieldQuoter::new(field_ident, x.name, x.field_type);
+    fields.drain(..).for_each(
+        |FieldInformation {
+             field,
+             field_type,
+             name,
+             original_name,
+             validations,
+             ..
+         }| {
+            let field_ident = field.ident.clone().unwrap();
+            let field_quoter = FieldQuoter::new(field_ident, name, original_name, field_type);
 
-        for validator in x.validations {
-            quote_validator(
-                &field_quoter,
-                validator,
-                &mut validations,
-                &mut nested_validations,
-            );
-        }
-    });
+            for validator in validations {
+                quote_validator(
+                    &field_quoter,
+                    validator,
+                    &mut quoted_validations,
+                    &mut nested_validations,
+                );
+            }
+        },
+    );
 
-    (validations, nested_validations)
+    (quoted_validations, nested_validations)
 }
 
 pub fn quote_struct_validations(validation: &[SchemaValidation]) -> Vec<proc_macro2::TokenStream> {
@@ -85,7 +94,6 @@ fn quote_validator(
         Validator::Phone(validation) => {
             validations.push(quote_phone_validation(field_quoter, validation))
         }
-        Validator::Nested => nested_validations.push(quote_nested_validation(field_quoter)),
         Validator::NonControlCharacter(validation) => validations.push(
             quote_non_control_character_validation(field_quoter, validation),
         ),
@@ -101,10 +109,11 @@ fn quote_validator(
         Validator::Time(validation) => {
             validations.push(quote_time_validation(field_quoter, validation))
         }
+        Validator::Nested => nested_validations.push(quote_nested_validation(field_quoter)),
     }
 }
 
-/// Quote an actual end-user error creation automatically
+/// Quote an error based on the validation's settings
 fn quote_error(describe: &impl Describe, field_name: &str) -> proc_macro2::TokenStream {
     let add_message_quoted = if let Some(ref m) = describe.message() {
         quote!(err.set_message(String::from(#m));)
@@ -121,7 +130,7 @@ fn quote_error(describe: &impl Describe, field_name: &str) -> proc_macro2::Token
 }
 
 fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
     let quoted_error = quote_error(&time, field_name);
 
@@ -138,8 +147,9 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
     let code = time.code();
     let quoted_parse_error = quote!(
         let mut err = ::validify::ValidationError::new_field(#field_name, #code);
-        err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
-        err.add_param(::std::borrow::Cow::from("format"), &#format);
+        err.add_param("value", &#validator_param);
+        err.add_param("format", &#format);
+        err.set_location(#field_name);
         errors.add(err);
     );
 
@@ -200,8 +210,9 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
                 quote!(
                     if #validation_fn {
                         #quoted_error
-                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
-                        err.add_param(::std::borrow::Cow::from("target"), target);
+                        err.add_param("actual", &#validator_param);
+                        err.add_param("target", target);
+                        err.set_location(#field_name);
                         errors.add(err);
                     }
                 )
@@ -225,8 +236,9 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
                 quote!(
                     if #validation_fn {
                         #quoted_error
-                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
-                        err.add_param(::std::borrow::Cow::from("target"), target);
+                        err.add_param("actual", &#validator_param);
+                        err.add_param("target", target);
+                        err.set_location(#field_name);
                         errors.add(err);
                     }
                 )
@@ -252,15 +264,16 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
                 quote!(
                     if #validation_fn {
                         #quoted_error
-                        err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+                        err.add_param("actual", &#validator_param);
                         let end = target.checked_add_signed(#duration).unwrap();
                         if end < *target {
-                            err.add_param(::std::borrow::Cow::from("from"), &end);
-                            err.add_param(::std::borrow::Cow::from("to"), target);
+                            err.add_param("from", &end);
+                            err.add_param("to", target);
                         } else {
-                            err.add_param(::std::borrow::Cow::from("from"), target);
-                            err.add_param(::std::borrow::Cow::from("to"), &end);
+                            err.add_param("from", target);
+                            err.add_param("to", &end);
                         }
+                        err.set_location(#field_name);
                         errors.add(err);
                     }
                 )
@@ -280,7 +293,8 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
     let quoted = quote!(
         if !#validation_fn {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
+            err.add_param("actual", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -325,7 +339,7 @@ fn quote_time_with_target(
 }
 
 fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
     let quoted_error = quote_error(&ip, field_name);
 
@@ -342,7 +356,8 @@ fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::Token
     let quoted = quote!(
         if !::validify::#validate_fn(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -351,7 +366,7 @@ fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::Token
 }
 
 fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let Length {
@@ -363,21 +378,21 @@ fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_m
 
     let min_err_param_quoted = if let Some(ref v) = min {
         let v = v.to_tokens();
-        quote!(err.add_param(::std::borrow::Cow::from("min"), &#v);)
+        quote!(err.add_param("min", &#v);)
     } else {
         quote!()
     };
 
     let max_err_param_quoted = if let Some(ref v) = max {
         let v = v.to_tokens();
-        quote!(err.add_param(::std::borrow::Cow::from("max"), &#v);)
+        quote!(err.add_param("max", &#v);)
     } else {
         quote!()
     };
 
     let equal_err_param_quoted = if let Some(ref v) = equal {
         let v = v.to_tokens();
-        quote!(err.add_param(::std::borrow::Cow::from("equal"), &#v);)
+        quote!(err.add_param("equal", &#v);)
     } else {
         quote!()
     };
@@ -417,7 +432,8 @@ fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_m
             #min_err_param_quoted
             #max_err_param_quoted
             #equal_err_param_quoted
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -426,7 +442,7 @@ fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_m
 }
 
 fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let quoted_ident = field_quoter.quote_validator_param();
 
     let Range {
@@ -435,14 +451,14 @@ fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macr
 
     let min_err_param_quoted = if let Some(v) = min {
         let v = v.to_tokens();
-        quote!(err.add_param(::std::borrow::Cow::from("min"), &#v);)
+        quote!(err.add_param("min", &#v);)
     } else {
         quote!()
     };
 
     let max_err_param_quoted = if let Some(v) = max {
         let v = v.to_tokens();
-        quote!(err.add_param(::std::borrow::Cow::from("max"), &#v);)
+        quote!(err.add_param("max", &#v);)
     } else {
         quote!()
     };
@@ -472,7 +488,8 @@ fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macr
             #quoted_error
             #min_err_param_quoted
             #max_err_param_quoted
-            err.add_param(::std::borrow::Cow::from("value"), &#quoted_ident);
+            err.add_param("value", &#quoted_ident);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -484,14 +501,15 @@ fn quote_credit_card_validation(
     field_quoter: &FieldQuoter,
     credit_card: CreditCard,
 ) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let quoted_error = quote_error(&credit_card, field_name);
     let quoted = quote!(
         if !::validify::validate_credit_card(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -500,14 +518,15 @@ fn quote_credit_card_validation(
 }
 
 fn quote_phone_validation(field_quoter: &FieldQuoter, phone: Phone) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let quoted_error = quote_error(&phone, field_name);
     let quoted = quote!(
         if !::validify::validate_phone(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -519,14 +538,15 @@ fn quote_non_control_character_validation(
     field_quoter: &FieldQuoter,
     non_cc: NonControlChar,
 ) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let quoted_error = quote_error(&non_cc, field_name);
     let quoted = quote!(
         if !::validify::validate_non_control_character(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -535,14 +555,15 @@ fn quote_non_control_character_validation(
 }
 
 fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let quoted_error = quote_error(&url, field_name);
     let quoted = quote!(
         if !::validify::validate_url(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -551,14 +572,15 @@ fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2::To
 }
 
 fn quote_email_validation(field_quoter: &FieldQuoter, email: Email) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let quoted_error = quote_error(&email, field_name);
     let quoted = quote!(
         if !::validify::validate_email(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -571,14 +593,15 @@ fn quote_must_match_validation(
     must_match: MustMatch,
 ) -> proc_macro2::TokenStream {
     let ident = &field_quoter.ident;
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let MustMatch { ref value, .. } = must_match;
     let quoted_error = quote_error(&must_match, field_name);
     let quoted = quote!(
         if !::validify::validate_must_match(&self.#ident, &self.#value) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &self.#ident);
-            err.add_param(::std::borrow::Cow::from("other"), &self.#value);
+            err.add_param("value", &self.#ident);
+            err.add_param("other", &self.#value);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -588,16 +611,20 @@ fn quote_must_match_validation(
 
 fn quote_custom_validation(field_quoter: &FieldQuoter, custom: Custom) -> proc_macro2::TokenStream {
     let validator_param = field_quoter.quote_validator_param();
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let Custom { ref path, .. } = custom;
     let quoted_error = quote_error(&custom, field_name);
 
+    // We safely unwrap in the call because there is no way that the resulting
+    // error is not a field error since custom validation can only be used on fields
     let quoted = quote!(
         match #path(#validator_param) {
             ::std::result::Result::Ok(()) => (),
-            ::std::result::Result::Err(mut err) => {
+            ::std::result::Result::Err(ref mut err) => {
+                let field_name = err.field_name().unwrap();
                 #quoted_error
-                err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+                err.add_param("value", &#validator_param);
+                err.set_location(field_name);
                 errors.add(err);
             },
         };
@@ -607,7 +634,7 @@ fn quote_custom_validation(field_quoter: &FieldQuoter, custom: Custom) -> proc_m
 }
 
 fn quote_regex_validation(field_quoter: &FieldQuoter, regex: Regex) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
 
     let Regex { ref path, .. } = regex;
@@ -616,7 +643,8 @@ fn quote_regex_validation(field_quoter: &FieldQuoter, regex: Regex) -> proc_macr
     let quoted = quote!(
     if !#path.is_match(#validator_param) {
         #quoted_error
-        err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+        err.add_param("value", &#validator_param);
+        err.set_location(#field_name);
         errors.add(err);
     });
 
@@ -625,18 +653,20 @@ fn quote_regex_validation(field_quoter: &FieldQuoter, regex: Regex) -> proc_macr
 
 fn quote_nested_validation(field_quoter: &FieldQuoter) -> proc_macro2::TokenStream {
     let validator_field = field_quoter.quote_validator_field();
+    let field_name = field_quoter.name();
     let quoted = quote!(
-        if let Err(errs) = #validator_field.validate() {
+        if let Err(mut errs) = #validator_field.validate() {
+            errs.errors_mut().iter_mut().for_each(|err| err.set_location(#field_name));
             errors.merge(errs);
         }
     );
-    field_quoter.wrap_validator_if_option(field_quoter.wrap_if_collection(quoted))
+    field_quoter.wrap_validator_if_option(field_quoter.wrap_if_collection(validator_field, quoted))
 }
 
 /// This is a bit of a special case where we can't use the wrap if option since this is usually used with const slices where we'll
 /// usually need a double reference
 fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
 
     let field_ident = &field_quoter.ident;
     let In { ref path, not, .. } = r#in;
@@ -655,8 +685,9 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
             if let Some(ref param) = self.#field_ident {
                 if !::validify::validate_in(#path, &param #as_str, #not) {
                     #quoted_error
-                    err.add_param(::std::borrow::Cow::from("value"), &self.#field_ident);
-                    err.add_param(::std::borrow::Cow::from("disallowed"), &#path);
+                    err.add_param("value", &self.#field_ident);
+                    err.add_param("disallowed", &#path);
+                    err.set_location(#field_name);
                     errors.add(err);
                 }
             }
@@ -666,8 +697,9 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
     quote!(
         if !::validify::validate_in(#path, &self.#field_ident #as_str, #not) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &self.#field_ident);
-            err.add_param(::std::borrow::Cow::from("disallowed"), &#path);
+            err.add_param("value", &self.#field_ident);
+            err.add_param("disallowed", &#path);
+            err.set_location(#field_name);
             errors.add(err);
     })
 }
@@ -676,7 +708,7 @@ fn quote_contains_validation(
     field_quoter: &FieldQuoter,
     contains: Contains,
 ) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let validator_param = field_quoter.quote_validator_param();
     let Contains { not, ref value, .. } = contains;
 
@@ -691,8 +723,9 @@ fn quote_contains_validation(
     let quoted = quote!(
         if !::validify::validate_contains(#validator_param, &#value, #not) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("actual"), &#validator_param);
-            err.add_param(::std::borrow::Cow::from("value"), &#value);
+            err.add_param("actual", &#validator_param);
+            err.add_param("value", &#value);
+            err.set_location(#field_name);
             errors.add(err);
         }
     );
@@ -704,7 +737,7 @@ fn quote_required_validation(
     field_quoter: &FieldQuoter,
     required: Required,
 ) -> proc_macro2::TokenStream {
-    let field_name = &field_quoter.name;
+    let field_name = field_quoter.name();
     let ident = &field_quoter.ident;
     let validator_param = quote!(&self.#ident);
 
@@ -712,7 +745,8 @@ fn quote_required_validation(
     quote!(
         if !::validify::validate_required(#validator_param) {
             #quoted_error
-            err.add_param(::std::borrow::Cow::from("value"), &#validator_param);
+            err.add_param("value", &#validator_param);
+            err.set_location(#field_name);
             errors.add(err);
         }
     )

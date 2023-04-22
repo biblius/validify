@@ -1,19 +1,16 @@
-use std::borrow::Cow;
 use url::Url;
 
 /// Validates whether the string given is a url
 #[must_use]
-pub fn validate_url<'a, T>(val: T) -> bool
+pub fn validate_url<T>(val: T) -> bool
 where
-    T: Into<Cow<'a, str>>,
+    T: AsRef<str>,
 {
-    Url::parse(val.into().as_ref()).is_ok()
+    Url::parse(val.as_ref()).is_ok()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
-
     use super::validate_url;
 
     #[test]
@@ -32,13 +29,13 @@ mod tests {
 
     #[test]
     fn test_validate_url_cow() {
-        let test: Cow<'static, str> = "http://localhost:80".into();
+        let test = "http://localhost:80";
         assert!(validate_url(test));
-        let test: Cow<'static, str> = String::from("http://localhost:80").into();
+        let test = String::from("http://localhost:80");
         assert!(validate_url(test));
-        let test: Cow<'static, str> = "http".into();
+        let test = "http";
         assert!(!validate_url(test));
-        let test: Cow<'static, str> = String::from("http").into();
+        let test = String::from("http");
         assert!(!validate_url(test));
     }
 }

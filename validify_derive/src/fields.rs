@@ -1,14 +1,12 @@
-use std::collections::HashMap;
-
-use proc_macro_error::abort;
-use quote::ToTokens;
-use syn::spanned::Spanned;
-
 use crate::{
     types::{Modifier, Validator},
     validate::r#impl::collect_validations,
     validify::r#impl::collect_modifiers,
 };
+use proc_macro_error::abort;
+use quote::ToTokens;
+use std::collections::HashMap;
+use syn::{parenthesized, spanned::Spanned, Expr, Token};
 
 /// Holds the combined validations and modifiers for one field
 #[derive(Debug)]
@@ -16,6 +14,7 @@ pub struct FieldInformation {
     pub field: syn::Field,
     pub field_type: String,
     pub name: String,
+    pub original_name: Option<String>,
     pub validations: Vec<Validator>,
     pub modifiers: Vec<Modifier>,
 }
@@ -25,6 +24,7 @@ impl FieldInformation {
         field: syn::Field,
         field_type: String,
         name: String,
+        original_name: Option<String>,
         validations: Vec<Validator>,
         modifiers: Vec<Modifier>,
     ) -> Self {
@@ -32,6 +32,7 @@ impl FieldInformation {
             field,
             field_type,
             name,
+            original_name,
             validations,
             modifiers,
         }
@@ -47,7 +48,7 @@ pub fn collect_field_info(
 
     let field_types = map_field_types(&fields, allow_refs);
 
-    let mut final_validations = vec![];
+    let mut field_info = vec![];
 
     for field in fields.drain(..) {
         let field_ident = field
@@ -56,18 +57,20 @@ pub fn collect_field_info(
             .expect("Found unnamed field")
             .to_string();
 
-        let (validations, modifiers) = collect_field_attributes(&field, &field_types)?;
+        let (validations, modifiers, original_name) =
+            collect_field_attributes(&field, &field_types)?;
 
-        final_validations.push(FieldInformation::new(
+        field_info.push(FieldInformation::new(
             field,
             field_types.get(&field_ident).unwrap().clone(),
             field_ident,
+            original_name,
             validations,
             modifiers,
         ));
     }
 
-    Ok(final_validations)
+    Ok(field_info)
 }
 
 /// Find the types (as string) for each field of the struct. The `allow_refs`, if false, will error if
@@ -149,7 +152,7 @@ pub fn collect_fields(input: &syn::DeriveInput) -> Vec<syn::Field> {
 pub fn collect_field_attributes(
     field: &syn::Field,
     field_types: &HashMap<String, String>,
-) -> Result<(Vec<Validator>, Vec<Modifier>), syn::Error> {
+) -> Result<(Vec<Validator>, Vec<Modifier>, Option<String>), syn::Error> {
     let field_ident = field.ident.clone().unwrap().to_string();
     let field_type = field_types.get(&field_ident).unwrap();
 
@@ -159,5 +162,57 @@ pub fn collect_field_attributes(
     collect_validations(&mut validators, field, field_type);
     collect_modifiers(&mut modifiers, field);
 
-    Ok((validators, modifiers))
+    // The original name refers to the field name set with serde rename.
+    let original_name = find_original_field_name(field);
+
+    Ok((validators, modifiers, original_name))
+}
+
+fn find_original_field_name(field: &syn::Field) -> Option<String> {
+    let mut original_name = None;
+    for attr in field.attrs.iter() {
+        if !attr.path().is_ident("serde") {
+            continue;
+        }
+
+        // serde field attributes are always lists
+        let Ok(serde_meta) = attr.meta.require_list() else {
+            continue;
+        };
+
+        let _ = serde_meta.parse_nested_meta(|meta| {
+            if !meta.path.is_ident("rename") {
+                return Ok(());
+            }
+
+            // Covers `rename = "something"`
+            if meta.input.peek(Token!(=)) {
+                let content = meta.value()?;
+                original_name = Some(content.parse::<syn::LitStr>()?.value());
+                return Ok(());
+            }
+
+            // Covers `rename(deserialize = "something")`
+            if meta.input.peek(syn::token::Paren) {
+                let content;
+                parenthesized!(content in meta.input);
+                let name_value = content.parse::<syn::MetaNameValue>()?;
+
+                // We're only interested in the deserialize property as that is the
+                // one related to the client payload
+                if name_value.path.is_ident("deserialize") {
+                    let Expr::Lit(expr_lit) = name_value.value else {
+                        return Ok(())
+                    };
+                    if let syn::Lit::Str(str_lit) = expr_lit.lit {
+                        original_name = Some(str_lit.value())
+                    }
+                }
+                return Ok(());
+            }
+
+            Ok(())
+        });
+    }
+    original_name
 }

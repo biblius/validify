@@ -105,10 +105,10 @@ fn generate_payload_type(
             let typ = types.get(&ident.to_string()).unwrap();
             if typ.starts_with("Option") {
                 quote!(
-                    #ident: self.#ident,
+                    #ident: original.#ident,
                 )
             } else {
-                quote!(#ident: Some(self.#ident),)
+                quote!(#ident: Some(original.#ident),)
             }
         })
         .collect::<Vec<proc_macro2::TokenStream>>();
@@ -134,9 +134,9 @@ fn generate_payload_type(
             #(#payload_fields)*
         }
 
-         impl #impl_generics Into<#payload_ident> for #ident {
-            fn into(self) -> #payload_ident {
-                #payload_ident {
+         impl #impl_generics From<#ident> for #payload_ident {
+            fn from(original: #ident) -> Self {
+                Self {
                     #(#into_fields)*
                 }
             }

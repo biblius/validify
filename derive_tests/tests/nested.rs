@@ -337,3 +337,169 @@ fn test_field_validations_take_priority_over_nested_validations() {
     let errs = err.errors();
     assert_eq!(errs.len(), 1);
 }
+
+#[test]
+fn multiple_nested_location() {
+    #[derive(Debug, Validate)]
+    struct Parent {
+        #[validate]
+        child: Child,
+    }
+
+    #[derive(Debug, Validate)]
+    struct Child {
+        #[validate]
+        children: Vec<GrandChild>,
+    }
+
+    #[derive(Debug, Validate)]
+    struct GrandChild {
+        #[validate(length(min = 2))]
+        allowance: Vec<usize>,
+    }
+
+    let parent = Parent {
+        child: Child {
+            children: vec![
+                GrandChild { allowance: vec![1] },
+                GrandChild {
+                    allowance: vec![1, 2],
+                },
+            ],
+        },
+    };
+
+    let res = parent.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 1);
+    assert_eq!(
+        dbg!(err.errors()[0].location()),
+        "/child/children/0/allowance"
+    );
+    let parent = Parent {
+        child: Child {
+            children: vec![
+                GrandChild {
+                    allowance: vec![1, 2],
+                },
+                GrandChild {
+                    allowance: vec![1, 2, 3],
+                },
+                GrandChild { allowance: vec![2] },
+                GrandChild {
+                    allowance: vec![1, 2, 3, 4],
+                },
+            ],
+        },
+    };
+
+    let res = parent.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 1);
+    assert_eq!(
+        dbg!(err.errors()[0].location()),
+        "/child/children/2/allowance"
+    );
+}
+
+#[test]
+fn multiple_nested_hashmap_location() {
+    #[derive(Debug, Validate)]
+    struct Parent {
+        #[validate]
+        child: Child,
+    }
+
+    #[derive(Debug, Validate)]
+    struct Child {
+        #[validate]
+        children: HashMap<usize, GrandChild>,
+    }
+
+    #[derive(Debug, Validate)]
+    struct GrandChild {
+        #[validate(length(min = 2))]
+        allowance: Vec<usize>,
+    }
+
+    let parent = Parent {
+        child: Child {
+            children: HashMap::from([
+                (1, GrandChild { allowance: vec![1] }),
+                (
+                    2,
+                    GrandChild {
+                        allowance: vec![1, 2],
+                    },
+                ),
+            ]),
+        },
+    };
+
+    let res = parent.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 1);
+    assert_eq!(
+        dbg!(err.errors()[0].location()),
+        "/child/children/1/allowance"
+    );
+}
+
+#[test]
+fn multiple_nested_hashmap_location_str() {
+    #[derive(Debug, Validate)]
+    struct Parent {
+        #[validate]
+        child: Child,
+    }
+
+    #[derive(Debug, Validate)]
+    struct Child {
+        #[validate]
+        children: HashMap<&'static str, GrandChild>,
+    }
+
+    #[derive(Debug, Validate)]
+    struct GrandChild {
+        #[validate(length(min = 2))]
+        allowance: Vec<usize>,
+    }
+
+    let parent = Parent {
+        child: Child {
+            children: HashMap::from([
+                (
+                    "one",
+                    GrandChild {
+                        allowance: vec![1, 4],
+                    },
+                ),
+                (
+                    "two",
+                    GrandChild {
+                        allowance: vec![1, 2],
+                    },
+                ),
+                (
+                    "three",
+                    GrandChild {
+                        allowance: vec![1, 2],
+                    },
+                ),
+                ("four", GrandChild { allowance: vec![2] }),
+            ]),
+        },
+    };
+
+    let res = parent.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 1);
+    assert_eq!(
+        dbg!(err.errors()[0].location()),
+        "/child/children/four/allowance"
+    );
+}

@@ -1,11 +1,9 @@
-use std::borrow::Cow;
-
 #[must_use]
-pub fn validate_phone<'a, T>(phone_number: T) -> bool
+pub fn validate_phone<T>(phone_number: T) -> bool
 where
-    T: Into<Cow<'a, str>>,
+    T: AsRef<str>,
 {
-    if let Ok(parsed) = phonenumber::parse(None, phone_number.into()) {
+    if let Ok(parsed) = phonenumber::parse(None, phone_number) {
         phonenumber::is_valid(&parsed)
     } else {
         false
@@ -14,8 +12,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
-
     use super::validate_phone;
 
     #[test]
@@ -38,13 +34,13 @@ mod tests {
 
     #[test]
     fn test_phone_cow() {
-        let test: Cow<'static, str> = "+1 (415) 237-0800".into();
+        let test = "+1 (415) 237-0800";
         assert!(validate_phone(test));
-        let test: Cow<'static, str> = String::from("+1 (415) 237-0800").into();
+        let test = String::from("+1 (415) 237-0800");
         assert!(validate_phone(test));
-        let test: Cow<'static, str> = "TEXT".into();
+        let test = "TEXT";
         assert!(!validate_phone(test));
-        let test: Cow<'static, str> = String::from("TEXT").into();
+        let test = String::from("TEXT");
         assert!(!validate_phone(test));
     }
 }

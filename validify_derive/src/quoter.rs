@@ -8,12 +8,27 @@ use quote::quote;
 pub struct FieldQuoter {
     pub ident: syn::Ident,
     pub name: String,
+    pub original_name: Option<String>,
     pub _type: String,
 }
 
 impl FieldQuoter {
-    pub fn new(ident: syn::Ident, name: String, _type: String) -> FieldQuoter {
-        FieldQuoter { ident, name, _type }
+    pub fn new(
+        ident: syn::Ident,
+        name: String,
+        original_name: Option<String>,
+        _type: String,
+    ) -> FieldQuoter {
+        FieldQuoter {
+            ident,
+            name,
+            original_name,
+            _type,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.original_name.as_deref().unwrap_or(&self.name)
     }
 
     /// Quotes the field as necessary for passing the resulting tokens into a validation
@@ -70,8 +85,8 @@ impl FieldQuoter {
         }
     }
 
-    /// Wrap the quoted output of a validation with a if let Some if
-    /// the field type is an option
+    /// If the field is an `Option` the passed tokens get wrapped in an `if let Some`
+    /// statement, otherwise just return the tokens.
     pub fn wrap_validator_if_option(
         &self,
         tokens: proc_macro2::TokenStream,
@@ -94,7 +109,9 @@ impl FieldQuoter {
         tokens
     }
 
-    pub fn get_optional_validator_param(&self) -> proc_macro2::TokenStream {
+    /// Returns `ident` or `ref ident` to account for the
+    /// `if let Some(ident) = self.field`.
+    fn get_optional_validator_param(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
         if self._type.starts_with("Option<&")
             || self._type.starts_with("Option<Option<&")
@@ -131,7 +148,7 @@ impl FieldQuoter {
         tokens
     }
 
-    pub fn get_optional_modifier_param(&self) -> proc_macro2::TokenStream {
+    fn get_optional_modifier_param(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
         if self._type.starts_with("Option<&") || self._type.starts_with("Option<Option<&") {
             abort!(
@@ -144,9 +161,13 @@ impl FieldQuoter {
     }
 
     /// Wrap the quoted output of a validation with a for loop if
-    /// the field type is a vector
-    pub fn wrap_if_collection(&self, tokens: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-        let field_ident = &self.ident;
+    /// the field type is a collection (used solely for nested validation)
+    pub fn wrap_if_collection(
+        &self,
+        validator_field: proc_macro2::TokenStream,
+        tokens: proc_macro2::TokenStream,
+    ) -> proc_macro2::TokenStream {
+        let field_name = &self.name;
 
         // When we're using an option, we'll have the field unwrapped, so we should not access it
         // through `self`.
@@ -154,18 +175,26 @@ impl FieldQuoter {
 
         // When iterating over a list, the iterator has Item=T, while a map yields Item=(K, V), and
         // we're only interested in V.
-        let args = if is_list(&self._type) {
-            quote! { #field_ident }
+        if is_list(&self._type) {
+            quote!(
+                for (i, item) in #prefix #validator_field.iter().enumerate() {
+                    if let Err(mut errs) = item.validate() {
+                        errs.errors_mut().iter_mut().for_each(|err| err.set_location_idx(i, #field_name));
+                        errors.merge(errs);
+                    }
+                }
+            )
         } else if is_map(&self._type) {
-            quote! { (_, #field_ident) }
+            quote!(
+                for (key, item) in #prefix #validator_field.iter() {
+                    if let Err(mut errs) = item.validate() {
+                        errs.errors_mut().iter_mut().for_each(|err| err.set_location_idx(key, #field_name));
+                        errors.merge(errs);
+                    }
+                }
+            )
         } else {
-            return tokens;
-        };
-
-        quote! {
-            for #args in #prefix #field_ident.iter() {
-                #tokens
-            }
+            tokens
         }
     }
 

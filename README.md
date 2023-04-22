@@ -3,6 +3,8 @@
 ![build](https://img.shields.io/github/actions/workflow/status/biblius/validify/check.yml?label=build&style=plastic)
 ![test](https://img.shields.io/github/actions/workflow/status/biblius/validify/test.yml?label=test&style=plastic)
 ![coverage](https://img.shields.io/codecov/c/github/biblius/validify?style=plastic)
+![version](https://img.shields.io/crates/v/validify)
+![downloads](https://img.shields.io/crates/d/validify?color=%2332AA)
 
 A procedural macro that provides attributes for field validation and modifiers. Particularly useful in the context of web payloads.
 
@@ -31,8 +33,8 @@ All validators also take in a `code` and `message` as parameters, their values a
 | length           | Collection  | min, max, equal  | LitInt | Checks if the collection length is within the specified params. Works through the HasLen trait.
 | range            |  Int/Float     |     min, max    | LitFloat |Checks if the value is in the specified range.
 | must_match       |    Any      |       value       | Ident |Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.
-| contains         | Collection  |      value    | Lit/Path |Checks if the collection contains the specified value.
-| contains_not     | Collection  |      value     |Lit/Path | Checks if the collection doesn't contain the specified value
+| contains         | Collection  |      value    | Lit/Path |Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.
+| contains_not     | Collection  |      value     |Lit/Path | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key.
 | non_control_char |  String     |        --       | -- |Checks if the field contains control characters
 | custom           |  Function   |      function     | Path |Executes custom validation on the field specified by the end user
 | regex            |  String     |      path      | Path |Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.
@@ -158,34 +160,19 @@ struct SomethingPayload {
 }
 ```
 
-Note that every field that isn't an option will be an 'optional' required field in the payload (solely to avoid deserialization errors). The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
+Note that every field that isn't an option will be an 'optional' required field in the payload. This is done to avoid deserialization errors for missing fields.
+
+- _Do note that if a field exists in the incoming client payload, but is of the wrong type, a deserialization error will still occur as the payload is only being validated for whether the necessary fields exist. The same applies for invalid date\[time] formats._
+
+The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
 
 Validify's `validify` method always takes in the generated payload and outputs the original struct if all validations have passed.
 
-The macro automatically implements the `Validate` and `Modify` traits in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which in the above example expands to:
+The macro automatically implements the `Validate` and `Modify` traits in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which:
 
-```rust
-    fn validify(payload: Self::Payload) -> Result<(), ValidationErrors> {
-        <Self::Payload as ::validify::Validate>::validate(&payload)?;
-        let mut this = Self::from(payload);
-        let mut errors: Vec<::validify::ValidationErrors> = Vec::new();
-        if let Err(e) = <Nestor as ::validify::Validify>::validify(this.nested.clone().into()) {
-            errors.push(e.into());
-        }
-        <Self as ::validify::Modify>::modify(&mut this);
-        if let Err(e) = <Self as ::validify::Validate>::validate(&this) {
-            errors.push(e.into());
-        }
-        if !errors.is_empty() {
-            let mut errs = ::validify::ValidationErrors::new();
-            for err in errors {
-                errs = errs.merge(err);
-            }
-            return Err(errs);
-        }
-        Ok(this)
-    }
-```
+1. Runs the required validations on the payload struct
+2. Runs modifications on the original
+3. Runs validations and returns the original struct.
 
 ## Schema validation
 
@@ -224,7 +211,7 @@ Like field level validation, schema level validation is performed after modifica
 
 ## Errors
 
-The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are, as the name suggests, created when fields fail validation and are usually automatically generated unless using custom handlers (custom field validation always must return a result whose Err variant is ValidationError).
+The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are, as the name suggests, created when fields fail validation and are usually automatically generated unless using custom handlers (custom field validation functions always must return a result whose Err variant is ValidationError).
 
 If you want to provide a message along with the error, you can directly specify it in the attribute (the same goes for the code),
 for example:
@@ -233,9 +220,14 @@ for example:
 
 Keep in mind, when specifying validations this way, all attribute parameters MUST be specified as [NameValue](https://docs.rs/syn/latest/syn/struct.MetaNameValue.html) pairs. This means that if you write
 
-`#[validate("something", message = "Bla")]`,
+`#[validate(contains("something", message = "Bla"))]`,
 
 you will get an error, as the parser expects either a single value or multiple name value pairs.
+
+Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html). When using
+custom validation, whatever field name you specify in the returned error will be used in the location for that field.
+
+Original (client payload) field names are also taken into account if they are annotated with `#[serde(rename)]` on the field level. The struct level `rename_all` attribute is currently not taken into account, but will eventually be made to work.
 
 Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
 

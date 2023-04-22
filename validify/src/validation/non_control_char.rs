@@ -1,21 +1,18 @@
-use std::borrow::Cow;
 use unic_ucd_common::control;
 
 #[must_use]
-pub fn validate_non_control_character<'a, T>(alphabetic: T) -> bool
+pub fn validate_non_control_character<T>(alphabetic: T) -> bool
 where
-    T: Into<Cow<'a, str>> + Clone,
+    T: AsRef<str> + Clone,
 {
     alphabetic
-        .into()
+        .as_ref()
         .chars()
         .all(|code| !control::is_control(code))
 }
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
-
     use super::validate_non_control_character;
 
     #[test]
@@ -38,13 +35,13 @@ mod tests {
 
     #[test]
     fn test_non_control_character_cow() {
-        let test: Cow<'static, str> = "आकाश".into();
+        let test = "आकाश";
         assert!(validate_non_control_character(test));
-        let test: Cow<'static, str> = String::from("வானத்தில்").into();
+        let test = String::from("வானத்தில்");
         assert!(validate_non_control_character(test));
-        let test: Cow<'static, str> = "\u{000c}".into();
+        let test = "\u{000c}";
         assert!(!validate_non_control_character(test));
-        let test: Cow<'static, str> = String::from("\u{009F}").into();
+        let test = String::from("\u{009F}");
         assert!(!validate_non_control_character(test));
     }
 }

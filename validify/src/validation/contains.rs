@@ -32,15 +32,15 @@ mod tests {
     #[test]
     fn test_validate_contains_hashmap_key() {
         let mut map = HashMap::new();
-        map.insert("hey".to_string(), 1);
-        assert!(validate_contains(map, "hey", false));
+        map.insert("hey", 1);
+        assert!(validate_contains(map, &"hey", false));
     }
 
     #[test]
     fn test_validate_contains_hashmap_key_can_fail() {
         let mut map = HashMap::new();
-        map.insert("hey".to_string(), 1);
-        assert!(!validate_contains(map, "bob", false));
+        map.insert("hey", 1);
+        assert!(!validate_contains(map, &"bob", false));
     }
 
     #[test]
@@ -72,15 +72,15 @@ mod tests {
     #[test]
     fn test_validate_does_not_contain_hashmap_key() {
         let mut map = HashMap::new();
-        map.insert("hey".to_string(), 1);
-        assert!(!validate_contains(map, "hey", true));
+        map.insert("hey", 1);
+        assert!(!validate_contains(map, &"hey", true));
     }
 
     #[test]
     fn test_validate_does_not_contain_hashmap_key_can_fail() {
         let mut map = HashMap::new();
-        map.insert("hey".to_string(), 1);
-        assert!(validate_contains(map, "bob", true));
+        map.insert("hey", 1);
+        assert!(validate_contains(map, &"bob", true));
     }
 
     #[test]

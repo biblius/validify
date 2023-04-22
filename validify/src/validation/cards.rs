@@ -1,17 +1,15 @@
 use card_validate::Validate as CardValidate;
-use std::borrow::Cow;
 
 #[must_use]
-pub fn validate_credit_card<'a, T>(card: T) -> bool
+pub fn validate_credit_card<T>(card: T) -> bool
 where
-    T: Into<Cow<'a, str>>,
+    T: AsRef<str>,
 {
-    CardValidate::from(&card.into()).is_ok()
+    CardValidate::from(card.as_ref()).is_ok()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
 
     use super::validate_credit_card;
 
@@ -31,13 +29,13 @@ mod tests {
 
     #[test]
     fn test_credit_card_cow() {
-        let test: Cow<'static, str> = "4539571147647251".into();
+        let test: &'static str = "4539571147647251";
         assert!(validate_credit_card(test));
-        let test: Cow<'static, str> = String::from("4539571147647251").into();
-        assert!(validate_credit_card(test));
-        let test: Cow<'static, str> = "5236313877109141".into();
+        let test = String::from("4539571147647251");
+        assert!(validate_credit_card(test.as_str()));
+        let test = "5236313877109141";
         assert!(!validate_credit_card(test));
-        let test: Cow<'static, str> = String::from("5236313877109141").into();
-        assert!(!validate_credit_card(test));
+        let test = String::from("5236313877109141");
+        assert!(!validate_credit_card(test.as_str()));
     }
 }

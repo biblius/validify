@@ -9,18 +9,27 @@ pub(super) fn quote_field_modifiers(
     let mut modifications = vec![];
     let mut nested_validifies = vec![];
 
-    fields.drain(..).for_each(|item| {
-        let field_ident = item.field.ident.clone().unwrap();
-        let field_quoter = FieldQuoter::new(field_ident, item.name, item.field_type);
+    fields.drain(..).for_each(
+        |FieldInformation {
+             field,
+             field_type,
+             name,
+             original_name,
+             modifiers,
+             ..
+         }| {
+            let field_ident = field.ident.clone().unwrap();
+            let field_quoter = FieldQuoter::new(field_ident, name, original_name, field_type);
 
-        for modifier in item.modifiers.iter() {
-            let (mods, valids) = quote_modifiers(&field_quoter, modifier);
-            modifications.push(mods);
-            if let Some(validation) = valids {
-                nested_validifies.push(validation)
+            for modifier in modifiers.iter() {
+                let (mods, valids) = quote_modifiers(&field_quoter, modifier);
+                modifications.push(mods);
+                if let Some(validation) = valids {
+                    nested_validifies.push(validation)
+                }
             }
-        }
-    });
+        },
+    );
 
     (modifications, nested_validifies)
 }

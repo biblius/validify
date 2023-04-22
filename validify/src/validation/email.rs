@@ -2,7 +2,6 @@ use crate::validation::ip::validate_ip;
 use idna::domain_to_ascii;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::borrow::Cow;
 
 lazy_static! {
     // Regex from the specs
@@ -20,11 +19,11 @@ lazy_static! {
 /// [RFC 5322](https://tools.ietf.org/html/rfc5322) is not practical in most circumstances and allows email addresses
 /// that are unfamiliar to most users.
 #[must_use]
-pub fn validate_email<'a, T>(val: T) -> bool
+pub fn validate_email<T>(val: T) -> bool
 where
-    T: Into<Cow<'a, str>>,
+    T: AsRef<str>,
 {
-    let val = val.into();
+    let val = val.as_ref();
     if val.is_empty() || !val.contains('@') {
         return false;
     }
@@ -74,7 +73,6 @@ fn validate_domain_part(domain_part: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
 
     use super::validate_email;
 
@@ -146,13 +144,13 @@ mod tests {
 
     #[test]
     fn test_validate_email_cow() {
-        let test: Cow<'static, str> = "email@here.com".into();
+        let test = "email@here.com";
         assert!(validate_email(test));
-        let test: Cow<'static, str> = String::from("email@here.com").into();
+        let test = String::from("email@here.com");
         assert!(validate_email(test));
-        let test: Cow<'static, str> = "a@[127.0.0.1]\n".into();
+        let test = "a@[127.0.0.1]\n";
         assert!(!validate_email(test));
-        let test: Cow<'static, str> = String::from("a@[127.0.0.1]\n").into();
+        let test = String::from("a@[127.0.0.1]\n");
         assert!(!validate_email(test));
     }
 

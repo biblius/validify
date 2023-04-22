@@ -1,7 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::hash::BuildHasher;
+use std::hash::Hash;
 
 /// Trait to implement if one wants to make the `length` validator
 /// work for more types
@@ -165,6 +165,26 @@ where
     }
 }
 
+impl<T, V> Contains for HashMap<T, V>
+where
+    T: PartialEq + Eq + Hash,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains_key(needle)
+    }
+}
+
+impl<T, V> Contains for &HashMap<T, V>
+where
+    T: PartialEq + Eq + Hash,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains_key(needle)
+    }
+}
+
 impl Contains for String {
     type Needle<'a> = &'a str;
     fn has_element(&self, needle: &str) -> bool {
@@ -190,25 +210,5 @@ impl Contains for Cow<'_, str> {
     type Needle<'a> = &'a str where Self: 'a;
     fn has_element(&self, needle: &str) -> bool {
         self.contains(needle)
-    }
-}
-
-impl<S, H> Contains for HashMap<String, S, H>
-where
-    H: BuildHasher,
-{
-    type Needle<'a> = &'a str where Self: 'a;
-    fn has_element(&self, needle: &str) -> bool {
-        self.contains_key(needle)
-    }
-}
-
-impl<S, H> Contains for &HashMap<String, S, H>
-where
-    H: BuildHasher,
-{
-    type Needle<'a> = &'a str where Self: 'a;
-    fn has_element(&self, needle: &str) -> bool {
-        self.contains_key(needle)
     }
 }
