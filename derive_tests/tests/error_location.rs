@@ -97,7 +97,7 @@ fn with_complex_nesting() {
 
     let res = family.validate();
     let err = res.unwrap_err();
-    let errors = dbg!(err.errors());
+    let errors = err.errors();
 
     assert_eq!(errors.len(), 7);
 

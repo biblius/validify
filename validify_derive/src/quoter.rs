@@ -128,18 +128,22 @@ impl FieldQuoter {
     pub fn wrap_modifier_if_option(
         &self,
         tokens: proc_macro2::TokenStream,
+        use_this: bool,
     ) -> proc_macro2::TokenStream {
         let field_ident = &self.ident;
         let optional_pattern_matched = self.get_optional_modifier_param();
+
+        let that = use_this.then(|| quote!(this)).unwrap_or(quote!(self));
+
         if self._type.starts_with("Option<Option<") {
             return quote!(
-                if let Some(Some(#optional_pattern_matched)) = self.#field_ident.as_mut() {
+                if let Some(Some(#optional_pattern_matched)) = #that.#field_ident.as_mut() {
                     #tokens
                 }
             );
         } else if self._type.starts_with("Option<") {
             return quote!(
-                if let Some(#optional_pattern_matched) = self.#field_ident.as_mut() {
+                if let Some(#optional_pattern_matched) = #that.#field_ident.as_mut() {
                     #tokens
                 }
             );

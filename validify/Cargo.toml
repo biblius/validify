@@ -29,4 +29,4 @@ serde_json = "1"
 syn = { version = "1.0.103", features = ["full"] }
 unic-ucd-common = { version = "0.9" }
 url = "2.3.1"
-validify_derive = { version = "1.0.0", path = "../validify_derive" }
+validify_derive = { version = "1.0.0" }

@@ -138,3 +138,10 @@ pub fn is_list(_type: &str) -> bool {
             || _type.starts_with('[')
     }
 }
+
+pub fn is_nested_validify(field: &syn::Field) -> bool {
+    field
+        .attrs
+        .iter()
+        .any(|attr| attr.path().is_ident("validify") && attr.meta.require_path_only().is_ok())
+}

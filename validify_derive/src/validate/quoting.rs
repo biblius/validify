@@ -24,7 +24,7 @@ pub fn quote_field_validations(
              validations,
              ..
          }| {
-            let field_ident = field.ident.clone().unwrap();
+            let field_ident = field.ident.unwrap();
             let field_quoter = FieldQuoter::new(field_ident, name, original_name, field_type);
 
             for validator in validations {
@@ -611,21 +611,22 @@ fn quote_must_match_validation(
 
 fn quote_custom_validation(field_quoter: &FieldQuoter, custom: Custom) -> proc_macro2::TokenStream {
     let validator_param = field_quoter.quote_validator_param();
-    let field_name = field_quoter.name();
     let Custom { ref path, .. } = custom;
-    let quoted_error = quote_error(&custom, field_name);
 
-    // We safely unwrap in the call because there is no way that the resulting
-    // error is not a field error since custom validation can only be used on fields
+    let err_with_msg = if let Some(msg) = custom.message() {
+        quote!(err.with_message(#msg.to_string()))
+    } else {
+        quote!(err)
+    };
+
     let quoted = quote!(
         match #path(#validator_param) {
             ::std::result::Result::Ok(()) => (),
-            ::std::result::Result::Err(ref mut err) => {
-                let field_name = err.field_name().unwrap();
-                #quoted_error
+            ::std::result::Result::Err(mut err) => {
+                let field = err.field_name().unwrap().to_string();
+                err.set_location(field);
                 err.add_param("value", &#validator_param);
-                err.set_location(field_name);
-                errors.add(err);
+                errors.add(#err_with_msg);
             },
         };
     );
@@ -673,12 +674,16 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
     let quoted_error = quote_error(&r#in, field_name);
 
     // Cast strings to strs because the usual application for string comparisons
-    // is with const arrays
-    let as_str = if field_quoter._type.contains("String") {
+    // with this kind of validation is with const arrays
+    let as_str = if field_quoter._type.starts_with("String")
+        || field_quoter._type.starts_with("Option<String")
+    {
         quote!(.as_str())
     } else {
         quote!()
     };
+
+    let err_param = if not { "disallowed" } else { "allowed" };
 
     if field_quoter._type.starts_with("Option<") {
         return quote!(
@@ -686,7 +691,7 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
                 if !::validify::validate_in(#path, &param #as_str, #not) {
                     #quoted_error
                     err.add_param("value", &self.#field_ident);
-                    err.add_param("disallowed", &#path);
+                    err.add_param(#err_param, &#path);
                     err.set_location(#field_name);
                     errors.add(err);
                 }
@@ -698,7 +703,7 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
         if !::validify::validate_in(#path, &self.#field_ident #as_str, #not) {
             #quoted_error
             err.add_param("value", &self.#field_ident);
-            err.add_param("disallowed", &#path);
+            err.add_param(#err_param, &#path);
             err.set_location(#field_name);
             errors.add(err);
     })

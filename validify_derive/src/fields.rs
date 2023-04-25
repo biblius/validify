@@ -8,6 +8,8 @@ use quote::ToTokens;
 use std::collections::HashMap;
 use syn::{parenthesized, spanned::Spanned, Expr, Token};
 
+type FieldAttrCollection = Result<(Vec<Validator>, Vec<Modifier>, Option<String>), syn::Error>;
+
 /// Holds the combined validations and modifiers for one field
 #[derive(Debug)]
 pub struct FieldInformation {
@@ -152,7 +154,7 @@ pub fn collect_fields(input: &syn::DeriveInput) -> Vec<syn::Field> {
 pub fn collect_field_attributes(
     field: &syn::Field,
     field_types: &HashMap<String, String>,
-) -> Result<(Vec<Validator>, Vec<Modifier>, Option<String>), syn::Error> {
+) -> FieldAttrCollection {
     let field_ident = field.ident.clone().unwrap().to_string();
     let field_type = field_types.get(&field_ident).unwrap();
 

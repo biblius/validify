@@ -10,7 +10,7 @@ pub enum ValidationError {
         location: String,
     },
     Field {
-        name: &'static str,
+        field: &'static str,
         code: &'static str,
         params: Box<HashMap<&'static str, Value>>,
         message: Option<String>,
@@ -19,21 +19,15 @@ pub enum ValidationError {
 }
 
 impl ValidationError {
-    pub fn new_field(name: &'static str, code: &'static str) -> ValidationError {
+    /// Create a new field error with the given code. The field is used for the field
+    /// identifier and will be used in the error location for custom errors.
+    pub fn new_field(field: &'static str, code: &'static str) -> ValidationError {
         ValidationError::Field {
-            name,
+            field,
             code,
             message: None,
             params: Box::<HashMap<&'static str, Value>>::default(),
             location: String::new(),
-        }
-    }
-
-    pub fn field_name(&self) -> Option<&str> {
-        if let ValidationError::Field { ref name, .. } = self {
-            Some(name)
-        } else {
-            None
         }
     }
 
@@ -42,6 +36,15 @@ impl ValidationError {
             code,
             message: None,
             location: String::new(),
+        }
+    }
+
+    /// Get the error's field name if it was a field error
+    pub fn field_name(&self) -> Option<&str> {
+        if let ValidationError::Field { field, .. } = self {
+            Some(field)
+        } else {
+            None
         }
     }
 
@@ -148,31 +151,6 @@ impl std::error::Error for ValidationError {
     }
 }
 
-impl PartialOrd for ValidationError {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self {
-            ValidationError::Schema { .. } if matches!(other, ValidationError::Field { .. }) => {
-                Some(std::cmp::Ordering::Greater)
-            }
-            ValidationError::Field { .. } if matches!(other, ValidationError::Schema { .. }) => {
-                Some(std::cmp::Ordering::Less)
-            }
-            _ => Some(std::cmp::Ordering::Equal),
-        }
-    }
-}
-
-impl Ord for ValidationError {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        use ValidationError::*;
-        match self {
-            Schema { .. } if matches!(other, Field { .. }) => std::cmp::Ordering::Greater,
-            Field { .. } if matches!(other, Schema { .. }) => std::cmp::Ordering::Less,
-            _ => std::cmp::Ordering::Equal,
-        }
-    }
-}
-
 #[derive(Default, Debug, Serialize, Clone, PartialEq)]
 pub struct ValidationErrors(Vec<ValidationError>);
 
@@ -183,17 +161,19 @@ impl ValidationErrors {
 
     /// Returns the combined outcome of a struct's validation result along with the nested
     /// validation result for one of its fields.
-    pub fn merge(&mut self, mut errors: ValidationErrors) {
-        self.0.append(&mut errors.0)
+    pub fn merge(&mut self, errors: ValidationErrors) {
+        self.0.append(
+            &mut errors
+                .0
+                .into_iter()
+                .filter(|err| !self.0.contains(err))
+                .collect(),
+        )
     }
 
     /// Returns a slice of all the errors that ocurred during validation
     pub fn errors(&self) -> &[ValidationError] {
         &self.0
-    }
-
-    pub fn sort(&mut self) {
-        self.0.sort_by(|a, b| b.cmp(a))
     }
 
     pub fn add(&mut self, error: ValidationError) {
@@ -251,14 +231,14 @@ impl std::fmt::Display for ValidationError {
             ValidationError::Field {
                 code,
                 message,
-                name,
+                field,
                 params,
                 location,
             } => {
                 let message = message.as_ref().map_or_else(|| "", |f| f);
                 write!(
                     fmt,
-                    "Validation error: {{ code: {code} location: {location}, field: {name}, message: {message}, params: {params:?} }}",
+                    "Validation error: {{ code: {code} location: {location}, field: {field}, message: {message}, params: {params:?} }}",
                 )
             }
         }

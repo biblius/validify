@@ -206,7 +206,7 @@ fn schema_mod_val() {
 
     // 2 Errors in total
     let res = Input::validify(input.into());
-    assert!(matches!(res, Err(e) if e.errors().len() == 2));
+    assert!(matches!(res, Err(e) if dbg!(e.errors()).len() == 2));
 
     // Condition b fails, but a is not empty
     let input = Input {
@@ -550,7 +550,7 @@ fn biggest_of_bois() {
     };
 
     let res = BigBoi::validify(big.into());
-    assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
+    assert!(matches!(res, Err(ref e) if dbg!(e.errors()).len() == 11));
 
     let schema_errs = res.as_ref().unwrap_err().schema_errors();
     let field_errs = res.unwrap_err().field_errors();

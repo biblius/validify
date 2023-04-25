@@ -1,10 +1,10 @@
 # Validify
 
-![build](https://img.shields.io/github/actions/workflow/status/biblius/validify/check.yml?label=build&style=plastic)
-![test](https://img.shields.io/github/actions/workflow/status/biblius/validify/test.yml?label=test&style=plastic)
-![coverage](https://img.shields.io/codecov/c/github/biblius/validify?style=plastic)
-![version](https://img.shields.io/crates/v/validify)
-![downloads](https://img.shields.io/crates/d/validify?color=%2332AA)
+[![Build](https://img.shields.io/github/actions/workflow/status/biblius/validify/check.yml?logo=github&style=plastic)](https://github.com/biblius/validify)
+[![test](https://img.shields.io/github/actions/workflow/status/biblius/validify/test.yml?label=test&logo=github&style=plastic)](https://github.com/biblius/validify)
+[![coverage](https://img.shields.io/codecov/c/github/biblius/validify?color=%23383&logo=codecov&style=plastic)](https://app.codecov.io/gh/biblius/validify/tree/master)
+[![docs](https://img.shields.io/docsrs/validify?logo=rust&style=plastic)](https://docs.rs/validify/latest/validify/)
+[![version](https://img.shields.io/crates/v/validify?logo=rust&style=plastic)](https://crates.io/crates/validify)
 
 A procedural macro that provides attributes for field validation and modifiers. Particularly useful in the context of web payloads.
 
@@ -17,7 +17,7 @@ A procedural macro that provides attributes for field validation and modifiers. 
 |  lowercase*   |  String  | Calls `.to_lowercase()`
 |  capitalize*  |  String  | Makes the first char of the string uppercase
 |  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
-|  validify*    |  Struct  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations
+|  validify*    |  impl Validify / impl Iterator\<Item = impl Validify>  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations.
 
 \*Also works for Vec\<T> by running `validify` on each element.
 
@@ -43,6 +43,7 @@ All validators also take in a `code` and `message` as parameters, their values a
 | required         |  Option\<T>     |        --       | -- |Checks whether the field's value is Some
 | is_in            |  impl PartialEq |    collection   | Path |Checks whether the field's value is in the specified collection
 | not_in           |  impl PartialEq |    collection   | Path |Checks whether the field's value is not in the specified collection
+| validate         | impl Validate |  --   | -- | Calls the underlying structs
 | time             | NaiveDate[Time] |  See below   | See below |Performs a check based on the specified op
 
 ### **Time operators**
@@ -163,6 +164,14 @@ struct SomethingPayload {
 Note that every field that isn't an option will be an 'optional' required field in the payload. This is done to avoid deserialization errors for missing fields.
 
 - _Do note that if a field exists in the incoming client payload, but is of the wrong type, a deserialization error will still occur as the payload is only being validated for whether the necessary fields exist. The same applies for invalid date\[time] formats._
+
+Even though the payload struct cannot help with wrong types, it can still prove useful and provide a bit more meaningful error messages when fields are missing.
+
+When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first.
+
+Validify exposes two methods for validation/modification, `validify` which takes in the payload and validates its required fields first and `validify_self` which runs modifications and validations on the original struct, without ever using the payload.
+
+In the context of web, you'll most likely be using `validify`. As such, the request handler should always take in the payload struct.
 
 The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
 

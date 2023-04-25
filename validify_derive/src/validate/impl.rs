@@ -32,6 +32,7 @@ const IS_IN: &str = "is_in";
 const NOT_IN: &str = "not_in";
 const IP: &str = "ip";
 const VALIDATE: &str = "validate";
+const VALIDIFY: &str = "validify";
 const TIME: &str = "time";
 
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
@@ -90,7 +91,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
     let field_ident = field.ident.as_ref().unwrap().to_string();
 
     for attr in field.attrs.iter() {
-        if !attr.path().is_ident(VALIDATE) {
+        if !attr.path().is_ident(VALIDATE) && !attr.path().is_ident(VALIDIFY) {
             continue;
         }
 

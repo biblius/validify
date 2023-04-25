@@ -159,7 +159,8 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
     /// ```
     type Payload: serde::de::DeserializeOwned + Validate;
 
-    /// Apply the provided modifiers to self and run validations.
+    /// Apply the provided modifiers to the payload and run validations, returning the original
+    /// struct if all the validations pass.
     fn validify(payload: Self::Payload) -> Result<Self, ValidationErrors> {
         // Since the payload is all options, this will
         // only check if there are missing required fields
@@ -168,6 +169,13 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
         <Self as Modify>::modify(&mut this);
         <Self as Validate>::validate(&this)?;
         Ok(this)
+    }
+
+    /// Apply the provided modifiers to self and run validations.
+    fn validify_self(&mut self) -> Result<(), ValidationErrors> {
+        self.modify();
+        self.validate()?;
+        Ok(())
     }
 }
 

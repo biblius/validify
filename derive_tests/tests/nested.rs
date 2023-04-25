@@ -373,10 +373,7 @@ fn multiple_nested_location() {
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);
-    assert_eq!(
-        dbg!(err.errors()[0].location()),
-        "/child/children/0/allowance"
-    );
+    assert_eq!(err.errors()[0].location(), "/child/children/0/allowance");
     let parent = Parent {
         child: Child {
             children: vec![
@@ -398,10 +395,7 @@ fn multiple_nested_location() {
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);
-    assert_eq!(
-        dbg!(err.errors()[0].location()),
-        "/child/children/2/allowance"
-    );
+    assert_eq!(err.errors()[0].location(), "/child/children/2/allowance");
 }
 
 #[test]
@@ -442,10 +436,7 @@ fn multiple_nested_hashmap_location() {
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);
-    assert_eq!(
-        dbg!(err.errors()[0].location()),
-        "/child/children/1/allowance"
-    );
+    assert_eq!(err.errors()[0].location(), "/child/children/1/allowance");
 }
 
 #[test]
@@ -498,8 +489,5 @@ fn multiple_nested_hashmap_location_str() {
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);
-    assert_eq!(
-        dbg!(err.errors()[0].location()),
-        "/child/children/four/allowance"
-    );
+    assert_eq!(err.errors()[0].location(), "/child/children/four/allowance");
 }

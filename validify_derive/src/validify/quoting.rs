@@ -1,5 +1,4 @@
-use crate::{fields::FieldInformation, quoter::FieldQuoter, types::Modifier};
-use proc_macro2::{Ident, Span};
+use crate::{asserts::is_list, fields::FieldInformation, quoter::FieldQuoter, types::Modifier};
 use quote::quote;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
@@ -18,14 +17,16 @@ pub(super) fn quote_field_modifiers(
              modifiers,
              ..
          }| {
-            let field_ident = field.ident.clone().unwrap();
+            let field_ident = field.ident.unwrap();
             let field_quoter = FieldQuoter::new(field_ident, name, original_name, field_type);
 
             for modifier in modifiers.iter() {
-                let (mods, valids) = quote_modifiers(&field_quoter, modifier);
+                let (mods, nested) = quote_modifiers(&field_quoter, modifier);
+
                 modifications.push(mods);
-                if let Some(validation) = valids {
-                    nested_validifies.push(validation)
+
+                if let Some(nested_validify) = nested {
+                    nested_validifies.push(nested_validify)
                 }
             }
         },
@@ -39,23 +40,26 @@ fn quote_modifiers(
     field_quoter: &FieldQuoter,
     mod_type: &Modifier,
 ) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
-    let (ty, span) = (field_quoter._type.clone(), field_quoter.ident.span());
+    let ty = field_quoter._type.clone();
     let modifier_param = field_quoter.quote_modifier_param();
     let is_option = field_quoter.check_option();
-    let is_vec = field_quoter.check_vec();
+    let is_list = field_quoter.check_vec();
 
     let (mods, valids) = match mod_type {
-        Modifier::Trim => (quote_trim_modifier(modifier_param, is_option, is_vec), None),
+        Modifier::Trim => (
+            quote_trim_modifier(modifier_param, is_option, is_list),
+            None,
+        ),
         Modifier::Uppercase => (
-            quote_uppercase_modifier(modifier_param, is_option, is_vec),
+            quote_uppercase_modifier(modifier_param, is_option, is_list),
             None,
         ),
         Modifier::Lowercase => (
-            quote_lowercase_modifier(modifier_param, is_option, is_vec),
+            quote_lowercase_modifier(modifier_param, is_option, is_list),
             None,
         ),
         Modifier::Capitalize => (
-            quote_capitalize_modifier(modifier_param, is_option, is_vec),
+            quote_capitalize_modifier(modifier_param, is_option, is_list),
             None,
         ),
         Modifier::Custom { function } => (
@@ -63,34 +67,29 @@ fn quote_modifiers(
             None,
         ),
         Modifier::Nested => {
-            let (modify, validate) = quote_nested_modifier(modifier_param, ty, span, is_vec);
+            let (modify, validate) = quote_nested_modifier(modifier_param, ty, is_option);
             (modify, Some(validate))
         }
     };
 
     (
-        field_quoter.wrap_modifier_if_option(mods),
-        valids.map(|tokens| field_quoter.wrap_modifier_if_option(tokens)),
+        field_quoter.wrap_modifier_if_option(mods, false),
+        valids.map(|tokens| field_quoter.wrap_modifier_if_option(tokens, true)),
     )
 }
 
 fn quote_nested_modifier(
     param: proc_macro2::TokenStream,
     ty: String,
-    span: Span,
-    is_vec: bool,
+    is_option: bool,
 ) -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
-    let ident = if is_vec {
-        Ident::new(&strip_vec_prefix(&ty), span)
-    } else {
-        Ident::new(&ty, span)
-    };
-
     let par = param.to_string();
     let field = par.split('.').last().unwrap();
-    let field_ident: proc_macro2::TokenStream = format!("this.{}", field).parse().unwrap();
+    let field_ident: proc_macro2::TokenStream = format!("this.{field}").parse().unwrap();
 
-    let modifications = if is_vec {
+    let is_list = is_list(&ty);
+
+    let modifications = if is_list {
         quote!(
             for el in #param.iter_mut() {
                 el.modify();
@@ -100,21 +99,31 @@ fn quote_nested_modifier(
         quote!(#param.modify();)
     };
 
-    let nested_validifies = if is_vec {
+    let param = is_option
+        .then(|| {
+            let field: proc_macro2::TokenStream = field.parse().unwrap();
+            quote!(#field)
+        })
+        .unwrap_or(quote!(#field_ident));
+
+    let nested_validifies = if is_list {
         quote!(
-            for el in #field_ident.iter_mut() {
-                if let Err(mut e) = <#ident as ::validify::Validify>::validify(el.clone().into()) {
-                    errors.merge(e);
+            for (i, el) in #param.iter_mut().enumerate() {
+                if let Err(mut errs) = el.validify_self() {
+                    errs.errors_mut().iter_mut().for_each(|err|err.set_location_idx(i, #field));
+                    errors.merge(errs);
                 }
             }
         )
     } else {
         quote!(
-            if let Err(mut e) = <#ident as ::validify::Validify>::validify(#field_ident.clone().into()) {
-                errors.merge(e);
+            if let Err(mut err) = #param.validify_self() {
+                err.errors_mut().iter_mut().for_each(|e| e.set_location(#field));
+                errors.merge(err);
             }
         )
     };
+
     (modifications, nested_validifies)
 }
 
@@ -137,9 +146,9 @@ fn quote_custom_modifier(
 pub(super) fn quote_trim_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
-    is_vec: bool,
+    is_list: bool,
 ) -> proc_macro2::TokenStream {
-    if is_vec {
+    if is_list {
         return quote_vec_modifier(param, is_option, Modifier::Trim);
     }
     if is_option {
@@ -156,9 +165,9 @@ pub(super) fn quote_trim_modifier(
 pub(super) fn quote_uppercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
-    is_vec: bool,
+    is_list: bool,
 ) -> proc_macro2::TokenStream {
-    if is_vec {
+    if is_list {
         return quote_vec_modifier(param, is_option, Modifier::Uppercase);
     }
     if is_option {
@@ -216,9 +225,9 @@ fn quote_vec_modifier(
 pub(super) fn quote_lowercase_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
-    is_vec: bool,
+    is_list: bool,
 ) -> proc_macro2::TokenStream {
-    if is_vec {
+    if is_list {
         return quote_vec_modifier(param, is_option, Modifier::Lowercase);
     }
     if is_option {
@@ -235,9 +244,9 @@ pub(super) fn quote_lowercase_modifier(
 pub(super) fn quote_capitalize_modifier(
     param: proc_macro2::TokenStream,
     is_option: bool,
-    is_vec: bool,
+    is_list: bool,
 ) -> proc_macro2::TokenStream {
-    if is_vec {
+    if is_list {
         return quote_vec_modifier(param, is_option, Modifier::Capitalize);
     }
     if is_option {
@@ -249,9 +258,4 @@ pub(super) fn quote_capitalize_modifier(
           #param = ::std::format!("{}{}", &#param[0..1].to_uppercase(), &#param[1..]);
         )
     }
-}
-
-fn strip_vec_prefix(s: &str) -> String {
-    let s = s.replace("Vec<", "");
-    s.replace('>', "")
 }
