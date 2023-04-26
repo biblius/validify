@@ -200,6 +200,32 @@ fn nest_like_no_tomorrow() {
     );
 }
 
+#[test]
+fn camel_case() {
+    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[serde(rename_all = "camelCase")]
+    struct Testor {
+        #[modify(capitalize)]
+        pub testor_a: String,
+        #[modify(lowercase)]
+        pub testor_b: String,
+        #[validify]
+        pub something_cameled: Option<Nestor>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[serde(rename_all = "camelCase")]
+    struct Nestor {
+        #[modify(trim, uppercase)]
+        #[validate(length(min = 12))]
+        case_this: String,
+    }
+
+    let json = json!({"testorA": "yea", "testorB": "WOOO", "somethingCameled": {"caseThis": "goooooooooooooooooood"}});
+    let res = Testor::validify(serde_json::from_value::<TestorPayload>(json).unwrap());
+    assert!(res.is_ok());
+}
+
 mod nest {
     use serde::{Deserialize, Serialize};
     use validify::Validify;

@@ -10,6 +10,11 @@ use syn::{spanned::Spanned, Field};
 
 pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, syn::Ident) {
     let ident = &input.ident;
+    let attributes = input
+        .attrs
+        .iter()
+        .filter(|attr| attr.meta.path().is_ident("serde"))
+        .collect::<Vec<_>>();
     let visibility = &input.vis;
 
     let payload_ident = syn::Ident::new(
@@ -39,6 +44,7 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
 
     let quoted = quote!(
         #[derive(Debug, Clone, ::validify::Validate, serde::Deserialize, serde::Serialize)]
+        #(#attributes)*
         #visibility struct #payload_ident #ty_generics #where_clause {
             #(#payload_fields)*
         }
