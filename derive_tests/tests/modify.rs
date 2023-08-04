@@ -264,3 +264,41 @@ fn compile_fail() {
     let t = trybuild::TestCases::new();
     t.compile_fail("tests/compile_fail/*.rs");
 }
+
+#[test]
+fn trim() {
+    #[derive(Debug, Clone, Validify)]
+    struct Optional {
+        #[modify(lowercase, trim)]
+        a: Option<String>,
+        #[modify(lowercase, trim)]
+        b: String,
+        #[modify(trim)]
+        c: Option<String>,
+        #[modify(trim)]
+        d: String,
+    }
+
+    let o = Optional {
+        a: Some("    WORKS    ".to_string()),
+        b: " WORKS ".to_string(),
+        c: Some(" WORKS ".to_string()),
+        d: " WORKS ".to_string(),
+    };
+
+    let mut first = o.clone();
+
+    first.validify_self().unwrap();
+
+    assert!(matches!(first.a, Some(a) if a == "works"));
+    assert_eq!(first.b, "works");
+    assert!(matches!(first.c, Some(a) if a == "WORKS"));
+    assert_eq!(first.d, "WORKS");
+
+    let second = Optional::validify(o.into()).unwrap();
+
+    assert!(matches!(second.a, Some(a) if a == "works"));
+    assert_eq!(second.b, "works");
+    assert!(matches!(second.c, Some(a) if a == "WORKS"));
+    assert_eq!(second.d, "WORKS");
+}
