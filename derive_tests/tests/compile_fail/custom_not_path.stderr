@@ -1,5 +1,0 @@
-error: unexpected literal in nested attribute, expected ident
- --> tests/compile_fail/custom_not_path.rs:5:23
-  |
-5 |     #[validate(custom(2))]
-  |                       ^

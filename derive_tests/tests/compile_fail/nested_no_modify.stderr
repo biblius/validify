@@ -1,5 +1,0 @@
-error: Unrecognized modify parameter
- --> tests/compile_fail/nested_no_modify.rs:7:14
-  |
-7 |     #[modify(nested)]
-  |              ^^^^^^

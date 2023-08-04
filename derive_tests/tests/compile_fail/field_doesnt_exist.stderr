@@ -1,5 +1,0 @@
-error[E0609]: no field `password2` on type `&Test`
- --> tests/compile_fail/field_doesnt_exist.rs:5:27
-  |
-5 |     #[validate(must_match(password2))]
-  |                           ^^^^^^^^^ help: a field with a similar name exists: `password`

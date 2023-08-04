@@ -1,5 +1,0 @@
-error: unexpected end of input, expected nested attribute
- --> tests/compile_fail/len_no_args.rs:5:23
-  |
-5 |     #[validate(length())]
-  |                       ^

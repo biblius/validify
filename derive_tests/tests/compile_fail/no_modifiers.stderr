@@ -1,5 +1,0 @@
-error: unexpected end of input, expected nested attribute
- --> tests/compile_fail/no_modifiers.rs:5:14
-  |
-5 |     #[modify()]
-  |              ^

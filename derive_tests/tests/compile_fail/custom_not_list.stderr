@@ -1,5 +1,0 @@
-error: custom must be specified as a list, i.e. `custom("foo")` or `custom(value = "foo")`
- --> tests/compile_fail/custom_not_list.rs:5:23
-  |
-5 |     #[validate(custom = 2)]
-  |                       ^

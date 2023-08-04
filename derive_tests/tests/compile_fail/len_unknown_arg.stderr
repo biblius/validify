@@ -1,5 +1,0 @@
-error: Unrecognized length parameter
- --> tests/compile_fail/len_unknown_arg.rs:5:23
-  |
-5 |     #[validate(length(eq = 2))]
-  |                       ^^

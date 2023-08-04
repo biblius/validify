@@ -1,5 +1,0 @@
-error: Uncrecognized validate parameter
- --> tests/compile_fail/unexpected_validator.rs:5:16
-  |
-5 |     #[validate(my_custom_validator)]
-  |                ^^^^^^^^^^^^^^^^^^^

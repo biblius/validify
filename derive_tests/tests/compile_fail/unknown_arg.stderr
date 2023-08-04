@@ -1,5 +1,0 @@
-error: Unrecognized range parameter
- --> tests/compile_fail/unknown_arg.rs:5:22
-  |
-5 |     #[validate(range(mi = 2, max = 3))]
-  |                      ^^

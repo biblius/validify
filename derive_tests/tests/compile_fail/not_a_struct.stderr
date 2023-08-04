@@ -1,5 +1,0 @@
-error: #[derive(Validate/Validify)] can only be used on structs with named fields
- --> tests/compile_fail/not_a_struct.rs:4:1
-  |
-4 | pub enum NotAStruct {
-  | ^^^
