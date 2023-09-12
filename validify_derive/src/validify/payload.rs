@@ -83,14 +83,21 @@ fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_ma
     }
 
     let syn::Type::Path(mut path) = ty.clone() else {
-            abort!(field.span(), "Nested validifes must be structs implementing Validify")
-        };
-    let syn::PathArguments::AngleBracketed(ref mut args) =  path.path.segments.last_mut().unwrap().arguments else {
-            abort!(path.span(), "Cannot apply payload type to field")
-        };
-    let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) = args.args.last_mut().unwrap() else {
-            abort!(path.span(), "Cannot apply payload type to field")
-        };
+        abort!(
+            field.span(),
+            "Nested validifes must be structs implementing Validify"
+        )
+    };
+    let syn::PathArguments::AngleBracketed(ref mut args) =
+        path.path.segments.last_mut().unwrap().arguments
+    else {
+        abort!(path.span(), "Cannot apply payload type to field")
+    };
+    let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) =
+        args.args.last_mut().unwrap()
+    else {
+        abort!(path.span(), "Cannot apply payload type to field")
+    };
 
     if is_list {
         payload_path_angle_bracketed(inner_path);
@@ -167,11 +174,14 @@ fn map_into_fields(field: &Field, types: &HashMap<String, String>) -> proc_macro
 fn payload_path_angle_bracketed(path: &mut syn::TypePath) {
     // Type is contained in a List<T>. It will always have angle args abd will
     // always be the last segment of the path
-    let syn::PathArguments::AngleBracketed(ref mut args) =  path.path.segments.last_mut().unwrap().arguments else {
+    let syn::PathArguments::AngleBracketed(ref mut args) =
+        path.path.segments.last_mut().unwrap().arguments
+    else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
 
-    let syn::GenericArgument::Type(syn::Type::Path(ref mut p)) = args.args.last_mut().unwrap() else {
+    let syn::GenericArgument::Type(syn::Type::Path(ref mut p)) = args.args.last_mut().unwrap()
+    else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
 
@@ -196,7 +206,10 @@ fn payload_path(
     }
 
     let syn::Type::Path(mut path) = ty else {
-        abort!(field.span(), "Nested validifes must be structs implementing Validify or collections of")
+        abort!(
+            field.span(),
+            "Nested validifes must be structs implementing Validify or collections of"
+        )
     };
 
     if is_list {
@@ -221,12 +234,19 @@ fn payload_path(
 /// the original and the payload paths in a tuple
 fn get_inner_path(ty: syn::Type) -> (syn::TypePath, syn::TypePath) {
     let syn::Type::Path(mut path) = ty else {
-        abort!(ty.span(), "Nested validifes must be structs implementing Validify")
+        abort!(
+            ty.span(),
+            "Nested validifes must be structs implementing Validify"
+        )
     };
-    let syn::PathArguments::AngleBracketed(ref mut args) =  path.path.segments.last_mut().unwrap().arguments else {
+    let syn::PathArguments::AngleBracketed(ref mut args) =
+        path.path.segments.last_mut().unwrap().arguments
+    else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
-    let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) = args.args.last_mut().unwrap() else {
+    let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) =
+        args.args.last_mut().unwrap()
+    else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
 

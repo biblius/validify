@@ -204,7 +204,7 @@ fn find_original_field_name(field: &syn::Field) -> Option<String> {
                 // one related to the client payload
                 if name_value.path.is_ident("deserialize") {
                     let Expr::Lit(expr_lit) = name_value.value else {
-                        return Ok(())
+                        return Ok(());
                     };
                     if let syn::Lit::Str(str_lit) = expr_lit.lit {
                         original_name = Some(str_lit.value())

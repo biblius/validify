@@ -22,7 +22,7 @@ fn vec_mod() {
         ]),
     };
     let res = HasVec::validify(v.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let v = res.unwrap();
     assert_eq!(v.a[0], "LMEO");
@@ -53,7 +53,7 @@ fn validify0() {
     };
 
     let res = WithVal::validify(t.into());
-    assert!(matches!(res, Err(_)));
+    assert!(res.is_err());
 
     let t = WithVal {
         a: "    SO MUCH SPACE    ".to_string(),
@@ -61,7 +61,7 @@ fn validify0() {
     };
 
     let res = WithVal::validify(t.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let res = res.unwrap();
     assert_eq!(res.a, "SO MUCH SPACE");
@@ -111,7 +111,7 @@ fn validify1() {
     };
 
     let res = Testor::validify(test.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let test = res.unwrap();
 
@@ -191,7 +191,7 @@ fn schema_mod_val() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     // Condition b fails and a is empty, should fail
     let input = Input {
@@ -220,7 +220,7 @@ fn schema_mod_val() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Err(_)));
+    assert!(res.is_err());
 
     // Condition b fails, but a is not empty
     let input = Input {
@@ -245,7 +245,7 @@ fn schema_mod_val() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     // Condition b fails, but a is not empty
     let input = Input {
@@ -259,7 +259,7 @@ fn schema_mod_val() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let input = res.unwrap();
 
@@ -278,7 +278,7 @@ fn validify_nested_input() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let input = Input {
         a: "I am validated".to_string(),
@@ -290,7 +290,7 @@ fn validify_nested_input() {
     };
 
     let res = Input::validify(input.into());
-    assert!(matches!(res, Err(_)));
+    assert!(res.is_err());
 }
 
 const WORKING_HOURS: &[&str] = &["08", "09", "10", "11", "12", "13", "14", "15", "16"];
@@ -465,7 +465,7 @@ fn biggest_of_bois() {
     let big = big.into();
 
     let res = BigBoi::validify(big);
-    assert!(matches!(res, Ok(_)));
+    assert!(res.is_ok());
 
     let big = res.unwrap();
 
