@@ -38,7 +38,7 @@ mod validify;
 /// ```ignore
 /// use validify::Validify;
 ///
-/// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
+/// #[derive(Debug, Clone, serde::Deserialize, Validify)]
 /// struct Testor {
 ///     #[modify(lowercase, trim)]
 ///     #[validate(length(equal = 8))]
@@ -53,7 +53,7 @@ mod validify;
 ///     pub nested: Nestor,
 /// }
 ///
-/// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
+/// #[derive(Debug, Clone, serde::Deserialize, Validify)]
 /// struct Nestor {
 ///     #[modify(trim, uppercase)]
 ///     #[validate(length(equal = 12))]

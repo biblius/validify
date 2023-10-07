@@ -32,6 +32,7 @@ fn bad_credit_card_fails_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "credit_card");
+    assert_eq!(errs[0].params()["actual"], "bob");
 }
 
 #[test]

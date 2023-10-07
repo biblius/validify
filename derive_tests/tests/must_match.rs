@@ -37,8 +37,8 @@ fn not_matching_fails_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "must_match");
-    assert_eq!(errs[0].params()["value"], "bob");
-    assert_eq!(errs[0].params()["other"], "bobby");
+    assert_eq!(errs[0].params()["actual"], "bob");
+    assert_eq!(errs[0].params()["target"], "bobby");
 }
 
 #[test]

@@ -64,5 +64,4 @@ fn can_fail_custom_with_unsupported_array() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "meh");
-    assert_eq!(errs[0].params()["value"][0], 0);
 }

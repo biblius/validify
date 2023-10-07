@@ -57,7 +57,7 @@ fn some_date() -> NaiveDateTime {
         .naive_utc()
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
+#[derive(Debug, Clone, serde::Deserialize, Validify)]
 struct U {
     #[validate(range(min = 1.))]
     b: usize,

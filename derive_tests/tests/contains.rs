@@ -1,4 +1,3 @@
-use serde::Serialize;
 use validify::Validate;
 
 #[test]
@@ -31,6 +30,8 @@ fn string_not_containing_needle_fails_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "contains");
+    assert_eq!(errs[0].params()["target"], "he");
+    assert_eq!(errs[0].params()["actual"], "");
 }
 
 #[test]
@@ -50,6 +51,9 @@ fn validates_number_vec() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "contains");
+    assert_eq!(errs[0].location(), "/val");
+    assert_eq!(errs[0].params()["target"], 3);
+    assert!(errs[0].params().get("actual").is_none());
 
     let s = TestStruct {
         val: vec![32, 4, 2, 3],
@@ -60,7 +64,7 @@ fn validates_number_vec() {
 
 #[test]
 fn validates_struct_vec() {
-    #[derive(Debug, PartialEq, Serialize)]
+    #[derive(Debug, PartialEq)]
     struct Params {
         a: u64,
         b: &'static str,
@@ -86,6 +90,9 @@ fn validates_struct_vec() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "contains");
+    assert_eq!(errs[0].location(), "/val");
+    assert!(errs[0].params().get("target").is_none());
+    assert!(errs[0].params().get("actual").is_none());
 
     let s = TestStruct {
         val: vec![

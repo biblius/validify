@@ -1,13 +1,11 @@
-use serde::Serialize;
 use validify::Validate;
 
-#[derive(Serialize)]
 struct ObjectRef {
-    id: i32,
-    name: String,
+    _id: i32,
+    _name: String,
 }
 
-#[derive(Serialize, Validate)]
+#[derive(Validate)]
 struct CheckedObjectRef {
     #[validate(range(min = 1.))]
     id: i32,
@@ -31,8 +29,8 @@ struct RequiredNested {
 fn can_validate_required() {
     let s = Required {
         val: Some(ObjectRef {
-            id: 0,
-            name: String::new(),
+            _id: 0,
+            _name: String::new(),
         }),
     };
 

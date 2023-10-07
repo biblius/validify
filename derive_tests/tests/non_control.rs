@@ -50,7 +50,7 @@ fn can_specify_code_for_non_control_character() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "oops");
-    assert_eq!(errs[0].params()["value"], "\u{9F}하늘");
+    assert_eq!(errs[0].params()["actual"], "\u{9F}하늘");
 }
 
 #[test]

@@ -10,45 +10,47 @@ A procedural macro that provides attributes for field validation and modifiers. 
 
 ## **Modifiers**
 
-|   Modifier    |  Type    |        Description
-|---------------|----------|-----------------------
-|  trim*        |  String  | Removes surrounding whitespace
-|  uppercase*   |  String  | Calls `.to_uppercase()`
-|  lowercase*   |  String  | Calls `.to_lowercase()`
-|  capitalize*  |  String  | Makes the first char of the string uppercase
-|  custom       |    Any   | Takes a function whose argument is `&mut <Type>`
-|  validify*    |  impl Validify / impl Iterator\<Item = impl Validify>  | Can only be used on fields that are structs implementing the `Validify` trait. Runs all the nested struct's modifiers and validations.
+| Modifier     | Type                                                 | Description                                                                                                                                                |
+| ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| trim\*       | String                                               | Removes surrounding whitespace                                                                                                                             |
+| uppercase\*  | String                                               | Calls `.to_uppercase()`                                                                                                                                    |
+| lowercase\*  | String                                               | Calls `.to_lowercase()`                                                                                                                                    |
+| capitalize\* | String                                               | Makes the first char of the string uppercase                                                                                                               |
+| custom       | Any                                                  | Takes a function whose argument is `&mut <Type>`                                                                                                           |
+| validify     | impl Validify / impl Iterator\<Item = impl Validify> | Can only be used on fields that are structs (or collections of) implementing the `Validify` trait. Runs all the nested struct's modifiers and validations. |
 
-\*Also works for Vec\<T> by running `validify` on each element.
+\*Also works for Vec\<String> by running the modifier on each element.
 
 ## **Validators**
 
 All validators also take in a `code` and `message` as parameters, their values are must be string literals if specified.
 
-|       Validator  |    Type     |      Params     | Param type |        Description
-|------------------|-------------|-----------------|------------|-----------
-| email            |  String     |        --       | -- |Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).
-| ip               |  String     | format  | Ident (v4/v6) |Checks if the string is an IP address.
-| url              |  String     |        --       | -- |Checks if the string is a URL.
-| length           | Collection  | min, max, equal  | LitInt | Checks if the collection length is within the specified params. Works through the HasLen trait.
-| range            |  Int/Float     |     min, max    | LitFloat |Checks if the value is in the specified range.
-| must_match       |    Any      |       value       | Ident |Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.
-| contains         | Collection  |      value    | Lit/Path |Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.
-| contains_not     | Collection  |      value     |Lit/Path | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key.
-| non_control_char |  String     |        --       | -- |Checks if the field contains control characters
-| custom           |  Function   |      function     | Path |Executes custom validation on the field specified by the end user
-| regex            |  String     |      path      | Path |Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.
-| credit_card      |  String     |        --       | -- |Checks if the field's value is a valid credit card number
-| phone            |  String     |        --       | -- |Checks if the field's value is a valid phone number
-| required         |  Option\<T>     |        --       | -- |Checks whether the field's value is Some
-| is_in            |  impl PartialEq |    collection   | Path |Checks whether the field's value is in the specified collection
-| not_in           |  impl PartialEq |    collection   | Path |Checks whether the field's value is not in the specified collection
-| validate         | impl Validate |  --   | -- | Calls the underlying structs
-| time             | NaiveDate[Time] |  See below   | See below |Performs a check based on the specified op
+| Validator        | Type            | Params          | Param type    | Description                                                                                                                           |
+| ---------------- | --------------- | --------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| email            | String          | --              | --            | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                           |
+| ip               | String          | format          | Ident (v4/v6) | Checks if the string is an IP address.                                                                                                |
+| url              | String          | --              | --            | Checks if the string is a URL.                                                                                                        |
+| length           | Collection      | min, max, equal | LitInt        | Checks if the collection length is within the specified params. Works through the HasLen trait.                                       |
+| range            | Int/Float       | min, max        | LitFloat      | Checks if the value is in the specified range.                                                                                        |
+| must_match       | Any             | value           | Ident         | Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.        |
+| contains         | Collection      | value           | Lit/Path      | Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.        |
+| contains_not     | Collection      | value           | Lit/Path      | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key. |
+| non_control_char | String          | --              | --            | Checks if the field contains control characters                                                                                       |
+| custom           | Function        | function        | Path          | Executes custom validation on the field by calling the provided function                                                              |
+| regex            | String          | path            | Path          | Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.       |
+| credit_card      | String          | --              | --            | Checks if the field's value is a valid credit card number                                                                             |
+| phone            | String          | --              | --            | Checks if the field's value is a valid phone number                                                                                   |
+| required         | Option\<T>      | --              | --            | Checks whether the field's value is Some                                                                                              |
+| is_in            | impl PartialEq  | collection      | Path          | Checks whether the field's value is in the specified collection                                                                       |
+| not_in           | impl PartialEq  | collection      | Path          | Checks whether the field's value is not in the specified collection                                                                   |
+| validate         | impl Validate   | --              | --            | Calls the underlying structs                                                                                                          |
+| time             | NaiveDate[Time] | See below       | See below     | Performs a check based on the specified op                                                                                            |
 
 ### **Time operators**
 
-All time operators can take in `inclusive = bool`, `in_period` and the `_from_now` operators are inclusive by default.
+All time operators can take in `inclusive = bool`.
+
+`in_period` and the `*_from_now` operators are inclusive by default.
 
 The `target` param must be a string literal date or a path to an argless function that returns a date\[time].
 
@@ -57,24 +59,24 @@ If the target is a string literal, it must contain a `format` param, as per [thi
 Accepted interval parameters are `seconds`, `minutes`, `hours`, `days`, `weeks`.
 
 The `_from_now` operators should not use negative duration due to how they validate the inputs,
- negative duration for `in_period` works fine.
+negative duration for `in_period` works fine.
 
-|  Op  |  Params | Description
-|------|---------|-----------------|
-| before | target | Check whether a date\[time] is before the target one |
-| after | target | Check whether a date\[time] is after the target one |
-| before_now | -- | Check whether a date\[time] is before today\[now] |
-| after_now | -- | Check whether a date\[time] is after the today\[now] |
-| before_from_now | interval | Check whether a date\[time] is before the specified interval from today\[now] |
-| after_from_now | interval | Check whether a date\[time] is after the specified interval from the today\[now] |
-| in_period | target, interval | Check whether a date\[time] falls within a certain period|
+| Op              | Params           | Description                                                                      |
+| --------------- | ---------------- | -------------------------------------------------------------------------------- |
+| before          | target           | Check whether a date\[time] is before the target one                             |
+| after           | target           | Check whether a date\[time] is after the target one                              |
+| before_now      | --               | Check whether a date\[time] is before today\[now]                                |
+| after_now       | --               | Check whether a date\[time] is after today\[now]                                 |
+| before_from_now | interval         | Check whether a date\[time] is before the specified interval from today\[now]    |
+| after_from_now  | interval         | Check whether a date\[time] is after the specified interval from the today\[now] |
+| in_period       | target, interval | Check whether a date\[time] falls within a certain period                        |
 
 Annotate the struct you want to modify and validate with the `Validify` attribute (if you do not need payload modification, derive the `validify::Validate` trait):
 
 ```rust
 use validify::Validify;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
+#[derive(Debug, Clone, serde::Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
@@ -89,7 +91,7 @@ struct Testor {
     pub nested: Nestor,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Validify)]
+#[derive(Debug, Clone, serde::Deserialize, Validify)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -167,21 +169,21 @@ Note that every field that isn't an option will be an 'optional' required field 
 
 Even though the payload struct cannot help with wrong types, it can still prove useful and provide a bit more meaningful error messages when fields are missing.
 
+Struct level annotations, such as `#[serde(renameAll = "...")]` are propagated to the payload.
+
 When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first.
 
-Validify exposes two methods for validation/modification, `validify` which takes in the payload and validates its required fields first and `validify_self` which runs modifications and validations on the original struct, without ever using the payload.
+Validify exposes two methods for validation/modification;
+
+`validify` which takes in the payload and validates its required fields first and
+
+`validify_self` which runs modifications and validations on the original struct, without ever using the payload.
 
 In the context of web, you'll most likely be using `validify`. As such, the request handler should always take in the payload struct.
 
 The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
 
-Validify's `validify` method always takes in the generated payload and outputs the original struct if all validations have passed.
-
-The macro automatically implements the `Validate` and `Modify` traits in the wrapper trait `Validify`. This wrapper trait contains only the method `validify` which:
-
-1. Runs the required validations on the payload struct
-2. Runs modifications on the original
-3. Runs validations and returns the original struct.
+Validify's `validify` method is called from the original struct with the associated payload struct as its argument and outputs the original struct if all validations have passed.
 
 ## Schema validation
 
@@ -190,7 +192,7 @@ Schema level validations can be performed using the following:
 ```rust
 #[derive(Validify)]
 #[validate(validate_testor)]
-struct Testor { 
+struct Testor {
     a: String,
     b: usize,
  }
@@ -231,22 +233,49 @@ Keep in mind, when specifying validations this way, all attribute parameters MUS
 
 `#[validate(contains("something", message = "Bla"))]`,
 
-you will get an error, as the parser expects either a single value or multiple name value pairs.
+you will get an error because the parser expects either a single value or multiple name value pairs.
 
-Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html). When using
-custom validation, whatever field name you specify in the returned error will be used in the location for that field.
+### Location
 
-Original (client payload) field names are also taken into account if they are annotated with `#[serde(rename)]` on the field level. The struct level `rename_all` attribute is currently not taken into account, but will eventually be made to work.
+Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html). When using custom validation, whatever field name you specify in the returned error will be used in the location for that field. Keep in mind locations are not reliable when dealing with hashed map/set collections as the item ordering for those is not guaranteed.
+
+Another thing to note for locations is that they will be displayed as the original struct fields (snake_case), unless the error was manually added for a specific field (via a custom validation function).
+
+### Schema
 
 Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
 
+### Params
+
+When sensible, validify automatically appends failing parameters and the target values they were validated against to the errors created to provide more clarity to the client and to save some manual work.
+
+One parameter that is always appended is the `actual` field which represents the violating field's value during the validation. Some validators append additional data to the errors representing the expected values for the field.
+
 ## **Examples**
+
+### **Date\[times]s**
+
+```rust
+#[derive(Debug, Validate)]
+struct DateTimeExamples {
+    #[validate(time(op = before, target = "2500-04-20", format = "%Y-%m-%d", inclusive = true))]
+    before: NaiveDate,
+    #[validate(time(op = before, target = "2500-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f"))]
+    before_dt: NaiveDateTime,
+    #[validate(time(op = after, target = "2022-04-20", format = "%Y-%m-%d"))]
+    after: NaiveDate,
+    #[validate(time(op = after, target = "2022-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f"))]
+    after_dt: NaiveDateTime,
+    #[validate(time(op = in_period, target = "2022-04-20", format = "%Y-%m-%d", weeks = -2))]
+    period: NaiveDate,
+}
+```
 
 ### **With route handler**
 
 ```rust
     fn actix_test() {
-      #[derive(Debug, Serialize, Validify)]
+      #[derive(Debug, Validify)]
       struct JsonTest {
           #[modify(lowercase)]
           a: String,
@@ -264,7 +293,7 @@ Schema errors are usually created by the user in schema validation. The `schema_
       mock_handler(json)
     }
 
-    fn mock_handler(data: actix_web::web::Json<JsonTestPayload> 
+    fn mock_handler(data: actix_web::web::Json<JsonTestPayload>
     /* OR data: actix_web::web::Json<<JsonTest as Validify>::Payload> */) {
       let data = data.0;
       let data = JsonTest::validify(data).unwrap();
@@ -392,7 +421,7 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Validify)]
+#[derive(Deserialize, Debug, Clone, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestTags {
     #[modify(trim)]
@@ -414,7 +443,7 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
 
 const PROFICIENCY: &[&str] = &["dunno", "killinit"];
 
-#[derive(Serialize, Clone, Deserialize, Debug, Validify)]
+#[derive(Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestLanguages {
     company_opening_id: String,
