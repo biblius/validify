@@ -111,7 +111,7 @@ fn can_specify_code_for_range() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "oops");
-    assert_eq!(errs[0].params()["value"], 11);
+    assert_eq!(errs[0].params()["actual"], 11);
     assert_float!(errs[0].params()["min"].as_f64().unwrap(), 5.0);
     assert_float!(errs[0].params()["max"].as_f64().unwrap(), 10.0);
 }

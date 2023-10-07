@@ -1,4 +1,5 @@
 use super::parsing::option_to_tokens;
+use crate::asserts::{is_list, is_map};
 use crate::fields::FieldInformation;
 use crate::quoter::FieldQuoter;
 use crate::types::{
@@ -147,7 +148,7 @@ fn quote_time_validation(field_quoter: &FieldQuoter, time: Time) -> proc_macro2:
     let code = time.code();
     let quoted_parse_error = quote!(
         let mut err = ::validify::ValidationError::new_field(#field_name, #code);
-        err.add_param("value", &#validator_param);
+        err.add_param("actual", &#validator_param);
         err.add_param("format", &#format);
         err.set_location(#field_name);
         errors.add(err);
@@ -356,7 +357,7 @@ fn quote_ip_validation(field_quoter: &FieldQuoter, ip: Ip) -> proc_macro2::Token
     let quoted = quote!(
         if !::validify::#validate_fn(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -421,6 +422,11 @@ fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_m
 
     let quoted_error = quote_error(&length, field_name);
 
+    let is_collection = is_list(&field_quoter._type) || is_map(&field_quoter._type);
+    // For strings it's ok to add the param, but we don't want to add whole collections
+    let added_param =
+        (!is_collection).then_some(quote!(err.add_param("actual", &#validator_param);));
+
     let quoted = quote!(
         if !::validify::validate_length(
             #validator_param,
@@ -432,7 +438,7 @@ fn quote_length_validation(field_quoter: &FieldQuoter, length: Length) -> proc_m
             #min_err_param_quoted
             #max_err_param_quoted
             #equal_err_param_quoted
-            err.add_param("value", &#validator_param);
+            #added_param
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -488,7 +494,7 @@ fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macr
             #quoted_error
             #min_err_param_quoted
             #max_err_param_quoted
-            err.add_param("value", &#quoted_ident);
+            err.add_param("actual", &#quoted_ident);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -508,7 +514,7 @@ fn quote_credit_card_validation(
     let quoted = quote!(
         if !::validify::validate_credit_card(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -525,7 +531,7 @@ fn quote_phone_validation(field_quoter: &FieldQuoter, phone: Phone) -> proc_macr
     let quoted = quote!(
         if !::validify::validate_phone(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -545,7 +551,7 @@ fn quote_non_control_character_validation(
     let quoted = quote!(
         if !::validify::validate_non_control_character(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -562,7 +568,7 @@ fn quote_url_validation(field_quoter: &FieldQuoter, url: Url) -> proc_macro2::To
     let quoted = quote!(
         if !::validify::validate_url(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -579,7 +585,7 @@ fn quote_email_validation(field_quoter: &FieldQuoter, email: Email) -> proc_macr
     let quoted = quote!(
         if !::validify::validate_email(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
+            err.add_param("actual", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -599,8 +605,8 @@ fn quote_must_match_validation(
     let quoted = quote!(
         if !::validify::validate_must_match(&self.#ident, &self.#value) {
             #quoted_error
-            err.add_param("value", &self.#ident);
-            err.add_param("other", &self.#value);
+            err.add_param("actual", &self.#ident);
+            err.add_param("target", &self.#value);
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -625,7 +631,6 @@ fn quote_custom_validation(field_quoter: &FieldQuoter, custom: Custom) -> proc_m
             ::std::result::Result::Err(mut err) => {
                 let field = err.field_name().unwrap().to_string();
                 err.set_location(field);
-                err.add_param("value", &#validator_param);
                 errors.add(#err_with_msg);
             },
         };
@@ -644,7 +649,7 @@ fn quote_regex_validation(field_quoter: &FieldQuoter, regex: Regex) -> proc_macr
     let quoted = quote!(
     if !#path.is_match(#validator_param) {
         #quoted_error
-        err.add_param("value", &#validator_param);
+        err.add_param("actual", &#validator_param);
         err.set_location(#field_name);
         errors.add(err);
     });
@@ -683,15 +688,11 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
         quote!()
     };
 
-    let err_param = if not { "disallowed" } else { "allowed" };
-
     if field_quoter._type.starts_with("Option<") {
         return quote!(
             if let Some(ref param) = self.#field_ident {
                 if !::validify::validate_in(#path, &param #as_str, #not) {
                     #quoted_error
-                    err.add_param("value", &self.#field_ident);
-                    err.add_param(#err_param, &#path);
                     err.set_location(#field_name);
                     errors.add(err);
                 }
@@ -702,8 +703,6 @@ fn quote_in_validation(field_quoter: &FieldQuoter, r#in: In) -> proc_macro2::Tok
     quote!(
         if !::validify::validate_in(#path, &self.#field_ident #as_str, #not) {
             #quoted_error
-            err.add_param("value", &self.#field_ident);
-            err.add_param(#err_param, &#path);
             err.set_location(#field_name);
             errors.add(err);
     })
@@ -719,17 +718,25 @@ fn quote_contains_validation(
 
     let quoted_error = quote_error(&contains, field_name);
 
-    let value = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
+    let validation_val = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
         quote!(String::from(#value))
     } else {
         quote!(#value)
     };
 
+    // Only add the target if it's a literal since otherwise it will just be the variable name
+    let added_param = matches!(value, Some(ValueOrPath::Value(_)))
+        .then_some(quote!(err.add_param("target", &#value);));
+
+    // Only add the value if it's a string since we don't want to serialize whole collections
+    let added_value = (!is_list(&field_quoter._type) && !is_map(&field_quoter._type))
+        .then_some(quote!(err.add_param("actual", &#validator_param);));
+
     let quoted = quote!(
-        if !::validify::validate_contains(#validator_param, &#value, #not) {
+        if !::validify::validate_contains(#validator_param, &#validation_val, #not) {
             #quoted_error
-            err.add_param("actual", &#validator_param);
-            err.add_param("value", &#value);
+            #added_param
+            #added_value
             err.set_location(#field_name);
             errors.add(err);
         }
@@ -750,7 +757,6 @@ fn quote_required_validation(
     quote!(
         if !::validify::validate_required(#validator_param) {
             #quoted_error
-            err.add_param("value", &#validator_param);
             err.set_location(#field_name);
             errors.add(err);
         }

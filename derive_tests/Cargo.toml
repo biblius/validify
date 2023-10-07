@@ -7,7 +7,6 @@ version = "1.0.0"
 actix-web = "4.2.1"
 lazy_static = "1.4.0"
 regex = "1.7.1"
-trybuild = "1.0.71"
 
 [dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }

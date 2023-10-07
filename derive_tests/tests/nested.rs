@@ -1,4 +1,3 @@
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use validify::Validate;
 
@@ -81,7 +80,7 @@ struct ParentWithOptionSetOfChildren {
     child: Option<HashSet<Child>>,
 }
 
-#[derive(Debug, Validate, Serialize, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Validate, Clone, Hash, PartialEq, Eq)]
 struct Child {
     #[validate(length(min = 1))]
     value: String,
@@ -122,7 +121,7 @@ fn failed_validation_points_to_original_field_names() {
 }
 
 #[test]
-fn test_can_validate_option_fields_without_lifetime() {
+fn can_validate_option_fields_without_lifetime() {
     let instance = ParentWithOptionalChild {
         child: Some(Child {
             value: String::new(),
@@ -137,7 +136,7 @@ fn test_can_validate_option_fields_without_lifetime() {
 }
 
 #[test]
-fn test_can_validate_option_fields_with_lifetime() {
+fn can_validate_option_fields_with_lifetime() {
     #[derive(Debug, Validate)]
     struct ParentWithLifetimeAndOptionalChild<'a> {
         #[validate]
@@ -160,7 +159,7 @@ fn test_can_validate_option_fields_with_lifetime() {
 }
 
 #[test]
-fn test_works_with_none_values() {
+fn works_with_none_values() {
     let instance = ParentWithOptionalChild { child: None };
 
     let res = instance.validate();
@@ -168,7 +167,7 @@ fn test_works_with_none_values() {
 }
 
 #[test]
-fn test_can_validate_vector_fields() {
+fn can_validate_vector_fields() {
     let instance = ParentWithVectorOfChildren {
         child: vec![
             Child {
@@ -194,7 +193,7 @@ fn test_can_validate_vector_fields() {
 }
 
 #[test]
-fn test_can_validate_array_fields() {
+fn can_validate_array_fields() {
     let instance = ParentWithArrayOfChildren {
         child: [
             Child {
@@ -220,7 +219,7 @@ fn test_can_validate_array_fields() {
 }
 
 #[test]
-fn test_can_validate_option_vector_fields() {
+fn can_validate_option_vector_fields() {
     let instance = ParentWithOptionVectorOfChildren {
         child: Some(vec![
             Child {
@@ -246,7 +245,7 @@ fn test_can_validate_option_vector_fields() {
 }
 
 #[test]
-fn test_can_validate_map_fields() {
+fn can_validate_map_fields() {
     let instance = ParentWithMapOfChildren {
         child: [(
             0,
@@ -267,7 +266,7 @@ fn test_can_validate_map_fields() {
 }
 
 #[test]
-fn test_can_validate_option_map_fields() {
+fn can_validate_option_map_fields() {
     let instance = ParentWithOptionMapOfChildren {
         child: Some(
             [(
@@ -290,7 +289,7 @@ fn test_can_validate_option_map_fields() {
 }
 
 #[test]
-fn test_can_validate_set_fields() {
+fn can_validate_set_fields() {
     let instance = ParentWithSetOfChildren {
         child: [Child {
             value: String::new(),
@@ -308,7 +307,7 @@ fn test_can_validate_set_fields() {
 }
 
 #[test]
-fn test_can_validate_option_set_fields() {
+fn can_validate_option_set_fields() {
     let instance = ParentWithOptionSetOfChildren {
         child: Some(
             [Child {
@@ -328,7 +327,7 @@ fn test_can_validate_option_set_fields() {
 }
 
 #[test]
-fn test_field_validations_take_priority_over_nested_validations() {
+fn field_validations_take_priority_over_nested_validations() {
     let instance = ParentWithVectorOfChildren { child: Vec::new() };
 
     let res = instance.validate();

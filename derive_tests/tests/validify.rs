@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use validify::{schema_err, schema_validation, Validify};
 use validify::{ValidationError, ValidationErrors};
 
-#[derive(Debug, Serialize, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify)]
 struct HasVec {
     #[modify(trim, uppercase)]
     #[validate(length(min = 2))]
@@ -31,7 +31,7 @@ fn vec_mod() {
     assert_eq!(v.b.unwrap()[1], "Snackbar");
 }
 
-#[derive(Debug, Serialize, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify)]
 struct WithVal {
     #[validate(length(equal = 13))]
     #[modify(trim)]
@@ -68,7 +68,7 @@ fn validify0() {
     assert_eq!(res.b, 9);
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
@@ -83,7 +83,7 @@ struct Testor {
     pub nested: Nestor,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -127,7 +127,7 @@ fn validify1() {
  * NESTED
  */
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify)]
 #[validate(validate_input)]
 struct Input {
     #[modify(trim, uppercase)]
@@ -138,7 +138,7 @@ struct Input {
     c: NestedInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify)]
 #[validate(validate_nested)]
 struct NestedInput {
     a: Option<usize>,
@@ -345,7 +345,7 @@ struct BigBoi {
     tags: TestTags,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Validify)]
+#[derive(Deserialize, Debug, Clone, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestTags {
     #[modify(trim)]
@@ -355,7 +355,7 @@ struct TestTags {
 
 const PROFICIENCY: &[&str] = &["neznam", "sabijam"];
 
-#[derive(Serialize, Clone, Deserialize, Debug, Validify)]
+#[derive(Clone, Deserialize, Debug, Validify)]
 #[serde(rename_all = "camelCase")]
 struct TestLanguages {
     company_opening_id: String,

@@ -57,6 +57,16 @@ impl ValidationError {
         }
     }
 
+    pub fn with_param<T: Serialize>(mut self, name: &'static str, val: &T) -> Self {
+        match self {
+            ValidationError::Schema { .. } => {}
+            ValidationError::Field { ref mut params, .. } => {
+                params.insert(name, to_value(val).unwrap());
+            }
+        }
+        self
+    }
+
     pub fn with_message(mut self, msg: String) -> Self {
         match self {
             ValidationError::Schema {

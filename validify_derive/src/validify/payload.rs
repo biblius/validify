@@ -43,7 +43,7 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let quoted = quote!(
-        #[derive(Debug, Clone, ::validify::Validate, serde::Deserialize, serde::Serialize)]
+        #[derive(Debug, Clone, ::validify::Validate, serde::Deserialize)]
         #(#attributes)*
         #visibility struct #payload_ident #ty_generics #where_clause {
             #(#payload_fields)*
@@ -74,6 +74,7 @@ fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_ma
     let typ = types.get(&ident.to_string()).unwrap();
     let is_list = is_list(typ);
     let ty = &field.ty;
+
     if !typ.starts_with("Option") {
         return payload_path(ident, field, ty.clone(), is_list);
     }
@@ -88,11 +89,13 @@ fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_ma
             "Nested validifes must be structs implementing Validify"
         )
     };
+
     let syn::PathArguments::AngleBracketed(ref mut args) =
         path.path.segments.last_mut().unwrap().arguments
     else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
+
     let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) =
         args.args.last_mut().unwrap()
     else {
@@ -106,6 +109,7 @@ fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_ma
         inner_path.path.segments.last_mut().unwrap().ident =
             Ident::new(&format!("{type_ident}Payload"), Span::call_site());
     }
+
     let payload_type = syn::Type::Path(path);
 
     quote!(
@@ -208,7 +212,7 @@ fn payload_path(
     let syn::Type::Path(mut path) = ty else {
         abort!(
             field.span(),
-            "Nested validifes must be structs implementing Validify or collections of"
+            "Nested validifes must be structs implementing Validify or collections/options of"
         )
     };
 

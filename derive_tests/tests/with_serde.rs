@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use validify::Validate;
 
 #[test]
 fn returns_original_field_names() {
-    #[derive(Debug, Validate, Serialize, Deserialize)]
+    #[derive(Debug, Validate, Deserialize)]
     struct Test {
         #[validate(length(min = 1))]
         #[serde(rename = "snakeCase")]
@@ -30,7 +30,7 @@ fn returns_original_field_names() {
 
 #[test]
 fn returns_original_field_names_from_json() {
-    #[derive(Debug, Validate, Serialize, Deserialize)]
+    #[derive(Debug, Validate, Deserialize)]
     struct Test {
         #[validate(length(min = 1))]
         #[serde(rename = "snakeCase")]

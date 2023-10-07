@@ -1,4 +1,3 @@
-use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use validify::{Validate, ValidationError};
 
@@ -36,7 +35,7 @@ fn with_hashmap_nesting() {
         name: HashMap<usize, Child>,
     }
 
-    #[derive(Debug, Validate, Serialize)]
+    #[derive(Debug, Validate)]
     struct Child {
         #[validate(contains(3))]
         stuff: Vec<usize>,

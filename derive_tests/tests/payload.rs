@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use validify::Validify;
 
 #[test]
 fn nested() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Testor {
         pub testor_a: String,
         #[validify]
@@ -33,7 +33,7 @@ fn nested() {
 
 #[test]
 fn nested_in_option() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Testor {
         pub testor_a: String,
         #[validify]
@@ -60,7 +60,7 @@ fn nested_in_option() {
 
 #[test]
 fn nested_in_list_collection() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Testor {
         pub testor_a: String,
         #[validify]
@@ -92,7 +92,7 @@ fn nested_in_list_collection() {
 
 #[test]
 fn option_nested_in_list_collection() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Testor {
         pub testor_a: String,
         #[validify]
@@ -126,7 +126,7 @@ fn option_nested_in_list_collection() {
 fn nest_like_no_tomorrow() {
     use nest::{Nestor, NestorPayload};
 
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Testor {
         #[validify]
         pub first: Option<First>,
@@ -134,7 +134,7 @@ fn nest_like_no_tomorrow() {
         pub second: Vec<Second>,
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct First {
         #[validify]
         second_nested: Second,
@@ -143,7 +143,7 @@ fn nest_like_no_tomorrow() {
         nested: Option<Vec<nest::Nestor>>,
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     struct Second {
         i: usize,
         #[validify]
@@ -202,7 +202,7 @@ fn nest_like_no_tomorrow() {
 
 #[test]
 fn camel_case() {
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     #[serde(rename_all = "camelCase")]
     struct Testor {
         #[modify(capitalize)]
@@ -213,7 +213,7 @@ fn camel_case() {
         pub something_cameled: Option<Nestor>,
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     #[serde(rename_all = "camelCase")]
     struct Nestor {
         #[modify(trim, uppercase)]
@@ -227,10 +227,10 @@ fn camel_case() {
 }
 
 mod nest {
-    use serde::{Deserialize, Serialize};
+    use serde::Deserialize;
     use validify::Validify;
 
-    #[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+    #[derive(Debug, Clone, Deserialize, Validify)]
     pub struct Nestor {
         #[modify(trim, uppercase)]
         #[validate(length(min = 12))]

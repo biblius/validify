@@ -1,12 +1,12 @@
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::collections::HashMap;
 use validify::{Modify, Validify};
 
 /**
  * SIMPLE
  */
-#[derive(Debug, Serialize, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase)]
     pub a: String,
@@ -53,7 +53,7 @@ fn simple_modify() {
  * NESTED
  */
 
-#[derive(Debug, Serialize, Validify)]
+#[derive(Debug, Validify)]
 struct Testamentor {
     #[modify(trim, lowercase)]
     a: String,
@@ -61,7 +61,7 @@ struct Testamentor {
     nestor: Nestor,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify)]
 struct Nestor {
     #[modify(custom(do_other))]
     a: usize,
@@ -89,7 +89,7 @@ fn nested_modify() {
  * BIG BOY
  */
 
-#[derive(Debug, Serialize, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify)]
 struct BigBoy {
     #[modify(uppercase)]
     a: String,
@@ -145,7 +145,7 @@ fn big_boy() {
 /**
  * TYPES
  */
-#[derive(Debug, Serialize, Validify)]
+#[derive(Debug, Validify)]
 struct TypeTest {
     #[modify(custom(mutate_i32))]
     a: i32,
@@ -226,7 +226,7 @@ fn custom_with_types() {
  * FROM JSON
  */
 
-#[derive(Debug, Serialize, Validify)]
+#[derive(Debug, Validify)]
 struct JsonTest {
     #[modify(lowercase)]
     a: String,
@@ -254,15 +254,6 @@ fn mock_handler(data: actix_web::web::Json<<JsonTest as Validify>::Payload>) {
 fn mock_service(data: JsonTest) {
     assert_eq!(data.a, "modified".to_string());
     assert_eq!(data.b, "MAKEMESHOUT".to_string())
-}
-
-/**
- * COMPILE
- */
-#[test]
-fn compile_fail() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/compile_fail/*.rs");
 }
 
 #[test]

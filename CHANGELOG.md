@@ -1,5 +1,12 @@
 # Changelog
 
+- ## 1.0.12
+
+- All error params now represent the violating field's value with `actual` and the expected value as `target` if applicable.
+- Remove params in errors where validation failed for whole structs and collections due to the error size being pretty massive
+- Due to the previous change, structs deriving `Validify` no longer have to implement `Serialize` as all the info is contained in the field and location of the error.
+- Remove redundant params from `required` errors.
+
 - ## 1.0.11
 
 - Serde attributes are now propagated to the payload

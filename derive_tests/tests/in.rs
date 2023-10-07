@@ -1,4 +1,3 @@
-use serde::Serialize;
 use validify::Validate;
 
 const ALLOWED_STRS: &[&str] = &["YES", "GOOD"];
@@ -146,7 +145,7 @@ fn properly_validates_option() {
 
 #[test]
 fn properly_validates_structs() {
-    #[derive(Debug, PartialEq, Serialize)]
+    #[derive(Debug, PartialEq)]
     struct Something(usize, usize);
 
     const ALLOWED: &[Something] = &[Something(1, 2), Something(3, 4)];
