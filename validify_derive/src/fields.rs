@@ -12,7 +12,7 @@ type FieldAttrCollection = Result<(Vec<Validator>, Vec<Modifier>, Option<String>
 
 /// Holds the combined validations and modifiers for one field
 #[derive(Debug)]
-pub struct FieldInformation {
+pub struct FieldInfo {
     pub field: syn::Field,
     pub field_type: String,
     pub name: String,
@@ -21,7 +21,7 @@ pub struct FieldInformation {
     pub modifiers: Vec<Modifier>,
 }
 
-impl FieldInformation {
+impl FieldInfo {
     pub fn new(
         field: syn::Field,
         field_type: String,
@@ -30,7 +30,7 @@ impl FieldInformation {
         validations: Vec<Validator>,
         modifiers: Vec<Modifier>,
     ) -> Self {
-        FieldInformation {
+        FieldInfo {
             field,
             field_type,
             name,
@@ -45,7 +45,7 @@ impl FieldInformation {
 pub fn collect_field_info(
     input: &syn::DeriveInput,
     allow_refs: bool,
-) -> Result<Vec<FieldInformation>, syn::Error> {
+) -> Result<Vec<FieldInfo>, syn::Error> {
     let mut fields = collect_fields(input);
 
     let field_types = map_field_types(&fields, allow_refs);
@@ -62,7 +62,7 @@ pub fn collect_field_info(
         let (validations, modifiers, original_name) =
             collect_field_attributes(&field, &field_types)?;
 
-        field_info.push(FieldInformation::new(
+        field_info.push(FieldInfo::new(
             field,
             field_types.get(&field_ident).unwrap().clone(),
             field_ident,

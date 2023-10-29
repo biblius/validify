@@ -1,15 +1,15 @@
-use crate::{asserts::is_list, fields::FieldInformation, quoter::FieldQuoter, types::Modifier};
+use crate::{asserts::is_list, fields::FieldInfo, quoter::FieldQuoter, types::Modifier};
 use quote::quote;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
 pub(super) fn quote_field_modifiers(
-    mut fields: Vec<FieldInformation>,
+    mut fields: Vec<FieldInfo>,
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
     let mut modifications = vec![];
     let mut nested_validifies = vec![];
 
     fields.drain(..).for_each(
-        |FieldInformation {
+        |FieldInfo {
              field,
              field_type,
              name,

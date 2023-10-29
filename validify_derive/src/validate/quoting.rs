@@ -1,6 +1,6 @@
 use super::parsing::option_to_tokens;
 use crate::asserts::{is_list, is_map};
-use crate::fields::FieldInformation;
+use crate::fields::FieldInfo;
 use crate::quoter::FieldQuoter;
 use crate::types::{
     Contains, CreditCard, Custom, Describe, Email, In, Ip, Length, MustMatch, NonControlChar,
@@ -11,13 +11,13 @@ use proc_macro2::{self};
 use quote::quote;
 
 pub fn quote_field_validations(
-    mut fields: Vec<FieldInformation>,
+    mut fields: Vec<FieldInfo>,
 ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
     let mut quoted_validations = vec![];
     let mut nested_validations = vec![];
 
     fields.drain(..).for_each(
-        |FieldInformation {
+        |FieldInfo {
              field,
              field_type,
              name,
