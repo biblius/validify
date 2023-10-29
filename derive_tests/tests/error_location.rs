@@ -181,8 +181,8 @@ fn with_complex_nesting() {
     }
 }
 
-fn allowed(n: usize) -> Result<(), ValidationError> {
-    if n > 2 {
+fn allowed(n: &usize) -> Result<(), ValidationError> {
+    if *n > 2 {
         Err(ValidationError::new_field("obfuscated", "bla"))
     } else {
         Ok(())

@@ -1,4 +1,4 @@
-use crate::asserts::{is_list, is_map, COW_TYPE, NUMBER_TYPES};
+use crate::asserts::{is_list, is_map};
 use proc_macro2::{self};
 use proc_macro_error::abort;
 use quote::quote;
@@ -45,9 +45,7 @@ impl FieldQuoter {
 
         if self._type.starts_with("Option<") {
             quote!(#ident)
-        } else if COW_TYPE.is_match(self._type.as_ref()) {
-            quote!(self.#ident.as_ref())
-        } else if self._type.starts_with('&') || NUMBER_TYPES.contains(&self._type.as_ref()) {
+        } else if self._type.starts_with('&') {
             quote!(self.#ident)
         } else {
             quote!(&self.#ident)
@@ -78,8 +76,6 @@ impl FieldQuoter {
 
         if self._type.starts_with("Option<") || is_list(&self._type) || is_map(&self._type) {
             quote!(#ident)
-        } else if COW_TYPE.is_match(self._type.as_ref()) {
-            quote!(self.#ident.as_ref())
         } else {
             quote!(self.#ident)
         }
@@ -113,10 +109,7 @@ impl FieldQuoter {
     /// `if let Some(ident) = self.field`.
     fn get_optional_validator_param(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
-        if self._type.starts_with("Option<&")
-            || self._type.starts_with("Option<Option<&")
-            || NUMBER_TYPES.contains(&self._type.as_ref())
-        {
+        if self._type.starts_with("Option<&") || self._type.starts_with("Option<Option<&") {
             quote!(#ident)
         } else {
             quote!(ref #ident)

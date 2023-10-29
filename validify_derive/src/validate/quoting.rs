@@ -487,7 +487,7 @@ fn quote_range_validation(field_quoter: &FieldQuoter, range: Range) -> proc_macr
     let quoted_error = quote_error(&range, field_name);
     let quoted = quote!(
         if !::validify::validate_range(
-            #quoted_ident as f64,
+            *#quoted_ident as f64,
             #min_tokens,
             #max_tokens
         ) {

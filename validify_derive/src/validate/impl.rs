@@ -1,9 +1,7 @@
 use super::parsing::*;
 use super::quoting::quote_field_validations;
 use super::quoting::quote_struct_validations;
-use crate::asserts::{
-    assert_has_len, assert_has_range, is_full_pattern, is_single_lit, is_single_path,
-};
+use crate::asserts::ValidationMeta;
 use crate::fields::collect_field_info;
 use crate::types::ValueOrPath;
 use crate::types::{
@@ -88,8 +86,6 @@ fn collect_struct_validation(
 }
 
 pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, field_type: &str) {
-    let field_ident = field.ident.as_ref().unwrap().to_string();
-
     for attr in field.attrs.iter() {
         if !attr.path().is_ident(VALIDATE) && !attr.path().is_ident(VALIDIFY) {
             continue;
@@ -108,7 +104,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
 
         list.parse_nested_meta(|meta| {
             if meta.path.is_ident(EMAIL) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_email_full(&meta)?;
                     validators.push(Validator::Email(validation));
                 } else {
@@ -118,7 +114,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(URL) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_url_full(&meta)?;
                     validators.push(Validator::Url(validation));
                 } else {
@@ -129,14 +125,13 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(LENGTH) {
-                assert_has_len(field_ident.clone(), field_type, &field.ty);
+                // assert_has_len(field_ident.clone(), field_type, &field.ty);
                 let validation = parse_length(&meta)?;
                 validators.push(Validator::Length(validation));
                 return Ok(());
             }
 
             if meta.path.is_ident(RANGE) {
-                assert_has_range(field_ident.clone(), field_type, &field.ty);
                 let validation = parse_range(&meta)?;
                 validators.push(Validator::Range(validation));
                 return Ok(());
@@ -144,7 +139,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
 
             if meta.path.is_ident(MUST_MATCH) {
                 //assert_type_matches(rust_ident.clone(), field_type, field_types.get(&s), attr);
-                if is_single_path(&meta, "must_match") {
+                if meta.is_single_path("must_match") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(id) = content.parse::<syn::Ident>() else {
@@ -159,14 +154,14 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(CONTAINS) {
-                if is_single_lit(&meta, "contains") {
+                if meta.is_single_lit("contains") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(lit) = content.parse::<syn::Lit>() else {
                         return Err(meta.error("Invalid value given for `contains` validation, must be a path or literal"))
                     };
                     validators.push(Validator::Contains(Contains::new(ValueOrPath::Value(lit), false)));
-                } else if is_single_path(&meta, "contains") {
+                } else if meta.is_single_path("contains") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(path) = content.parse::<syn::Path>() else {
@@ -181,14 +176,14 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(CONTAINS_NOT) {
-                if is_single_lit(&meta, "contains_not") {
+                if meta.is_single_lit("contains_not") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(lit) = content.parse::<syn::Lit>() else {
                         return Err(meta.error("Invalid value given for `contains` validation, must be a path or literal"))
                     };
                     validators.push(Validator::Contains(Contains::new(ValueOrPath::Value(lit), true)));
-                } else if is_single_path(&meta, "contains") {
+                } else if meta.is_single_path("contains") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(path) = content.parse::<syn::Path>() else {
@@ -203,7 +198,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(NON_CONTROL_CHAR) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_non_control_char_full(&meta)?;
                     validators.push(Validator::NonControlCharacter(validation))
                 } else {
@@ -213,7 +208,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(CUSTOM) {
-                if is_single_path(&meta, "custom") {
+                if meta.is_single_path("custom") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(function) = content.parse::<syn::Path>() else {
@@ -228,7 +223,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(REGEX) {
-                if is_single_path(&meta, "regex") {
+                if meta.is_single_path("regex") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(path) = content.parse::<syn::Path>() else {
@@ -243,7 +238,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(CREDIT_CARD) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_credit_card_full(&meta)?;
                     validators.push(Validator::CreditCard(validation));
                 } else {
@@ -253,7 +248,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(PHONE) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_phone_full(&meta)?;
                     validators.push(Validator::Phone(validation));
                 } else {
@@ -263,7 +258,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(REQUIRED) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_required_full(&meta)?;
                     validators.push(Validator::Required(validation));
                 } else {
@@ -273,7 +268,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(IS_IN) {
-                if is_single_path(&meta, "in") {
+                if meta.is_single_path("in") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(path) = content.parse::<syn::Path>() else {
@@ -288,7 +283,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(NOT_IN) {
-                if is_single_path(&meta, "in") {
+                if meta.is_single_path("in") {
                     let content;
                     parenthesized!(content in meta.input);
                     let Ok(path) = content.parse::<syn::Path>() else {
@@ -303,7 +298,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(IP) {
-                if is_full_pattern(&meta) {
+                if meta.is_full_pattern() {
                     let validation = parse_ip_full(&meta)?;
                     validators.push(Validator::Ip(validation));
                 } else {

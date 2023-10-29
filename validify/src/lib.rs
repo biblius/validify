@@ -35,6 +35,16 @@ impl<T: Validate> Validate for &T {
     }
 }
 
+impl<T: Validate> Validate for Option<T> {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        if let Some(this) = self {
+            this.validate()
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Modifies the struct based on the provided `modify` parameters. Automatically implemented when deriving Validify.
 pub trait Modify {
     /// Apply the provided modifiers to self

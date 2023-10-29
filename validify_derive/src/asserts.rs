@@ -1,113 +1,39 @@
-use lazy_static::lazy_static;
 use proc_macro_error::abort;
-use regex::Regex;
-use syn::{meta::ParseNestedMeta, spanned::Spanned};
+use syn::meta::ParseNestedMeta;
 
-lazy_static! {
-    pub static ref COW_TYPE: Regex = Regex::new(r"Cow<'[a-z]+,str>").unwrap();
-    pub static ref LEN_TYPE: Regex =
-        Regex::new(r"(Option<)?((Vec|HashMap|HashSet|BTreeMap|BTreeSet|IndexMap|IndexSet)<|\[)")
-            .unwrap();
+pub trait ValidationMeta {
+    /// Returns `true` if the meta consists of an ident, code and message.
+    /// Used for simple path validators.
+    fn is_full_pattern(&self) -> bool;
+
+    /// Returns `true` if the meta consists of a single literal
+    fn is_single_lit(&self, id: &str) -> bool;
+
+    /// Returns `true` if the meta consists of a single path
+    fn is_single_path(&self, id: &str) -> bool;
 }
 
-pub static NUMBER_TYPES: [&str; 38] = [
-    "usize",
-    "u8",
-    "u16",
-    "u32",
-    "u64",
-    "u128",
-    "isize",
-    "i8",
-    "i16",
-    "i32",
-    "i64",
-    "i128",
-    "f32",
-    "f64",
-    "Option<usize>",
-    "Option<u8>",
-    "Option<u16>",
-    "Option<u32>",
-    "Option<u64>",
-    "Option<isize>",
-    "Option<i8>",
-    "Option<i16>",
-    "Option<i32>",
-    "Option<i64>",
-    "Option<f32>",
-    "Option<f64>",
-    "Option<Option<usize>>",
-    "Option<Option<u8>>",
-    "Option<Option<u16>>",
-    "Option<Option<u32>>",
-    "Option<Option<u64>>",
-    "Option<Option<isize>>",
-    "Option<Option<i8>>",
-    "Option<Option<i16>>",
-    "Option<Option<i32>>",
-    "Option<Option<i64>>",
-    "Option<Option<f32>>",
-    "Option<Option<f64>>",
-];
-
-pub fn is_full_pattern(meta: &ParseNestedMeta) -> bool {
-    meta.input
-        .cursor()
-        .group(proc_macro2::Delimiter::Parenthesis)
-        .is_some()
-}
-
-/// Returns `true` if the given group contains only a single literal
-pub fn is_single_lit(meta: &ParseNestedMeta, validator: &str) -> bool {
-    let group_cursor = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
-        abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
-    ).0;
-    group_cursor.literal().is_some()
-}
-
-/// Returns `true` if the given group contains only a single path
-pub fn is_single_path(meta: &ParseNestedMeta, validator: &str) -> bool {
-    let (group_cursor, _, _) = meta.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
-        abort!(meta.input.span(), format!("{validator} must be specified as a list, i.e. `{validator}(\"foo\")` or `{validator}(value = \"foo\")`"))
-    );
-    let size = group_cursor.token_stream().into_iter().size_hint().0;
-    group_cursor.ident().is_some() && size == 1
-}
-
-pub fn assert_has_len(field_name: String, type_name: &str, field_type: &syn::Type) {
-    if let syn::Type::Reference(ref tref) = field_type {
-        let elem = &tref.elem;
-        let type_name = format!("{}", quote::quote! { #elem }).replace(' ', "");
-
-        if type_name == "str" {
-            return;
-        }
-        assert_has_len(field_name, &type_name, elem);
-        return;
+impl ValidationMeta for ParseNestedMeta<'_> {
+    fn is_full_pattern(&self) -> bool {
+        self.input
+            .cursor()
+            .group(proc_macro2::Delimiter::Parenthesis)
+            .is_some()
     }
 
-    if !type_name.contains("String")
-        && !type_name.contains("str")
-        && !LEN_TYPE.is_match(type_name)
-        // a bit ugly
-        && !COW_TYPE.is_match(type_name)
-    {
-        abort!(field_type.span(),
-                "Validator `length` can only be used on types `String`, `&str`, Cow<'_,str>, `Vec`, or map/set types (BTree/Hash/Index) but found `{}` for field `{}`",
-                type_name, field_name
-            );
+    fn is_single_lit(&self, id: &str) -> bool {
+        let group_cursor = self.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
+            abort!(self.input.span(), format!("{id} must be specified as a list, i.e. `{id}(\"foo\")` or `{id}(value = \"foo\")`"))
+        ).0;
+        group_cursor.literal().is_some()
     }
-}
 
-pub fn assert_has_range(field_name: String, type_name: &str, field_type: &syn::Type) {
-    if !NUMBER_TYPES.contains(&type_name) {
-        abort!(
-            field_type.span(),
-            "Validator `range` can only be used on number types but found `{}` for field `{}`",
-            type_name,
-            field_name
+    fn is_single_path(&self, id: &str) -> bool {
+        let (group_cursor, _, _) = self.input.cursor().group(proc_macro2::Delimiter::Parenthesis).unwrap_or_else(||
+            abort!(self.input.span(), format!("{id} must be specified as a list, i.e. `{id}(\"foo\")` or `{id}(value = \"foo\")`"))
         );
+        let size = group_cursor.token_stream().into_iter().size_hint().0;
+        group_cursor.ident().is_some() && size == 1
     }
 }
 
