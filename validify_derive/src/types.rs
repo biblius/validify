@@ -1,3 +1,4 @@
+use crate::fields::FieldInfo;
 use chrono::{NaiveDate, NaiveDateTime};
 use proc_macro_error::abort;
 use quote::ToTokens;
@@ -7,6 +8,16 @@ use syn::{
     spanned::Spanned,
     Lit,
 };
+
+pub trait ToValidifyTokens {
+    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationType;
+}
+
+/// Whether the tokens are for nested or direct validations.
+pub enum ValidationType {
+    Normal(proc_macro2::TokenStream),
+    Nested(proc_macro2::TokenStream),
+}
 
 /// Contains all the validators that can be used
 #[derive(Debug)]
@@ -27,6 +38,43 @@ pub enum Validator {
     In(In),
     Ip(Ip),
     Nested,
+}
+
+impl ToValidifyTokens for Validator {
+    fn to_validify_tokens(&self, field_info: &crate::fields::FieldInfo) -> ValidationType {
+        match self {
+            Validator::Email(v) => v.to_validify_tokens(field_info),
+            Validator::Url(v) => v.to_validify_tokens(field_info),
+            Validator::CreditCard(v) => v.to_validify_tokens(field_info),
+            Validator::Phone(v) => v.to_validify_tokens(field_info),
+            Validator::Custom(v) => v.to_validify_tokens(field_info),
+            Validator::Range(v) => v.to_validify_tokens(field_info),
+            Validator::Length(v) => v.to_validify_tokens(field_info),
+            Validator::NonControlCharacter(v) => v.to_validify_tokens(field_info),
+            Validator::Required(v) => v.to_validify_tokens(field_info),
+            Validator::MustMatch(v) => v.to_validify_tokens(field_info),
+            Validator::Regex(v) => v.to_validify_tokens(field_info),
+            Validator::Contains(v) => v.to_validify_tokens(field_info),
+            Validator::Time(v) => v.to_validify_tokens(field_info),
+            Validator::In(v) => v.to_validify_tokens(field_info),
+            Validator::Ip(v) => v.to_validify_tokens(field_info),
+            Validator::Nested => {
+                let validator_field = field_info.quote_validator_field();
+                let field_name = field_info.name();
+                let quoted = quote!(
+                    if let Err(mut errs) = #validator_field.validate() {
+                        errs.errors_mut().iter_mut().for_each(|err| err.set_location(#field_name));
+                        errors.merge(errs);
+                    }
+                );
+                ValidationType::Nested(
+                    field_info.wrap_tokens_if_option(
+                        field_info.wrap_if_collection(validator_field, quoted),
+                    ),
+                )
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -346,7 +394,7 @@ impl Describe for Time {
 }
 
 impl Time {
-    pub fn assert(&self, meta: &ParseNestedMeta, field_type: &str) -> Result<(), syn::Error> {
+    pub fn assert(&self, meta: &ParseNestedMeta) -> Result<(), syn::Error> {
         if matches!(self.target, Some(ValueOrPath::Value(_))) && self.format.is_none() {
             return Err(meta.error("string literal targets must contain a format"));
         }
@@ -359,9 +407,8 @@ impl Time {
             && matches!(self.path_type, TimeMultiplier::None);
 
         if let (Some(ValueOrPath::Value(date_str)), Some(format)) = (&self.target, &self.format) {
-            if field_type.contains("Time")
-                && NaiveDateTime::parse_from_str(date_str, format).is_err()
-            {
+            dbg!(date_str, format);
+            if NaiveDateTime::parse_from_str(date_str, format).is_err() {
                 abort!(
                     meta.path.span(),
                     "The target datetime string does not match the provided format"

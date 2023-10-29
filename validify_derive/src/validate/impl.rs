@@ -2,7 +2,7 @@ use super::parsing::*;
 use super::quoting::quote_field_validations;
 use super::quoting::quote_struct_validations;
 use crate::asserts::ValidationMeta;
-use crate::fields::collect_field_info;
+use crate::fields::FieldInfo;
 use crate::types::ValueOrPath;
 use crate::types::{
     Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
@@ -36,8 +36,8 @@ const TIME: &str = "time";
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
 
-    let field_info = collect_field_info(input, true).unwrap();
-    let (validations, nested_validations) = quote_field_validations(field_info);
+    let field_info = FieldInfo::collect(input);
+    let validations = quote_field_validations(field_info);
 
     let struct_validations = collect_struct_validation(&input.attrs).unwrap();
     let schema_validations = quote_struct_validations(&struct_validations);
@@ -52,8 +52,6 @@ pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 #(#validations)*
 
                 #(#schema_validations)*
-
-                #(#nested_validations)*
 
                 if errors.is_empty() {
                     ::std::result::Result::Ok(())
@@ -85,7 +83,7 @@ fn collect_struct_validation(
     Ok(validations)
 }
 
-pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, field_type: &str) {
+pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field) {
     for attr in field.attrs.iter() {
         if !attr.path().is_ident(VALIDATE) && !attr.path().is_ident(VALIDIFY) {
             continue;
@@ -308,7 +306,7 @@ pub fn collect_validations(validators: &mut Vec<Validator>, field: &syn::Field, 
             }
 
             if meta.path.is_ident(TIME) {
-                let validation = parse_time(&meta, field_type)?;
+                let validation = parse_time(&meta)?;
                 validators.push(Validator::Time(validation));
                 return Ok(());
             }
