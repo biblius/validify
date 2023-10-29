@@ -5,7 +5,6 @@ use types::*;
 
 mod asserts;
 mod fields;
-mod quoter;
 mod types;
 mod validate;
 mod validify;

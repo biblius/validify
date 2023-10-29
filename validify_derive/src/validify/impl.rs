@@ -1,5 +1,5 @@
 use super::quoting::quote_field_modifiers;
-use crate::{fields::collect_field_info, types::Modifier, validate::r#impl::impl_validate};
+use crate::{fields::FieldInfo, types::Modifier, validate::r#impl::impl_validate};
 use proc_macro_error::abort;
 use quote::quote;
 use syn::parenthesized;
@@ -16,7 +16,7 @@ const MODIFY: &str = "modify";
 pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
 
-    let field_info = collect_field_info(input, false).unwrap();
+    let field_info = FieldInfo::collect(input);
 
     let (modifiers, nested_validifies) = quote_field_modifiers(field_info);
 

@@ -349,7 +349,7 @@ pub fn parse_ip_full(meta: &ParseNestedMeta) -> Result<Ip, syn::Error> {
     Ok(validation)
 }
 
-pub fn parse_time(meta: &ParseNestedMeta, field_type: &str) -> Result<Time, syn::Error> {
+pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
     const INTERVALS: [&str; 5] = ["seconds", "minutes", "hours", "days", "weeks"];
 
     let mut validation = Time::default();
@@ -493,7 +493,7 @@ pub fn parse_time(meta: &ParseNestedMeta, field_type: &str) -> Result<Time, syn:
         Err(meta.error("Unrecognized time parameter"))
     })?;
 
-    validation.assert(meta, field_type)?;
+    validation.assert(meta)?;
 
     Ok(validation)
 }

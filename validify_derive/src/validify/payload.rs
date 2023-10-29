@@ -1,12 +1,9 @@
-use crate::{
-    asserts::{is_list, is_nested_validify},
-    fields::{collect_fields, map_field_types},
-};
+use crate::fields::FieldInfo;
 use proc_macro2::{Ident, Span};
 use proc_macro_error::abort;
 use quote::quote;
-use std::collections::HashMap;
-use syn::{spanned::Spanned, Field};
+
+use syn::spanned::Spanned;
 
 pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, syn::Ident) {
     let ident = &input.ident;
@@ -22,24 +19,23 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
         Span::call_site(),
     );
 
-    let fields = collect_fields(input);
-    let types = map_field_types(&fields, false);
+    let fields = FieldInfo::collect(input);
 
     let payload_fields = fields
         .iter()
-        .map(|field| map_payload_fields(field, &types))
+        .map(map_payload_fields)
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let into_fields = fields
         .iter()
-        .map(|field| map_into_fields(field, &types))
+        .map(map_into_fields)
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let from_fields = fields
         .iter()
-        .map(|field| map_from_fields(field, &types))
+        .map(map_from_fields)
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let quoted = quote!(
@@ -69,23 +65,22 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
     (quoted, payload_ident)
 }
 
-fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_macro2::TokenStream {
-    let ident = field.ident.as_ref().unwrap();
-    let typ = types.get(&ident.to_string()).unwrap();
-    let is_list = is_list(typ);
-    let ty = &field.ty;
+fn map_payload_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
+    let ident = info.field.ident.as_ref().unwrap();
+    let is_list = info.is_list();
+    let ty = &info.field.ty;
 
-    if !typ.starts_with("Option") {
-        return payload_path(ident, field, ty.clone(), is_list);
+    if !info.is_option() {
+        return payload_path(info);
     }
 
-    if !is_nested_validify(field) {
+    if !info.is_nested_validify() {
         return quote!(#ident: #ty,);
     }
 
     let syn::Type::Path(mut path) = ty.clone() else {
         abort!(
-            field.span(),
+            info.field.span(),
             "Nested validifes must be structs implementing Validify"
         )
     };
@@ -118,16 +113,16 @@ fn map_payload_fields(field: &Field, types: &HashMap<String, String>) -> proc_ma
     )
 }
 
-fn map_from_fields(field: &Field, types: &HashMap<String, String>) -> proc_macro2::TokenStream {
-    let ident = field.ident.as_ref().unwrap();
-    let typ = types.get(&ident.to_string()).unwrap();
-    if typ.starts_with("Option") {
-        if is_nested_validify(field) && is_list(typ) {
+fn map_from_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
+    let ident = info.field.ident.as_ref().unwrap();
+
+    if info.is_option() {
+        if info.is_nested_validify() && info.is_list() {
             return quote!(
                 #ident: payload.#ident.map(|v|v.into_iter().map(|el|el.into()).collect()),
             );
         }
-        if is_nested_validify(field) {
+        if info.is_nested_validify() {
             return quote!(
                 #ident: payload.#ident.map(|o|o.into()),
             );
@@ -137,37 +132,35 @@ fn map_from_fields(field: &Field, types: &HashMap<String, String>) -> proc_macro
             #ident: payload.#ident,
         )
     } else {
-        if is_nested_validify(field) && is_list(typ) {
+        if info.is_nested_validify() && info.is_list() {
             return quote!(#ident: payload.#ident.unwrap().into_iter().map(|el|el.into()).collect(),);
         }
-        if is_nested_validify(field) {
+        if info.is_nested_validify() {
             return quote!(#ident: payload.#ident.unwrap().into(),);
         }
         quote!(#ident: payload.#ident.unwrap(),)
     }
 }
 
-fn map_into_fields(field: &Field, types: &HashMap<String, String>) -> proc_macro2::TokenStream {
-    let ident = field.ident.as_ref().unwrap();
+fn map_into_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
+    let ident = info.field.ident.as_ref().unwrap();
 
-    let typ = types.get(&ident.to_string()).unwrap();
-
-    if typ.starts_with("Option") {
-        if is_nested_validify(field) && is_list(typ) {
+    if info.is_option() {
+        if info.is_nested_validify() && info.is_list() {
             return quote!(#ident: original.#ident.map(|v| v.into_iter().map(|el|el.into()).collect()),);
         }
 
-        if is_nested_validify(field) {
+        if info.is_nested_validify() {
             return quote!(#ident: original.#ident.map(|o|o.into()),);
         }
 
         quote!(#ident: original.#ident,)
     } else {
-        if is_nested_validify(field) && is_list(typ) {
+        if info.is_nested_validify() && info.is_list() {
             return quote!(#ident: Some(original.#ident.into_iter().map(|el|el.into()).collect()),);
         }
 
-        if is_nested_validify(field) {
+        if info.is_nested_validify() {
             return quote!(#ident: Some(original.#ident.into()),);
         }
 
@@ -196,27 +189,25 @@ fn payload_path_angle_bracketed(path: &mut syn::TypePath) {
     segment.ident = Ident::new(&format!("{}Payload", segment.ident), Span::call_site());
 }
 
-fn payload_path(
-    ident: &Ident,
-    field: &syn::Field,
-    ty: syn::Type,
-    is_list: bool,
-) -> proc_macro2::TokenStream {
-    if !is_nested_validify(field) {
+fn payload_path(info: &FieldInfo) -> proc_macro2::TokenStream {
+    let ident = &info.field.ident;
+    let ty = &info.field.ty;
+
+    if !info.is_nested_validify() {
         return quote!(
             #[validate(required)]
             #ident: Option<#ty>,
         );
     }
 
-    let syn::Type::Path(mut path) = ty else {
+    let syn::Type::Path(mut path) = ty.clone() else {
         abort!(
-            field.span(),
+            info.field.span(),
             "Nested validifes must be structs implementing Validify or collections/options of"
         )
     };
 
-    if is_list {
+    if info.is_list() {
         payload_path_angle_bracketed(&mut path);
     } else {
         let ty_ident = path.path.segments.last().unwrap().ident.to_string();

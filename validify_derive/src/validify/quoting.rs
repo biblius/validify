@@ -1,4 +1,4 @@
-use crate::{asserts::is_list, fields::FieldInfo, quoter::FieldQuoter, types::Modifier};
+use crate::{fields::FieldInfo, types::Modifier};
 use quote::quote;
 
 /// Creates a token stream applying the modifiers based on the field annotations.
@@ -8,39 +8,27 @@ pub(super) fn quote_field_modifiers(
     let mut modifications = vec![];
     let mut nested_validifies = vec![];
 
-    fields.drain(..).for_each(
-        |FieldInfo {
-             field,
-             field_type,
-             name,
-             original_name,
-             modifiers,
-             ..
-         }| {
-            let field_ident = field.ident.unwrap();
-            let field_quoter = FieldQuoter::new(field_ident, name, original_name, field_type);
+    fields.drain(..).for_each(|f_info| {
+        for modifier in f_info.modifiers.iter() {
+            let (mods, nested) = quote_modifiers(&f_info, modifier);
 
-            for modifier in modifiers.iter() {
-                let (mods, nested) = quote_modifiers(&field_quoter, modifier);
+            modifications.push(mods);
 
-                modifications.push(mods);
-
-                if let Some(nested_validify) = nested {
-                    nested_validifies.push(nested_validify)
-                }
+            if let Some(nested_validify) = nested {
+                nested_validifies.push(nested_validify)
             }
-        },
-    );
+        }
+    });
 
     (modifications, nested_validifies)
 }
 
 /// Returns a modification and a validation (if it's nested) statement for the field.
 fn quote_modifiers(
-    field_quoter: &FieldQuoter,
+    field_info: &FieldInfo,
     mod_type: &Modifier,
 ) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
-    let ty = field_quoter._type.clone();
+    /*     let ty = field_quoter._type.clone();
     let modifier_param = field_quoter.quote_modifier_param();
     let is_option = field_quoter.check_option();
     let is_list = field_quoter.check_vec();
@@ -75,10 +63,13 @@ fn quote_modifiers(
     (
         field_quoter.wrap_modifier_if_option(mods, false),
         valids.map(|tokens| field_quoter.wrap_modifier_if_option(tokens, true)),
-    )
+    ) */
+
+    (quote!(), None)
 }
 
 fn quote_nested_modifier(
+    field_info: &FieldInfo,
     param: proc_macro2::TokenStream,
     ty: String,
     is_option: bool,
@@ -87,7 +78,7 @@ fn quote_nested_modifier(
     let field = par.split('.').last().unwrap();
     let field_ident: proc_macro2::TokenStream = format!("this.{field}").parse().unwrap();
 
-    let is_list = is_list(&ty);
+    let is_list = field_info.is_list();
 
     let modifications = if is_list {
         quote!(

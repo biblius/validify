@@ -36,38 +36,3 @@ impl ValidationMeta for ParseNestedMeta<'_> {
         group_cursor.ident().is_some() && size == 1
     }
 }
-
-pub fn is_map(_type: &str) -> bool {
-    if let Some(stripped) = _type.strip_prefix("Option<") {
-        is_map(stripped)
-    } else if let Some(stripped) = _type.strip_prefix('&') {
-        is_map(stripped)
-    } else {
-        _type.starts_with("HashMap<")
-            || _type.starts_with("FxHashMap<")
-            || _type.starts_with("FnvHashMap<")
-            || _type.starts_with("BTreeMap<")
-            || _type.starts_with("IndexMap<")
-    }
-}
-
-pub fn is_list(_type: &str) -> bool {
-    if let Some(stripped) = _type.strip_prefix('&') {
-        is_list(stripped)
-    } else if let Some(stripped) = _type.strip_prefix("Option<") {
-        is_list(stripped)
-    } else {
-        _type.starts_with("Vec<")
-            || _type.starts_with("HashSet<")
-            || _type.starts_with("BTreeSet<")
-            || _type.starts_with("IndexSet<")
-            || _type.starts_with('[')
-    }
-}
-
-pub fn is_nested_validify(field: &syn::Field) -> bool {
-    field
-        .attrs
-        .iter()
-        .any(|attr| attr.path().is_ident("validify") && attr.meta.require_path_only().is_ok())
-}
