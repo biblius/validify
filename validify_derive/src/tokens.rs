@@ -128,7 +128,7 @@ impl ToValidationTokens for Time {
         let Time {
             op,
             inclusive,
-            path_type,
+            multiplier,
             ref format,
             ref duration,
             ref target,
@@ -149,7 +149,7 @@ impl ToValidationTokens for Time {
         let duration = if let Some(duration) = duration {
             match duration {
                 ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
-                ValueOrPath::Path(path) => match path_type {
+                ValueOrPath::Path(path) => match multiplier {
                     TimeMultiplier::Seconds => quote!(chrono::Duration::seconds(#path)),
                     TimeMultiplier::Minutes => quote!(chrono::Duration::minutes(#path)),
                     TimeMultiplier::Hours => quote!(chrono::Duration::hours(#path)),
