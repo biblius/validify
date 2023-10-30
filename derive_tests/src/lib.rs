@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use validify::{field_err, schema_err, schema_validation, ValidationError};
+use validify::ValidationError;
 #[allow(unused_imports)]
 use validify::{ValidationErrors, Validify};
 
@@ -74,13 +74,21 @@ fn bar(_a: &str) -> Result<(), ValidationError> {
     Ok(())
 }
 
-#[schema_validation]
 fn validator_test(t: &T) -> Result<(), ValidationErrors> {
-    if t.a == "Super no" {
+    /* if t.a == "Super no" {
         field_err!("a", "breh", "Can't be super no", errors);
-    }
+    }*/
+    let mut errors = ValidationErrors::new();
     if t.a == "YOLO" && t.e.is_none() {
-        schema_err!("Invalid YOLO", "Can't yolo with non existent e", errors)
+        errors.add(
+            ValidationError::new_schema("Invalid YOLO")
+                .with_message("Can't yolo with non existent e".to_string()),
+        );
+    }
+    if !errors.is_empty() {
+        Err(errors)
+    } else {
+        Ok(())
     }
 }
 
@@ -104,5 +112,4 @@ fn validate() {
         err.errors()[0].message(),
         Some("Can't yolo with non existent e".to_string())
     );
-    err.errors();
 }

@@ -5,25 +5,41 @@ use std::{collections::HashMap, fmt::Display};
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ValidationError {
     Schema {
+        /// The 'code' usually indicating what type of validation failed
         code: &'static str,
+
+        /// An optional message for the error
         message: Option<String>,
+
+        /// Where in the struct the validation failed. Similar to JSON pointers.
+        /// Always '/' for schema.
         location: String,
     },
     Field {
-        field: &'static str,
+        /// The name of the field
+        field: Option<&'static str>,
+
+        /// The 'code' usually indicating what type of validation failed
         code: &'static str,
+
+        /// The parameters used to specify the exact cause of validation failure.
+        /// Will usually be `actual` and `target`.
         params: Box<HashMap<&'static str, Value>>,
+
+        /// An optional message for the error
         message: Option<String>,
+
+        /// Where in the struct the validation failed. Similar to JSON pointers.
         location: String,
     },
 }
 
 impl ValidationError {
-    /// Create a new field error with the given code. The field is used for the field
-    /// identifier and will be used in the error location for custom errors.
-    pub fn new_field(field: &'static str, code: &'static str) -> ValidationError {
+    /// Creates a new field validation error. This should be used when returning errors from
+    /// reusable custom functions as validify will automatically set field names.
+    pub fn new_field(code: &'static str) -> ValidationError {
         ValidationError::Field {
-            field,
+            field: None,
             code,
             message: None,
             params: Box::<HashMap<&'static str, Value>>::default(),
@@ -31,6 +47,18 @@ impl ValidationError {
         }
     }
 
+    /// Creates a new field error with the given field name and code.
+    pub fn new_field_named(field: &'static str, code: &'static str) -> ValidationError {
+        ValidationError::Field {
+            field: Some(field),
+            code,
+            message: None,
+            params: Box::<HashMap<&'static str, Value>>::default(),
+            location: String::new(),
+        }
+    }
+
+    /// Creates a new schema error with the given code
     pub fn new_schema(code: &'static str) -> ValidationError {
         ValidationError::Schema {
             code,
@@ -39,10 +67,17 @@ impl ValidationError {
         }
     }
 
+    /// Set the field name to the given one if the error is a field error
+    pub fn set_field(&mut self, field: &'static str) {
+        if let ValidationError::Field { field: f, .. } = self {
+            *f = Some(field);
+        }
+    }
+
     /// Get the error's field name if it was a field error
     pub fn field_name(&self) -> Option<&str> {
         if let ValidationError::Field { field, .. } = self {
-            Some(field)
+            *field
         } else {
             None
         }
@@ -169,8 +204,7 @@ impl ValidationErrors {
         ValidationErrors(Vec::new())
     }
 
-    /// Returns the combined outcome of a struct's validation result along with the nested
-    /// validation result for one of its fields.
+    /// Merge validation errors from the given arg to the calling errors.
     pub fn merge(&mut self, errors: ValidationErrors) {
         self.0.append(
             &mut errors
@@ -248,7 +282,7 @@ impl std::fmt::Display for ValidationError {
                 let message = message.as_ref().map_or_else(|| "", |f| f);
                 write!(
                     fmt,
-                    "Validation error: {{ code: {code} location: {location}, field: {field}, message: {message}, params: {params:?} }}",
+                    "Validation error: {{ code: {code} location: {location}, field: {}, message: {message}, params: {params:?} }}", field.unwrap()
                 )
             }
         }

@@ -417,15 +417,14 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                     .unwrap()
             {
                 Err(ValidationError::new_field(
-                    "field",
-                    "Date cannot be less than now",
+                    "invalid_date",
                 ))
             } else {
                 Ok(())
             }
         }
         Err(e) => {
-            Err(ValidationError::new_field("field", "Could not parse date"))
+            Err(ValidationError::new_field("invalid_date"))
         }
     }
 }
@@ -442,8 +441,7 @@ fn validate_names(names: &[String]) -> Result<(), ValidationError> {
     for n in names.iter() {
         if n.len() > 10 || n.is_empty() {
             return Err(ValidationError::new_field(
-                "names",
-                "Maximum length of 10 exceeded for name",
+                "invalid_name"
             ));
         }
     }

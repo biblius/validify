@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use validify::{schema_err, schema_validation, Validify};
+use validify::Validify;
 use validify::{ValidationError, ValidationErrors};
 
 #[derive(Debug, Deserialize, Validify)]
@@ -368,31 +368,34 @@ struct TestLanguages {
     created_by: String,
 }
 
-#[schema_validation]
 fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
+    let mut errors = ValidationErrors::new();
     if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        schema_err!("Fulltime contract cannot have part time period", errors);
+        errors.add(ValidationError::new_schema(
+            "Fulltime contract cannot have part time period",
+        ));
     }
 
     if bb.contract_type == "Fulltime"
         && bb.indefinite_probation_period
         && bb.indefinite_probation_period_duration.is_none()
     {
-        schema_err!(
-            "No probation duration",
-            "Indefinite probation duration must be specified",
-            errors
-        );
+        errors.add(ValidationError::new_schema(
+            "Fulltime contract cannot have part time period",
+        ));
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
     }
 }
 
 fn validate_names(names: &[String]) -> Result<(), ValidationError> {
     for n in names.iter() {
         if n.len() > 10 || n.is_empty() {
-            return Err(ValidationError::new_field(
-                "names",
-                "Maximum length of 10 exceeded for name",
-            ));
+            return Err(ValidationError::new_field("invalid_name"));
         }
     }
     Ok(())
@@ -406,15 +409,12 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
                 < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
                     .unwrap()
             {
-                Err(ValidationError::new_field(
-                    "field",
-                    "Date cannot be less than now",
-                ))
+                Err(ValidationError::new_field("invalid_date"))
             } else {
                 Ok(())
             }
         }
-        Err(_) => Err(ValidationError::new_field("field", "Could not parse date")),
+        Err(_) => Err(ValidationError::new_field("invalid_date")),
     }
 }
 

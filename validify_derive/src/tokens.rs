@@ -28,7 +28,8 @@ pub trait ToValidationTokens {
         let code = self.code();
 
         quote!(
-            let mut err = ::validify::ValidationError::new_field(#field_name, #code);
+            let mut err = ::validify::ValidationError::new_field(#code);
+            err.set_field(#field_name);
             #add_message_quoted
         )
     }
@@ -136,7 +137,8 @@ impl ToValidationTokens for Time {
 
         let code = self.code();
         let quoted_parse_error = quote!(
-            let mut err = ::validify::ValidationError::new_field(#field_name, #code);
+            let mut err = ::validify::ValidationError::new_field(#code);
+            err.set_field(#field_name);
             err.add_param("actual", &#validator_param);
             err.add_param("format", &#format);
             err.set_location(#field_name);
@@ -602,6 +604,8 @@ impl ToValidationTokens for MustMatch {
 impl ToValidationTokens for Custom {
     fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
         let validator_param = field_info.quote_validator_param();
+        let field_name = field_info.name();
+
         let Custom { ref path, .. } = self;
 
         let err_with_msg = if let Some(msg) = self.message() {
@@ -612,8 +616,13 @@ impl ToValidationTokens for Custom {
 
         let quoted = quote!(
             if let Err(mut err) = #path(#validator_param) {
-                let field = err.field_name().unwrap().to_string();
-                err.set_location(field);
+                let f_name = err.field_name().map(|s|s.to_string());
+                if let Some(field_name) = f_name {
+                    err.set_location(field_name);
+                } else {
+                    err.set_field(#field_name);
+                    err.set_location(#field_name);
+                }
                 errors.add(#err_with_msg);
             };
         );

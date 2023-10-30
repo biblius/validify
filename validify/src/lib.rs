@@ -29,12 +29,6 @@ pub trait Validate {
     fn validate(&self) -> Result<(), ValidationErrors>;
 }
 
-impl<T: Validate> Validate for &T {
-    fn validate(&self) -> Result<(), ValidationErrors> {
-        T::validate(*self)
-    }
-}
-
 /// Modifies the struct based on the provided `modify` parameters. Automatically implemented when deriving Validify.
 pub trait Modify {
     /// Apply the provided modifiers to self
@@ -143,7 +137,7 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
     /// impl Validify for Data {
     ///     type Payload = DataPayload;
     ///
-    ///     /* fn validify(payload: Self::Payload) { ... } */
+    ///     fn validify(payload: Self::Payload) { /* ... */ }
     /// }
     ///
     /// ```
@@ -158,56 +152,4 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
         self.modify();
         self.validate()
     }
-}
-
-#[macro_export]
-/// Designed to be used with the [schema_validation] proc macro. Used for ergonomic custom error handling.
-///
-/// Adds a schema validaton error to the generated `ValidationErrors`.
-///
-/// The errors argument should pass in an instance of `ValidationErrors`,
-/// and usually is used with the one generated from `schema_validation`.
-///
-/// Accepts:
-///
-/// `("code", errors)`
-/// `("code", "custom message", errors)`
-macro_rules! schema_err {
-    ($code:literal, $errors:expr) => {
-        $errors.add(::validify::ValidationError::new_schema($code));
-    };
-    ($code:literal, $message:literal, $errors:expr) => {
-        $errors
-            .add(::validify::ValidationError::new_schema($code).with_message($message.to_string()));
-    };
-    ($code:literal, $message:expr, $errors:expr) => {
-        $errors.add(::validify::ValidationError::new_schema($code).with_message($message));
-    };
-}
-
-#[macro_export]
-/// Designed to be used with the [schema_validation] proc macro. Used for ergonomic custom error handling.
-///
-/// Adds a field validaton error to the generated `ValidationErrors`
-///
-///  The errors argument should pass in an instance of `ValidationErrors`,
-/// and usually is used with the one generated from `schema_validation`.
-///
-/// Accepts:
-///
-/// `("field_name", "code", errors)`
-/// `("field_name", "code", "custom message", errors)`
-macro_rules! field_err {
-    ($field:literal, $code:literal, $errors:expr) => {
-        $errors.add(::validify::ValidationError::new_field($field, $code));
-    };
-    ($field:literal, $code:literal, $message:literal, $errors:expr) => {
-        $errors.add(
-            ::validify::ValidationError::new_field($field, $code)
-                .with_message($message.to_string()),
-        );
-    };
-    ($field:literal, $code:literal, $message:expr, $errors:expr) => {
-        $errors.add(::validify::ValidationError::new_field($field, $code).with_message($message));
-    };
 }

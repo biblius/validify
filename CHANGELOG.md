@@ -1,5 +1,12 @@
 # Changelog
 
+- ## 1.1.0
+
+- Rehaul derive macro infrastructure. Improve type checking by using proper syn structs.
+- Remove `field` argument from `ValidationError::new_field` and add `ValidationError::new_field_named`.
+- `custom` validation now automatically appends the field name to the error when `new_field` is used. If the error
+  already has a field name, it will not change it.
+
 - ## 1.0.12
 
 - All error params now represent the violating field's value with `actual` and the expected value as `target` if applicable.

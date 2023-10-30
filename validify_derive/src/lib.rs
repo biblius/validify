@@ -124,7 +124,6 @@ pub fn derive_validify(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// fn validate_unique_username(username: &str) -> Result<(), ValidationError> {
 ///     if username == "xXxShad0wxXx" {
 ///         return Err(ValidationError::new_field(
-///             "first_name",
 ///             "terrible_username",
 ///         ));
 ///     }
@@ -193,7 +192,7 @@ pub fn derive_validate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// fn schema_validation(foo: &Foo) -> Result<(), ValidationErrors> {
 ///     let mut errors = ::validify::ValidationErrors::new();
 ///     if foo.a == "no" {
-///         errors.add(ValidationError::new_field("a", "Can't be no").with_message("Try again".to_string()));;
+///         errors.add(ValidationError::new_field("Can't be no").with_message("Try again".to_string()));;
 ///     }
 ///     if foo.b == 0 && foo.a == "no" {
 ///         errors.add(ValidationError::new_schema("super no", "Done goofd"));
@@ -227,3 +226,36 @@ pub fn schema_validation(
     func.block.stmts.push(return_tokens);
     func.to_token_stream().into()
 }
+/*
+/// Designed to be used with the [schema_validation] macro. Used for ergonomic custom error handling.
+///
+/// Adds a schema validaton error to the generated `ValidationErrors`.
+///
+/// The errors argument should pass in an instance of `ValidationErrors`,
+/// and usually is used with the one generated from `schema_validation`.
+///
+/// Accepts:
+///
+/// `("code")`
+/// `("code", "custom message")`
+#[proc_macro]
+pub fn schema_err(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    todo!()
+}
+
+/// Designed to be used with the [schema_validation] proc macro. Used for ergonomic custom error handling.
+///
+/// Adds a field validaton error to the generated `ValidationErrors`
+///
+/// The errors argument should pass in an instance of `ValidationErrors`,
+/// and usually is used with the one generated from `schema_validation`.
+///
+/// Accepts:
+///
+/// `("field_name", "code")`
+/// `("field_name", "code", "custom message")`
+#[proc_macro]
+pub fn field_err(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    todo!()
+}
+ */

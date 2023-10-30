@@ -21,7 +21,7 @@ fn with_custom_validation() {
         if s == "42069" {
             Ok(())
         } else {
-            Err(ValidationError::new_field("name", "not_cool"))
+            Err(ValidationError::new_field("not_cool"))
         }
     }
 }
@@ -183,7 +183,7 @@ fn with_complex_nesting() {
 
 fn allowed(n: &usize) -> Result<(), ValidationError> {
     if *n > 2 {
-        Err(ValidationError::new_field("obfuscated", "bla"))
+        Err(ValidationError::new_field_named("obfuscated", "bla"))
     } else {
         Ok(())
     }

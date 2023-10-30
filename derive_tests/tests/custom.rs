@@ -5,7 +5,7 @@ fn valid_custom_fn(_: &str) -> Result<(), ValidationError> {
 }
 
 fn invalid_custom_fn(_: &str) -> Result<(), ValidationError> {
-    Err(ValidationError::new_field("val", "meh"))
+    Err(ValidationError::new_field("meh"))
 }
 
 #[test]
@@ -38,12 +38,13 @@ fn can_fail_custom_fn_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "meh");
+    assert_eq!(errs[0].field_name().unwrap(), "val");
 }
 
 #[test]
 fn can_fail_custom_fn_validation_with_field_override() {
     fn invalid_custom_fn_field_override(f: &Foo) -> Result<(), ValidationError> {
-        Err(ValidationError::new_field("overriden", "meh").with_param("done_goofd", &f.bar))
+        Err(ValidationError::new_field_named("overriden", "meh").with_param("done_goofd", &f.bar))
     }
 
     #[derive(Debug, Validate)]
