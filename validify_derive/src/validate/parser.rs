@@ -474,23 +474,23 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
                         }
                         match INTERVALS[i] {
                           "seconds" => {
-                            validation.path_type = TimeMultiplier::Seconds;
+                            validation.multiplier = TimeMultiplier::Seconds;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::seconds(amount).num_seconds()))
                           },
                           "minutes" => {
-                            validation.path_type = TimeMultiplier::Minutes;
+                            validation.multiplier = TimeMultiplier::Minutes;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::minutes(amount).num_seconds()))
                           },
                           "hours" => {
-                            validation.path_type = TimeMultiplier::Hours;
+                            validation.multiplier = TimeMultiplier::Hours;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::hours(amount).num_seconds()))
                           },
                           "days" => {
-                            validation.path_type = TimeMultiplier::Days;
+                            validation.multiplier = TimeMultiplier::Days;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::days(amount).num_seconds()))
                           },
                           "weeks" => {
-                            validation.path_type = TimeMultiplier::Weeks;
+                            validation.multiplier = TimeMultiplier::Weeks;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::weeks(amount).num_seconds()))
                           },
                           _=> unreachable!()
@@ -502,19 +502,19 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
                                 validation.duration = Some(ValueOrPath::Path(path));
                                 match INTERVALS[i] {
                                     "seconds" => {
-                                      validation.path_type = TimeMultiplier::Seconds;
+                                      validation.multiplier = TimeMultiplier::Seconds;
                                     },
                                     "minutes" => {
-                                      validation.path_type = TimeMultiplier::Minutes;
+                                      validation.multiplier = TimeMultiplier::Minutes;
                                     },
                                     "hours" => {
-                                      validation.path_type = TimeMultiplier::Hours;
+                                      validation.multiplier = TimeMultiplier::Hours;
                                     },
                                     "days" => {
-                                      validation.path_type = TimeMultiplier::Days;
+                                      validation.multiplier = TimeMultiplier::Days;
                                     },
                                     "weeks" => {
-                                      validation.path_type = TimeMultiplier::Weeks;
+                                      validation.multiplier = TimeMultiplier::Weeks;
                                     },
                                     _=> unreachable!()
                                   }

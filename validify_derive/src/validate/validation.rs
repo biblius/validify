@@ -250,7 +250,7 @@ pub struct Time {
     pub message: Option<String>,
 
     /// Used in case a path is used for the duration. We have to keep track of which chrono::Duration method to call.
-    pub path_type: TimeMultiplier,
+    pub multiplier: TimeMultiplier,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -305,7 +305,7 @@ impl Time {
         }
 
         let no_multiplier = matches!(self.target, Some(ValueOrPath::Path(_)))
-            && matches!(self.path_type, TimeMultiplier::None);
+            && matches!(self.multiplier, TimeMultiplier::None);
 
         if let (Some(ValueOrPath::Value(date_str)), Some(format)) = (&self.target, &self.format) {
             let dt = NaiveDateTime::parse_from_str(date_str, format);
