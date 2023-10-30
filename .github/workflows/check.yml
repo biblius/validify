@@ -1,9 +1,9 @@
 on:
   push:
     branches:
-      - "master"
-      - "feature/**"
-      - "bugfix/**"
+      - 'master'
+      - 'feature/**'
+      - 'bugfix/**'
   pull_request:
 name: check
 jobs:
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        msrv: [1.65.0]
+        msrv: [1.70.0]
     name: ubuntu / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v4
