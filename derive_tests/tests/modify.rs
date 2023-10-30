@@ -1,11 +1,16 @@
-/* use chrono::NaiveDate;
+use chrono::NaiveDate;
 use serde::Deserialize;
 use std::collections::HashMap;
 use validify::{Modify, Validify};
 
-/**
- * SIMPLE
- */
+fn do_something(input: &mut String) {
+    *input = String::from("modified");
+}
+
+fn do_other(n: &mut usize) {
+    *n = 10;
+}
+
 #[derive(Debug, Deserialize, Validify)]
 struct Testor {
     #[modify(lowercase)]
@@ -21,14 +26,6 @@ struct Testor {
     pub e: usize,
     #[modify(custom(do_other))]
     pub f: Option<usize>,
-}
-
-fn do_something(input: &mut String) {
-    *input = String::from("modified");
-}
-
-fn do_other(n: &mut usize) {
-    *n = 10;
 }
 
 #[test]
@@ -49,9 +46,6 @@ fn simple_modify() {
     assert_eq!(test.e, 10);
     assert_eq!(test.f, Some(10));
 }
-/**
- * NESTED
- */
 
 #[derive(Debug, Validify)]
 struct Testamentor {
@@ -78,16 +72,13 @@ fn nested_modify() {
             b: "ALOHA".to_string(),
         },
     };
-    testamentor.modify();
+
+    testamentor.validify_self().unwrap();
 
     assert_eq!(testamentor.a, "lower me");
     assert_eq!(testamentor.nestor.a, 10);
     assert_eq!(testamentor.nestor.b, "modified");
 }
-
-/**
- * BIG BOY
- */
 
 #[derive(Debug, Deserialize, Validify)]
 struct BigBoy {
@@ -222,10 +213,6 @@ fn custom_with_types() {
     assert_eq!(tt.i.b, "Haha".to_string());
 }
 
-/**
- * FROM JSON
- */
-
 #[derive(Debug, Validify)]
 struct JsonTest {
     #[modify(lowercase)]
@@ -293,4 +280,3 @@ fn trim() {
     assert!(matches!(second.c, Some(a) if a == "WORKS"));
     assert_eq!(second.d, "WORKS");
 }
- */

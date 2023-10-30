@@ -1,11 +1,9 @@
 use proc_macro_error::proc_macro_error;
 use quote::{quote, ToTokens};
 use syn::ItemFn;
-use types::*;
 
-mod asserts;
 mod fields;
-mod types;
+mod tokens;
 mod validate;
 mod validify;
 

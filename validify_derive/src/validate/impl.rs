@@ -1,13 +1,12 @@
-use super::parsing::*;
-use super::quoting::quote_field_validations;
-use super::quoting::quote_struct_validations;
-use crate::asserts::ValidationMeta;
-use crate::fields::FieldInfo;
-use crate::types::ValueOrPath;
-use crate::types::{
+use super::parser::*;
+use super::validation::{
     Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
     SchemaValidation, Url, Validator,
 };
+use crate::fields::FieldInfo;
+use crate::tokens::quote_field_validations;
+use crate::tokens::quote_schema_validations;
+use crate::validate::ValidationMeta;
 use proc_macro_error::abort;
 use quote::quote;
 use syn::parenthesized;
@@ -40,7 +39,7 @@ pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let validations = quote_field_validations(field_info);
 
     let struct_validations = collect_struct_validation(&input.attrs).unwrap();
-    let schema_validations = quote_struct_validations(&struct_validations);
+    let schema_validations = quote_schema_validations(&struct_validations);
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 

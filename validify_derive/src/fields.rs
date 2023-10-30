@@ -1,7 +1,7 @@
 use crate::{
-    types::{Length, Modifier, ToValidifyTokens, Validator, ValueOrPath},
-    validate::{parsing::option_to_tokens, r#impl::collect_validations},
-    validify::r#impl::collect_modifiers,
+    tokens::ToValidationTokens,
+    validate::{r#impl::collect_validations, validation::Validator},
+    validify::{modifier::Modifier, r#impl::collect_modifiers},
 };
 use proc_macro_error::abort;
 use quote::quote;
@@ -45,29 +45,33 @@ impl FieldInfo {
 
     /// Used by both the `Validate` and `Validify` implementations. Validate ignores the modifiers.
     pub fn collect(input: &syn::DeriveInput) -> Vec<Self> {
-        let mut fields = collect_fields(input);
+        let syn::Data::Struct(syn::DataStruct { ref fields, .. }) = input.data else {
+            abort!(
+                input.span(),
+                "#[derive(Validate/Validify)] can only be used on structs with named fields"
+            )
+        };
 
-        let mut field_info = vec![];
+        fields
+            .into_iter()
+            .map(|field| {
+                let field_ident = field
+                    .ident
+                    .as_ref()
+                    .expect("Found unnamed field")
+                    .to_string();
 
-        for field in fields.drain(..) {
-            let field_ident = field
-                .ident
-                .as_ref()
-                .expect("Found unnamed field")
-                .to_string();
+                let (validations, modifiers, original_name) = collect_field_attributes(field);
 
-            let (validations, modifiers, original_name) = collect_field_attributes(&field);
-
-            field_info.push(Self::new(
-                field,
-                field_ident,
-                original_name,
-                validations,
-                modifiers,
-            ));
-        }
-
-        field_info
+                Self::new(
+                    field.clone(),
+                    field_ident,
+                    original_name,
+                    validations,
+                    modifiers,
+                )
+            })
+            .collect::<Vec<_>>()
     }
 
     /// Returns the field name or the name from serde rename. Used for errors.
@@ -77,7 +81,7 @@ impl FieldInfo {
 
     // QUOTING
 
-    /// Returns the validation tokens as the first element and any nested validations as the second.
+    /// Returns the validation tokens. Nested validations are always at the start of the token stream.
     pub fn quote_validation(&self) -> Vec<proc_macro2::TokenStream> {
         let mut nested_validations = vec![];
         let mut quoted_validations = vec![];
@@ -85,13 +89,31 @@ impl FieldInfo {
         for validator in self.validations.iter() {
             let tokens = validator.to_validify_tokens(self);
             match tokens {
-                crate::types::ValidationType::Normal(v) => quoted_validations.push(v),
-                crate::types::ValidationType::Nested(v) => nested_validations.insert(0, v),
+                crate::tokens::ValidationTokens::Normal(v) => quoted_validations.push(v),
+                crate::tokens::ValidationTokens::Nested(v) => nested_validations.insert(0, v),
             }
         }
 
         nested_validations.extend(quoted_validations);
         nested_validations
+    }
+
+    /// Returns the modification tokens as the first element and any nested validifes as the second.
+    pub fn quote_validifes(
+        &self,
+    ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
+        let mut nested_validifies = vec![];
+        let mut quoted_modifications = vec![];
+
+        for modifier in self.modifiers.iter() {
+            let (tokens, nested) = modifier.to_validify_tokens(self);
+            quoted_modifications.push(tokens);
+            if let Some(nested) = nested {
+                nested_validifies.push(nested);
+            }
+        }
+
+        (quoted_modifications, nested_validifies)
     }
 
     /// Quotes the field as necessary for passing the resulting tokens into a validation
@@ -121,6 +143,25 @@ impl FieldInfo {
         }
     }
 
+    /// Returns `self.#ident`, unless the field is an option in which case it just
+    /// returns an `#ident` as we always do a `if let` check on Option fields
+    pub fn quote_modifier_param(&self) -> proc_macro2::TokenStream {
+        let ident = &self.field.ident;
+
+        if self.is_reference() {
+            abort!(
+                ident.span(),
+                "Fields containing modifiers must contain owned data"
+            )
+        }
+
+        if self.is_option() {
+            quote!(#ident)
+        } else {
+            quote!(self.#ident)
+        }
+    }
+
     /// Returns either
     ///
     /// `field` or `self.field`
@@ -144,7 +185,7 @@ impl FieldInfo {
         let field_ident = &self.field.ident;
 
         if self.is_option() {
-            let this = self.option_self_tokens();
+            let this = self.option_self_tokens_validation();
             return quote!(
                 if let #this = self.#field_ident {
                     #tokens
@@ -156,10 +197,10 @@ impl FieldInfo {
     }
 
     /// Wrap the quoted output of a validation with a for loop if
-    /// the field type is a collection (used solely for nested validation)
-    pub fn wrap_if_collection(
+    /// the field type is a collection.
+    pub fn wrap_validator_if_collection(
         &self,
-        validator_field: proc_macro2::TokenStream,
+        param: proc_macro2::TokenStream,
         tokens: proc_macro2::TokenStream,
     ) -> proc_macro2::TokenStream {
         let field_name = &self.name;
@@ -172,7 +213,7 @@ impl FieldInfo {
         // we're only interested in V.
         if self.is_list() {
             quote!(
-                for (i, item) in #prefix #validator_field.iter().enumerate() {
+                for (i, item) in #prefix #param.iter().enumerate() {
                     if let Err(mut errs) = item.validate() {
                         errs.errors_mut().iter_mut().for_each(|err| err.set_location_idx(i, #field_name));
                         errors.merge(errs);
@@ -181,7 +222,7 @@ impl FieldInfo {
             )
         } else if self.is_map() {
             quote!(
-                for (key, item) in #prefix #validator_field.iter() {
+                for (key, item) in #prefix #param.iter() {
                     if let Err(mut errs) = item.validate() {
                         errs.errors_mut().iter_mut().for_each(|err| err.set_location_idx(key, #field_name));
                         errors.merge(errs);
@@ -191,6 +232,56 @@ impl FieldInfo {
         } else {
             tokens
         }
+    }
+
+    pub fn wrap_modifier_if_option(
+        &self,
+        tokens: proc_macro2::TokenStream,
+        use_this: bool,
+    ) -> proc_macro2::TokenStream {
+        let field_ident = &self.field.ident;
+
+        let that = if use_this { quote!(this) } else { quote!(self) };
+
+        if self.is_option() {
+            let this = self.option_self_tokens_modifications();
+            return quote!(
+                if let #this = #that.#field_ident.as_mut() {
+                    #tokens
+                }
+            );
+        }
+
+        tokens
+    }
+
+    /// Wrap the quoted output of a modification in a for loop if
+    /// the field type is a collection.
+    pub fn wrap_modifier_if_collection(
+        &self,
+        param: proc_macro2::TokenStream,
+        tokens: proc_macro2::TokenStream,
+        modifier: &Modifier,
+    ) -> proc_macro2::TokenStream {
+        if !self.is_list() {
+            return tokens;
+        }
+
+        let modified = match modifier {
+            Modifier::Trim => quote!(el.trim().to_string()),
+            Modifier::Uppercase => quote!(el.to_uppercase()),
+            Modifier::Lowercase => quote!(el.to_lowercase()),
+            Modifier::Capitalize => {
+                quote!(::std::format!("{}{}", &el[0..1].to_uppercase(), &el[1..]))
+            }
+            _ => unreachable!("modifier is never wrapped"),
+        };
+
+        quote!(
+            for el in #param.iter_mut() {
+                *el = #modified
+            }
+        )
     }
 
     // ASSERTION
@@ -225,6 +316,10 @@ impl FieldInfo {
         is_string(&self.field.ty)
     }
 
+    pub fn has_time(&self) -> bool {
+        has_time(&self.field.ty)
+    }
+
     /// Returns true if the field is annotated with `#[validify]`
     pub fn is_nested_validify(&self) -> bool {
         self.field
@@ -234,7 +329,7 @@ impl FieldInfo {
     }
 
     /// Return either `field` or `ref field` for the arg in `if let Some(arg)`.
-    pub fn option_self_tokens(&self) -> proc_macro2::TokenStream {
+    fn option_self_tokens_validation(&self) -> proc_macro2::TokenStream {
         let ident = &self.field.ident;
         let is_ref = self.is_reference();
         let mut tokens = if is_ref {
@@ -242,60 +337,69 @@ impl FieldInfo {
         } else {
             quote!(ref #ident)
         };
-        let mut ty = self.field.ty.clone();
+        let mut ty = &self.field.ty;
 
-        while let Some(typ) = try_extract_option(&ty) {
+        while let Some(typ) = try_extract_option(ty) {
             tokens = quote!(Some(#tokens));
-            ty = typ.clone();
+            ty = typ;
+        }
+        tokens
+    }
+
+    fn option_self_tokens_modifications(&self) -> proc_macro2::TokenStream {
+        let ident = &self.field.ident;
+        let mut tokens = quote!(#ident);
+        let mut ty = &self.field.ty;
+
+        while let Some(typ) = try_extract_option(ty) {
+            tokens = quote!(Some(#tokens));
+            ty = typ;
         }
         tokens
     }
 }
 
-fn is_reference(ty: &syn::Type) -> bool {
-    if let syn::Type::Reference(_) = ty {
-        return true;
-    }
-
+fn has_time(ty: &syn::Type) -> bool {
     if let Some(ty) = try_extract_option(ty) {
-        return is_reference(ty);
+        return has_time(ty);
     }
 
-    // Only accepts Option<&T> which is a path
     let syn::Type::Path(p) = ty else {
         return false;
     };
 
-    let Some(seg) = p.path.segments.last() else {
-        return false;
-    };
-
-    if &seg.ident == "Option" {
-        return false;
-    }
-
-    let syn::PathArguments::AngleBracketed(ref ab) = seg.arguments else {
-        return false;
-    };
-
-    let Some(arg) = ab.args.last() else {
-        return false;
-    };
-
-    match arg {
-        syn::GenericArgument::Type(ty) => is_reference(ty),
-        _ => false,
+    if let Some(id) = p.path.get_ident() {
+        id.to_string().contains("Time")
+    } else {
+        false
     }
 }
 
+fn is_reference(ty: &syn::Type) -> bool {
+    // Strip any `Option`s
+    if let Some(ty) = try_extract_option(ty) {
+        return is_reference(ty);
+    }
+
+    matches!(ty, syn::Type::Reference(_))
+}
+
+fn is_string(ty: &syn::Type) -> bool {
+    if let Some(ty) = try_extract_option(ty) {
+        return is_string(ty);
+    }
+
+    matches!(ty, syn::Type::Path(p) if p.path.is_ident("String"))
+}
+
 fn is_list(ty: &syn::Type) -> bool {
+    if let Some(ty) = try_extract_option(ty) {
+        return is_list(ty);
+    }
+
     // We consider arrays lists
     if let syn::Type::Array(_) = ty {
         return true;
-    }
-
-    if let Some(ty) = try_extract_option(ty) {
-        return is_list(ty);
     }
 
     // If it's not a path, it's not a list
@@ -331,22 +435,6 @@ fn is_map(ty: &syn::Type) -> bool {
     seg.ident == "HashMap" || seg.ident == "BTreeMap" || seg.ident == "IndexMap"
 }
 
-fn is_string(ty: &syn::Type) -> bool {
-    if let Some(ty) = try_extract_option(ty) {
-        return is_string(ty);
-    }
-
-    let syn::Type::Path(p) = ty else {
-        return false;
-    };
-
-    let Some(seg) = p.path.segments.last() else {
-        return false;
-    };
-
-    seg.ident == "String"
-}
-
 fn try_extract_option(ty: &syn::Type) -> Option<&syn::Type> {
     let syn::Type::Path(p) = ty else {
         return None;
@@ -370,25 +458,6 @@ fn try_extract_option(ty: &syn::Type) -> Option<&syn::Type> {
     match arg {
         syn::GenericArgument::Type(ty) => Some(ty),
         _ => None,
-    }
-}
-
-fn collect_fields(input: &syn::DeriveInput) -> Vec<syn::Field> {
-    match input.data {
-        syn::Data::Struct(syn::DataStruct { ref fields, .. }) => {
-            if fields.iter().any(|field| field.ident.is_none()) {
-                abort!(
-                    fields.span(),
-                    "#[derive(Validate/Validify)] can only be used on structs with named fields"
-                );
-            }
-
-            fields.iter().cloned().collect::<Vec<syn::Field>>()
-        }
-        _ => abort!(
-            input.span(),
-            "#[derive(Validate/Validify)] can only be used on structs with named fields"
-        ),
     }
 }
 

@@ -1,6 +1,10 @@
 use proc_macro_error::abort;
 use syn::meta::ParseNestedMeta;
 
+pub mod r#impl;
+pub mod parser;
+pub mod validation;
+
 pub trait ValidationMeta {
     /// Returns `true` if the meta consists of an ident, code and message.
     /// Used for simple path validators.

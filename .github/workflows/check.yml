@@ -88,3 +88,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: check
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+          CARGO_PKG_README: /home/runner/work/validify/README.md

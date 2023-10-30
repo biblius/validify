@@ -1,4 +1,4 @@
-/* use chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
 use validify::{field_err, schema_err, schema_validation, ValidationError};
 #[allow(unused_imports)]
 use validify::{ValidationErrors, Validify};
@@ -29,7 +29,7 @@ struct T {
     #[validate(contains("lmeo"))]
     c: Vec<String>,
 
-    // #[modify(custom(baz), trim, uppercase)]
+    #[modify(custom(baz), trim, uppercase)]
     #[validate(length(min = 1), is_in(ALLOWED), not_in(DISALLOWED))]
     d: Option<String>,
 
@@ -106,4 +106,3 @@ fn validate() {
     );
     err.errors();
 }
- */

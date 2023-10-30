@@ -35,16 +35,6 @@ impl<T: Validate> Validate for &T {
     }
 }
 
-impl<T: Validate> Validate for Option<T> {
-    fn validate(&self) -> Result<(), ValidationErrors> {
-        if let Some(this) = self {
-            this.validate()
-        } else {
-            Ok(())
-        }
-    }
-}
-
 /// Modifies the struct based on the provided `modify` parameters. Automatically implemented when deriving Validify.
 pub trait Modify {
     /// Apply the provided modifiers to self
@@ -129,7 +119,7 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
     /// an accompanying payload struct:
     ///
     /// ```
-    /// #[derive(Debug, Clone, serde::Deserialize, Validify)]
+    /// #[derive(Debug, Clone, serde::Deserialize, validify::Validify)]
     /// struct Data {
     ///     a: String,
     ///     b: Option<String>
@@ -161,21 +151,12 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
 
     /// Apply the provided modifiers to the payload and run validations, returning the original
     /// struct if all the validations pass.
-    fn validify(payload: Self::Payload) -> Result<Self, ValidationErrors> {
-        // Since the payload is all options, this will
-        // only check if there are missing required fields
-        <Self::Payload as Validate>::validate(&payload)?;
-        let mut this = Self::from(payload);
-        <Self as Modify>::modify(&mut this);
-        <Self as Validate>::validate(&this)?;
-        Ok(this)
-    }
+    fn validify(payload: Self::Payload) -> Result<Self, ValidationErrors>;
 
     /// Apply the provided modifiers to self and run validations.
     fn validify_self(&mut self) -> Result<(), ValidationErrors> {
         self.modify();
-        self.validate()?;
-        Ok(())
+        self.validate()
     }
 }
 
