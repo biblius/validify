@@ -1,4 +1,4 @@
-/* use serde::Deserialize;
+use serde::Deserialize;
 use validify::{schema_err, schema_validation, Validify};
 use validify::{ValidationError, ValidationErrors};
 
@@ -558,4 +558,3 @@ fn biggest_of_bois() {
     assert_eq!(schema_errs.len(), 2);
     assert_eq!(field_errs.len(), 9);
 }
- */

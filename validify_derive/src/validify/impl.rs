@@ -1,5 +1,6 @@
-use super::quoting::quote_field_modifiers;
-use crate::{fields::FieldInfo, types::Modifier, validate::r#impl::impl_validate};
+use super::modifier::Modifier;
+use crate::tokens::quote_field_modifiers;
+use crate::{fields::FieldInfo, validate::r#impl::impl_validate};
 use proc_macro_error::abort;
 use quote::quote;
 use syn::parenthesized;

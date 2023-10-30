@@ -1,13 +1,53 @@
-use crate::types::{
+use super::validation::{
     Contains, CreditCard, Custom, Email, In, Ip, Length, MustMatch, NonControlChar, Phone, Range,
-    Regex, Required, Time, TimeMultiplier, TimeOp, Url, ValueOrPath,
+    Regex, Required, Time, TimeMultiplier, TimeOp, Url,
 };
 use proc_macro2::Span;
 use proc_macro_error::abort;
 use quote::quote;
+use quote::ToTokens;
 use syn::{meta::ParseNestedMeta, punctuated::Punctuated, LitBool, LitFloat, LitInt, LitStr};
 
-macro_rules! parse_pattern {
+/// Used to encapsulate either a literal value or a path in annotations.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValueOrPath<T> {
+    Value(T),
+    Path(syn::Path),
+}
+
+impl<T> ToTokens for ValueOrPath<T>
+where
+    T: ToTokens,
+{
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            ValueOrPath::Value(val) => tokens.extend(quote!(#val)),
+            ValueOrPath::Path(path) => tokens.extend(quote!(#path)),
+        }
+    }
+}
+
+impl<T> ValueOrPath<T>
+where
+    T: quote::ToTokens + std::clone::Clone + std::cmp::PartialEq + std::fmt::Debug,
+{
+    pub fn tokens(&self) -> proc_macro2::TokenStream {
+        match self {
+            ValueOrPath::Value(val) => quote!(#val),
+            ValueOrPath::Path(path) => quote!(#path),
+        }
+    }
+
+    pub fn peek_value(&self) -> Option<&T> {
+        let Self::Value(ref value) = self else {
+            return None;
+        };
+        Some(value)
+    }
+}
+
+/// Generates a function that parses a simple validation.
+macro_rules! parser {
     ($fn_id:ident, $id:ident) => {
         pub fn $fn_id(meta: &ParseNestedMeta) -> Result<$id, syn::Error> {
             let mut validation = $id::default();
@@ -21,6 +61,7 @@ macro_rules! parse_pattern {
     };
 }
 
+/// Used by individual validations to extract the code and message from the annotations.
 macro_rules! code_and_message {
     ($validation:ident, $meta:ident) => {
         if $meta.path.is_ident("message") {
@@ -43,12 +84,12 @@ macro_rules! code_and_message {
     };
 }
 
-parse_pattern!(parse_email_full, Email);
-parse_pattern!(parse_url_full, Url);
-parse_pattern!(parse_non_control_char_full, NonControlChar);
-parse_pattern!(parse_phone_full, Phone);
-parse_pattern!(parse_credit_card_full, CreditCard);
-parse_pattern!(parse_required_full, Required);
+parser!(parse_email_full, Email);
+parser!(parse_url_full, Url);
+parser!(parse_non_control_char_full, NonControlChar);
+parser!(parse_phone_full, Phone);
+parser!(parse_credit_card_full, CreditCard);
+parser!(parse_required_full, Required);
 
 pub fn parse_length(meta: &ParseNestedMeta) -> Result<Length, syn::Error> {
     let mut validation = Length::default();
@@ -330,8 +371,8 @@ pub fn parse_ip_full(meta: &ParseNestedMeta) -> Result<Ip, syn::Error> {
             let content = meta.value()?;
             match content.parse::<syn::LitStr>() {
                 Ok(format) => match format.value().as_str() {
-                    "v4" => validation.format = Some(crate::types::IpFormat::V4),
-                    "v6" => validation.format = Some(crate::types::IpFormat::V6),
+                    "v4" => validation.format = Some(super::validation::IpFormat::V4),
+                    "v6" => validation.format = Some(super::validation::IpFormat::V6),
                     _ => abort!(format.span(), "Invalid IP format, accepted are: v4, v6"),
                 },
                 Err(_) => {
@@ -496,11 +537,4 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
     validation.assert(meta)?;
 
     Ok(validation)
-}
-
-pub fn option_to_tokens<T: quote::ToTokens>(opt: &Option<T>) -> proc_macro2::TokenStream {
-    match opt {
-        Some(ref t) => quote!(::std::option::Option::Some(#t)),
-        None => quote!(::std::option::Option::None),
-    }
 }

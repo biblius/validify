@@ -1,22 +1,18 @@
-use crate::fields::FieldInfo;
+use super::parser::ValueOrPath;
 use chrono::{NaiveDate, NaiveDateTime};
 use proc_macro_error::abort;
-use quote::ToTokens;
-use syn::{
-    __private::quote::{self, quote},
-    meta::ParseNestedMeta,
-    spanned::Spanned,
-    Lit,
-};
+use syn::{meta::ParseNestedMeta, spanned::Spanned, Lit};
 
-pub trait ToValidifyTokens {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationType;
+#[derive(Debug)]
+pub struct SchemaValidation {
+    pub function: syn::Path,
 }
 
-/// Whether the tokens are for nested or direct validations.
-pub enum ValidationType {
-    Normal(proc_macro2::TokenStream),
-    Nested(proc_macro2::TokenStream),
+/// Trait implemented by validators to output validation codes and messages.
+pub trait Describe {
+    fn code(&self) -> &str;
+
+    fn message(&self) -> Option<&str>;
 }
 
 /// Contains all the validators that can be used
@@ -40,101 +36,6 @@ pub enum Validator {
     Nested,
 }
 
-impl ToValidifyTokens for Validator {
-    fn to_validify_tokens(&self, field_info: &crate::fields::FieldInfo) -> ValidationType {
-        match self {
-            Validator::Email(v) => v.to_validify_tokens(field_info),
-            Validator::Url(v) => v.to_validify_tokens(field_info),
-            Validator::CreditCard(v) => v.to_validify_tokens(field_info),
-            Validator::Phone(v) => v.to_validify_tokens(field_info),
-            Validator::Custom(v) => v.to_validify_tokens(field_info),
-            Validator::Range(v) => v.to_validify_tokens(field_info),
-            Validator::Length(v) => v.to_validify_tokens(field_info),
-            Validator::NonControlCharacter(v) => v.to_validify_tokens(field_info),
-            Validator::Required(v) => v.to_validify_tokens(field_info),
-            Validator::MustMatch(v) => v.to_validify_tokens(field_info),
-            Validator::Regex(v) => v.to_validify_tokens(field_info),
-            Validator::Contains(v) => v.to_validify_tokens(field_info),
-            Validator::Time(v) => v.to_validify_tokens(field_info),
-            Validator::In(v) => v.to_validify_tokens(field_info),
-            Validator::Ip(v) => v.to_validify_tokens(field_info),
-            Validator::Nested => {
-                let validator_field = field_info.quote_validator_field();
-                let field_name = field_info.name();
-                let quoted = quote!(
-                    if let Err(mut errs) = #validator_field.validate() {
-                        errs.errors_mut().iter_mut().for_each(|err| err.set_location(#field_name));
-                        errors.merge(errs);
-                    }
-                );
-                ValidationType::Nested(
-                    field_info.wrap_tokens_if_option(
-                        field_info.wrap_if_collection(validator_field, quoted),
-                    ),
-                )
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Modifier {
-    Trim,
-    Uppercase,
-    Lowercase,
-    Capitalize,
-    Custom { function: syn::Path },
-    Nested,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ValueOrPath<T> {
-    Value(T),
-    Path(syn::Path),
-}
-
-impl<T> ToTokens for ValueOrPath<T>
-where
-    T: ToTokens,
-{
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            ValueOrPath::Value(val) => tokens.extend(quote!(#val)),
-            ValueOrPath::Path(path) => tokens.extend(quote!(#path)),
-        }
-    }
-}
-
-impl<T> ValueOrPath<T>
-where
-    T: quote::ToTokens + std::clone::Clone + std::cmp::PartialEq + std::fmt::Debug,
-{
-    pub fn to_tokens(&self) -> proc_macro2::TokenStream {
-        match self {
-            ValueOrPath::Value(val) => quote!(#val),
-            ValueOrPath::Path(path) => quote!(#path),
-        }
-    }
-
-    pub fn peek_value(&self) -> Option<&T> {
-        let Self::Value(ref value) = self else {
-            return None;
-        };
-        Some(value)
-    }
-}
-
-#[derive(Debug)]
-pub struct SchemaValidation {
-    pub function: syn::Path,
-}
-
-pub trait Describe {
-    fn code(&self) -> &str;
-
-    fn message(&self) -> Option<&str>;
-}
-
 macro_rules! validation {
     ($id:ident : $code:literal $(,)? $($der:path),* ; $($key:ident : $typ:ty $(,)?),*) => {
         #[derive(Debug, $($der),*)]
@@ -144,7 +45,7 @@ macro_rules! validation {
             pub message: Option<String>,
         }
 
-        impl $crate::types::Describe for $id {
+        impl $crate::validate::validation::Describe for $id {
             fn code(&self) -> &str {
                 if let Some(ref code) = self.code {
                    code
@@ -407,17 +308,12 @@ impl Time {
             && matches!(self.path_type, TimeMultiplier::None);
 
         if let (Some(ValueOrPath::Value(date_str)), Some(format)) = (&self.target, &self.format) {
-            dbg!(date_str, format);
-            if NaiveDateTime::parse_from_str(date_str, format).is_err() {
+            let dt = NaiveDateTime::parse_from_str(date_str, format);
+            let d = NaiveDate::parse_from_str(date_str, format);
+            if dt.is_err() && d.is_err() {
                 abort!(
                     meta.path.span(),
-                    "The target datetime string does not match the provided format"
-                )
-            }
-            if NaiveDate::parse_from_str(date_str, format).is_err() {
-                abort!(
-                    meta.path.span(),
-                    "The target date string does not match the provided format"
+                    "The target string does not match the provided format"
                 )
             }
         }

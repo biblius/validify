@@ -140,7 +140,7 @@ Notice how even though field `d` is an option, the function used to modify the f
 Every struct annotated with `#[derive(Validify)]` gets an associated payload struct, e.g.
 
 ```rust
-#[derive(Validify)]
+#[derive(validify::Validify)]
 struct Something {
   a: usize,
   b: String,
@@ -151,13 +151,13 @@ struct Something {
 behind the scenes will generate an intermediary
 
 ```rust
-#[derive(Debug, Clone, Deserialize, validify::Validate)]
+#[derive(Debug, Clone, serde::Deserialize, validify::Validate)]
 struct SomethingPayload {
   #[validate(required)]
   a: Option<usize>,
   #[validate(required)]
-  b: Option<String>
-  c: Option<bool>
+  b: Option<String>,
+  c: Option<bool>,
 
   /* From and Into impls */
 }
@@ -190,24 +190,25 @@ Validify's `validify` method is called from the original struct with the associa
 Schema level validations can be performed using the following:
 
 ```rust
-#[derive(Validify)]
+use validify::{Validify, ValidationErrors, schema_validation, schema_err};
+#[derive(validify::Validify)]
 #[validate(validate_testor)]
 struct Testor {
     a: String,
     b: usize,
- }
+}
 
 #[schema_validation]
 fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
   if t.a.as_str() == "yolo" && t.b < 2 {
-    validify::schema_err!("Invalid Yolo", "Cannot yolo with b < 2", errors);
+    schema_err!("Invalid Yolo", "Cannot yolo with b < 2", errors);
   }
 }
 ```
 
 The `#[schema_validation]` proc macro expands the function to:
 
-```rust
+```rust, ignore
 fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
     let mut errors = ValidationErrors::new();
     if t.a == "yolo" && t.b < 2 {
@@ -256,7 +257,9 @@ One parameter that is always appended is the `actual` field which represents the
 ### **Date\[times]s**
 
 ```rust
-#[derive(Debug, Validate)]
+use chrono::{NaiveDate, NaiveDateTime};
+
+#[derive(Debug, validify::Validate)]
 struct DateTimeExamples {
     #[validate(time(op = before, target = "2500-04-20", format = "%Y-%m-%d", inclusive = true))]
     before: NaiveDate,
@@ -274,27 +277,31 @@ struct DateTimeExamples {
 ### **With route handler**
 
 ```rust
-    fn actix_test() {
-      #[derive(Debug, Validify)]
-      struct JsonTest {
-          #[modify(lowercase)]
-          a: String,
-          #[modify(trim, uppercase)]
-          #[validate(length(equal = 11))]
-          b: String,
-      }
+    use validify::Validify;
 
+    #[derive(Debug, Validify)]
+    struct JsonTest {
+        #[modify(lowercase)]
+        a: String,
+        #[modify(trim, uppercase)]
+        #[validate(length(equal = 11))]
+        b: String,
+    }
+
+    // This would normally come from a framework
+    struct Json<T>(T);
+
+    fn test() {
       let jt = JsonTest {
           a: "MODIFIED".to_string(),
           b: "    makemeshout    ".to_string(),
       };
-
-      let json = actix_web::web::Json(jt.into());
+      let json = Json(jt.into());
       mock_handler(json)
     }
 
-    fn mock_handler(data: actix_web::web::Json<JsonTestPayload>
-    /* OR data: actix_web::web::Json<<JsonTest as Validify>::Payload> */) {
+    fn mock_handler(data: Json<JsonTestPayload>
+    /* OR data: Json<<JsonTest as Validify>::Payload> */) {
       let data = data.0;
       let data = JsonTest::validify(data).unwrap();
       mock_service(data);
@@ -309,6 +316,8 @@ struct DateTimeExamples {
 ### **Big Boi**
 
 ```rust
+use validify::{Validify, ValidationError, ValidationErrors, schema_validation, schema_err};
+use serde::Deserialize;
 
 const WORKING_HOURS: &[&str] = &["08", "09", "10", "11", "12", "13", "14", "15", "16"];
 const CAREER_LEVEL: &[&str] = &["One", "Two", "Over 9000"];
@@ -496,7 +505,6 @@ fn biggest_of_bois() {
         status: "invalid".to_string(),
 
         city_country: "gradrzava".to_string(),
-        description_roles_responsibilites: "ask no questions tell no lies".to_string(),
         education: "any".to_string(),
         type_of_workplace: vec!["dumpster".to_string(), "mcdonalds".to_string()],
 
