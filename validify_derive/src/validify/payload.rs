@@ -1,7 +1,6 @@
 use crate::fields::FieldInfo;
-use proc_macro2::{Ident, Span};
 use proc_macro_error::abort;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use syn::spanned::Spanned;
 
@@ -14,10 +13,7 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
         .collect::<Vec<_>>();
     let visibility = &input.vis;
 
-    let payload_ident = syn::Ident::new(
-        &format!("{}Payload", &input.ident.to_string()),
-        Span::call_site(),
-    );
+    let payload_ident = format_ident!("{}Payload", &input.ident);
 
     let fields = FieldInfo::collect(input);
 
@@ -39,7 +35,7 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let quoted = quote!(
-        #[derive(Debug, Clone, ::validify::Validate, serde::Deserialize)]
+        #[derive(Debug, ::validify::Validate, serde::Deserialize)]
         #(#attributes)*
         #visibility struct #payload_ident #ty_generics #where_clause {
             #(#payload_fields)*
@@ -101,8 +97,7 @@ fn map_payload_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
         payload_path_angle_bracketed(inner_path);
     } else {
         let type_ident = inner_path.path.segments.last().unwrap().ident.to_string();
-        inner_path.path.segments.last_mut().unwrap().ident =
-            Ident::new(&format!("{type_ident}Payload"), Span::call_site());
+        inner_path.path.segments.last_mut().unwrap().ident = format_ident!("{type_ident}Payload");
     }
 
     let payload_type = syn::Type::Path(path);
@@ -122,6 +117,7 @@ fn map_from_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
                 #ident: payload.#ident.map(|v|v.into_iter().map(|el|el.into()).collect()),
             );
         }
+
         if info.is_nested_validify() {
             return quote!(
                 #ident: payload.#ident.map(|o|o.into()),
@@ -135,9 +131,11 @@ fn map_from_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
         if info.is_nested_validify() && info.is_list() {
             return quote!(#ident: payload.#ident.unwrap().into_iter().map(|el|el.into()).collect(),);
         }
+
         if info.is_nested_validify() {
             return quote!(#ident: payload.#ident.unwrap().into(),);
         }
+
         quote!(#ident: payload.#ident.unwrap(),)
     }
 }
@@ -169,7 +167,7 @@ fn map_into_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
 }
 
 fn payload_path_angle_bracketed(path: &mut syn::TypePath) {
-    // Type is contained in a List<T>. It will always have angle args abd will
+    // Type is contained in a List<T>. It will always have angle args and will
     // always be the last segment of the path
     let syn::PathArguments::AngleBracketed(ref mut args) =
         path.path.segments.last_mut().unwrap().arguments
@@ -186,7 +184,7 @@ fn payload_path_angle_bracketed(path: &mut syn::TypePath) {
         abort!(p.span(), "Invalid path provided for validify")
     };
 
-    segment.ident = Ident::new(&format!("{}Payload", segment.ident), Span::call_site());
+    segment.ident = format_ident!("{}Payload", segment.ident);
 }
 
 fn payload_path(info: &FieldInfo) -> proc_macro2::TokenStream {
@@ -211,8 +209,7 @@ fn payload_path(info: &FieldInfo) -> proc_macro2::TokenStream {
         payload_path_angle_bracketed(&mut path);
     } else {
         let ty_ident = path.path.segments.last().unwrap().ident.to_string();
-        path.path.segments.last_mut().unwrap().ident =
-            Ident::new(&format!("{ty_ident}Payload"), Span::call_site());
+        path.path.segments.last_mut().unwrap().ident = format_ident!("{ty_ident}Payload");
     }
 
     let payload_type = syn::Type::Path(path);
@@ -234,11 +231,13 @@ fn get_inner_path(ty: syn::Type) -> (syn::TypePath, syn::TypePath) {
             "Nested validifes must be structs implementing Validify"
         )
     };
+
     let syn::PathArguments::AngleBracketed(ref mut args) =
         path.path.segments.last_mut().unwrap().arguments
     else {
         abort!(path.span(), "Cannot apply payload type to field")
     };
+
     let syn::GenericArgument::Type(syn::Type::Path(ref mut inner_path)) =
         args.args.last_mut().unwrap()
     else {
@@ -254,8 +253,8 @@ fn get_inner_path(ty: syn::Type) -> (syn::TypePath, syn::TypePath) {
         .unwrap()
         .ident
         .to_string();
-    inner_path.path.segments.last_mut().unwrap().ident =
-        Ident::new(&format!("{type_ident}Payload"), Span::call_site());
+
+    inner_path.path.segments.last_mut().unwrap().ident = format_ident!("{type_ident}Payload");
 
     (original, inner_path.clone())
 }

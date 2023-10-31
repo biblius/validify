@@ -3,6 +3,7 @@ use quote::{quote, ToTokens};
 use syn::{parse::Parse, ItemFn, LitStr, Token};
 
 mod fields;
+mod serde;
 mod tokens;
 mod validate;
 mod validify;

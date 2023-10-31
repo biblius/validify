@@ -9,7 +9,7 @@ lazy_static = "1.4.0"
 regex = "1.7.1"
 
 [dependencies]
-validify = { path = "../validify" }
 chrono = { version = "0.4.23", features = ["serde"] }
 serde = { version = "1.0.147", features = ["derive"] }
 serde_json = "1.0.91"
+validify = { path = "../validify" }

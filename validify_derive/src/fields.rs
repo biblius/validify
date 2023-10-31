@@ -1,11 +1,12 @@
 use crate::{
+    serde::RenameRule,
     tokens::ToValidationTokens,
     validate::{r#impl::collect_validations, validation::Validator},
     validify::{modifier::Modifier, r#impl::collect_modifiers},
 };
 use proc_macro_error::abort;
 use quote::quote;
-use syn::{parenthesized, spanned::Spanned, Expr, Token};
+use syn::spanned::Spanned;
 
 /// Holds the combined validations and modifiers for one field
 #[derive(Debug)]
@@ -24,6 +25,8 @@ pub struct FieldInfo {
 
     /// Modifier annotations
     pub modifiers: Vec<Modifier>,
+
+    pub rename_rule: Option<RenameRule>,
 }
 
 impl FieldInfo {
@@ -33,6 +36,7 @@ impl FieldInfo {
         original_name: Option<String>,
         validations: Vec<Validator>,
         modifiers: Vec<Modifier>,
+        rename_rule: Option<RenameRule>,
     ) -> Self {
         FieldInfo {
             field,
@@ -40,6 +44,7 @@ impl FieldInfo {
             original_name,
             validations,
             modifiers,
+            rename_rule,
         }
     }
 
@@ -51,6 +56,8 @@ impl FieldInfo {
                 "#[derive(Validate/Validify)] can only be used on structs with named fields"
             )
         };
+
+        let rename_rule = crate::serde::find_rename_all(&input.attrs);
 
         fields
             .into_iter()
@@ -69,14 +76,23 @@ impl FieldInfo {
                     original_name,
                     validations,
                     modifiers,
+                    rename_rule,
                 )
             })
             .collect::<Vec<_>>()
     }
 
     /// Returns the field name or the name from serde rename. Used for errors.
-    pub fn name(&self) -> &str {
-        self.original_name.as_deref().unwrap_or(self.name.as_str())
+    pub fn name(&self) -> String {
+        if let Some(ref original_name) = self.original_name {
+            return original_name.clone();
+        }
+
+        if let Some(rule) = self.rename_rule {
+            rule.apply_to_field(&self.name)
+        } else {
+            self.name.clone()
+        }
     }
 
     // QUOTING
@@ -284,6 +300,15 @@ impl FieldInfo {
         )
     }
 
+    /// Return all the field's attributes that are unrelated to validify
+    pub fn remaining_attrs(&self) -> Vec<&syn::Attribute> {
+        self.field
+            .attrs
+            .iter()
+            .filter(|attr| !validify_attr_check(attr))
+            .collect()
+    }
+
     // ASSERTION
 
     /// Returns true if the field is an option.
@@ -357,6 +382,14 @@ impl FieldInfo {
         }
         tokens
     }
+}
+
+/// Check whether the attribute belongs to validify, i.e. is it
+/// `validate`, `modify`, or `validify`.
+pub fn validify_attr_check(attr: &syn::Attribute) -> bool {
+    attr.path().is_ident("validify")
+        || attr.path().is_ident("validate")
+        || attr.path().is_ident("modify")
 }
 
 fn has_time(ty: &syn::Type) -> bool {
@@ -471,56 +504,7 @@ fn collect_field_attributes(field: &syn::Field) -> (Vec<Validator>, Vec<Modifier
     collect_modifiers(&mut modifiers, field);
 
     // The original name refers to the field name set with serde rename.
-    let original_name = find_original_field_name(field);
+    let original_name = crate::serde::find_rename(field);
 
     (validators, modifiers, original_name)
-}
-
-fn find_original_field_name(field: &syn::Field) -> Option<String> {
-    let mut original_name = None;
-    for attr in field.attrs.iter() {
-        if !attr.path().is_ident("serde") {
-            continue;
-        }
-
-        // serde field attributes are always lists
-        let Ok(serde_meta) = attr.meta.require_list() else {
-            continue;
-        };
-
-        let _ = serde_meta.parse_nested_meta(|meta| {
-            if !meta.path.is_ident("rename") {
-                return Ok(());
-            }
-
-            // Covers `rename = "something"`
-            if meta.input.peek(Token!(=)) {
-                let content = meta.value()?;
-                original_name = Some(content.parse::<syn::LitStr>()?.value());
-                return Ok(());
-            }
-
-            // Covers `rename(deserialize = "something")`
-            if meta.input.peek(syn::token::Paren) {
-                let content;
-                parenthesized!(content in meta.input);
-                let name_value = content.parse::<syn::MetaNameValue>()?;
-
-                // We're only interested in the deserialize property as that is the
-                // one related to the client payload
-                if name_value.path.is_ident("deserialize") {
-                    let Expr::Lit(expr_lit) = name_value.value else {
-                        return Ok(());
-                    };
-                    if let syn::Lit::Str(str_lit) = expr_lit.lit {
-                        original_name = Some(str_lit.value())
-                    }
-                }
-                return Ok(());
-            }
-
-            Ok(())
-        });
-    }
-    original_name
 }
