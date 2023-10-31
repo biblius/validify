@@ -123,7 +123,7 @@ impl ToValidationTokens for Time {
     fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         let Time {
             op,
@@ -146,21 +146,17 @@ impl ToValidationTokens for Time {
         );
 
         let has_time = field_info.has_time();
-        let duration = if let Some(duration) = duration {
-            match duration {
-                ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
-                ValueOrPath::Path(path) => match multiplier {
-                    TimeMultiplier::Seconds => quote!(chrono::Duration::seconds(#path)),
-                    TimeMultiplier::Minutes => quote!(chrono::Duration::minutes(#path)),
-                    TimeMultiplier::Hours => quote!(chrono::Duration::hours(#path)),
-                    TimeMultiplier::Days => quote!(chrono::Duration::days(#path)),
-                    TimeMultiplier::Weeks => quote!(chrono::Duration::weeks(#path)),
-                    TimeMultiplier::None => unreachable!(),
-                },
-            }
-        } else {
-            quote!()
-        };
+        let duration = duration.as_ref().map(|duration| match duration {
+            ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
+            ValueOrPath::Path(path) => match multiplier {
+                TimeMultiplier::Seconds => quote!(chrono::Duration::seconds(#path)),
+                TimeMultiplier::Minutes => quote!(chrono::Duration::minutes(#path)),
+                TimeMultiplier::Hours => quote!(chrono::Duration::hours(#path)),
+                TimeMultiplier::Days => quote!(chrono::Duration::days(#path)),
+                TimeMultiplier::Weeks => quote!(chrono::Duration::weeks(#path)),
+                TimeMultiplier::None => unreachable!(),
+            },
+        });
 
         use crate::validate::validation::TimeOp as TO;
         let validation_fn = match op {
@@ -333,7 +329,7 @@ impl ToValidationTokens for Ip {
     fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         let Ip { ref format, .. } = self;
 
@@ -406,7 +402,7 @@ impl ToValidationTokens for Length {
             .map(|x| quote!(Some(#x as u64)))
             .unwrap_or(quote!(None));
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         let is_collection = field_info.is_list() || field_info.is_map();
         // For strings it's ok to add the param, but we don't want to add whole collections
@@ -467,7 +463,7 @@ impl ToValidationTokens for Range {
             .map(|x| quote!(Some(#x as f64)))
             .unwrap_or(quote!(None));
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_range(
                 *#quoted_ident as f64,
@@ -492,7 +488,7 @@ impl ToValidationTokens for CreditCard {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_credit_card(#validator_param) {
                 #quoted_error
@@ -511,7 +507,7 @@ impl ToValidationTokens for Phone {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_phone(#validator_param) {
                 #quoted_error
@@ -530,7 +526,7 @@ impl ToValidationTokens for NonControlChar {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_non_control_character(#validator_param) {
                 #quoted_error
@@ -548,7 +544,7 @@ impl ToValidationTokens for Url {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_url(#validator_param) {
                 #quoted_error
@@ -567,7 +563,7 @@ impl ToValidationTokens for Email {
         let field_name = field_info.name();
         let validator_param = field_info.quote_validator_param();
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_email(#validator_param) {
                 #quoted_error
@@ -586,7 +582,7 @@ impl ToValidationTokens for MustMatch {
         let ident = &field_info.field.ident;
         let field_name = field_info.name();
         let MustMatch { ref value, .. } = self;
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         let quoted = quote!(
             if !::validify::validate_must_match(&self.#ident, &self.#value) {
                 #quoted_error
@@ -637,7 +633,7 @@ impl ToValidationTokens for Regex {
         let validator_param = field_info.quote_validator_param();
 
         let Regex { ref path, .. } = self;
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         let quoted = quote!(
         if !#path.is_match(#validator_param) {
@@ -659,7 +655,7 @@ impl ToValidationTokens for In {
 
         let field_ident = &field_info.field.ident;
         let In { ref path, not, .. } = self;
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         // Cast strings to strs because the usual application for string comparisons
         // with this kind of validation is with const arrays
@@ -696,7 +692,7 @@ impl ToValidationTokens for Contains {
         let validator_param = field_info.quote_validator_param();
         let Contains { not, ref value, .. } = self;
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
 
         let validation_val = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
             quote!(String::from(#value))
@@ -732,7 +728,7 @@ impl ToValidationTokens for Required {
         let ident = &field_info.field.ident;
         let validator_param = quote!(&self.#ident);
 
-        let quoted_error = self.quote_error(field_name);
+        let quoted_error = self.quote_error(&field_name);
         ValidationTokens::Normal(quote!(
             if !::validify::validate_required(#validator_param) {
                 #quoted_error
