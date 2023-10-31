@@ -2,10 +2,10 @@ permissions:
   contents: read
 on:
   push:
-    branches: 
-      - "master"
-      - "feature/**"
-      - "bugfix/**"
+    branches:
+      - 'master'
+      - 'feature/**'
+      - 'bugfix/**'
   pull_request:
 name: test
 jobs:
@@ -33,6 +33,9 @@ jobs:
       - name: cargo test --locked
         run: cargo test --workspace --locked --all-features --all-targets
 
+      - name: cargo test docs
+        run: cargo test --doc
+
   os-check:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} / stable
@@ -53,6 +56,9 @@ jobs:
 
       - name: cargo test
         run: cargo test --workspace --locked --all-features --all-targets
+
+      - name: cargo test docs
+        run: cargo test --doc
 
   coverage:
     runs-on: ubuntu-latest
