@@ -1,6 +1,6 @@
 use proc_macro_error::proc_macro_error;
 use quote::{quote, ToTokens};
-use syn::ItemFn;
+use syn::{parse::Parse, ItemFn, LitStr, Token};
 
 mod fields;
 mod tokens;
@@ -166,36 +166,30 @@ pub fn derive_validate(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// Designed to be used in conjuction with the `field_err` and `schema_err` macros.
 ///
 /// ```ignore
-/// use validify::{ValidationErrors, Validify, schema_validation};
+/// use validify::{ValidationErrors, Validify, schema_validation, schema_err};
 ///
 /// #[derive(Debug, Clone, Validify)]
-/// #[validate(schema_validation)]
+/// #[validate(validate_schema)]
 /// struct Foo {
 ///     a: String,
 ///     b: usize,
 /// }
 ///
 /// #[schema_validation]
-/// fn schema_validation(foo: &Foo) -> Result<(), ValidationErrors> {
-///     if foo.a == "no" {
-///         field_err("a", "Can't be no", "Try again", errors);
-///     }
+/// fn validate_schema(foo: &Foo) -> Result<(), ValidationErrors> {
 ///     if foo.b == 0 && foo.a == "no" {
-///         schema_err("super no", "Done goofd", errors);
+///         schema_err("super no", "Done goofd");
 ///     }
 /// }
 /// ```
 ///
-/// `schema_validation` Desugars to:
+/// `validate_schema` Desugars to:
 ///
 /// ```ignore
-/// fn schema_validation(foo: &Foo) -> Result<(), ValidationErrors> {
-///     let mut errors = ::validify::ValidationErrors::new();
-///     if foo.a == "no" {
-///         errors.add(ValidationError::new_field("Can't be no").with_message("Try again".to_string()));;
-///     }
+/// fn validate_schema(foo: &Foo) -> Result<(), ValidationErrors> {
+///     let mut errors = validify::ValidationErrors::new();
 ///     if foo.b == 0 && foo.a == "no" {
-///         errors.add(ValidationError::new_schema("super no", "Done goofd"));
+///         errors.add(validify::ValidationError::new_schema("super no").with_message("Done goofd".to_string()));
 ///     }
 ///     if errors.is_empty() { Ok(()) } else { Err(errors) }
 /// }
@@ -208,11 +202,16 @@ pub fn schema_validation(
     let mut func: ItemFn = syn::parse(input).unwrap();
 
     // Add error and return value
-    let err_tokens =
-        syn::parse(quote! { let mut errors = ::validify::ValidationErrors::new(); }.into())
-            .unwrap();
+    let start_tokens = syn::parse(
+        quote! {
+            let mut errors = ::validify::ValidationErrors::new();
+        }
+        .into(),
+    )
+    .unwrap();
 
-    func.block.stmts.insert(0, err_tokens);
+    func.block.stmts.insert(0, start_tokens);
+
     let return_tokens = syn::parse(
         quote!(if errors.is_empty() {
             Ok(())
@@ -226,7 +225,37 @@ pub fn schema_validation(
     func.block.stmts.push(return_tokens);
     func.to_token_stream().into()
 }
-/*
+
+struct SchemaErr {
+    code: LitStr,
+    message: Option<LitStr>,
+}
+
+impl Parse for SchemaErr {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let code = input.parse()?;
+
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+        }
+
+        if input.is_empty() {
+            return Ok(SchemaErr {
+                code,
+                message: None,
+            });
+        }
+
+        let message = input.parse()?;
+
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+        }
+
+        Ok(SchemaErr { code, message })
+    }
+}
+
 /// Designed to be used with the [schema_validation] macro. Used for ergonomic custom error handling.
 ///
 /// Adds a schema validaton error to the generated `ValidationErrors`.
@@ -240,22 +269,10 @@ pub fn schema_validation(
 /// `("code", "custom message")`
 #[proc_macro]
 pub fn schema_err(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    todo!()
+    let SchemaErr { code, message } = syn::parse(input).expect("invalid tokens");
+    let message = message.map(|m| quote!(.with_message(#m.to_string())));
+    quote!(
+        errors.add(::validify::ValidationError::new_schema(#code) #message);
+    )
+    .into()
 }
-
-/// Designed to be used with the [schema_validation] proc macro. Used for ergonomic custom error handling.
-///
-/// Adds a field validaton error to the generated `ValidationErrors`
-///
-/// The errors argument should pass in an instance of `ValidationErrors`,
-/// and usually is used with the one generated from `schema_validation`.
-///
-/// Accepts:
-///
-/// `("field_name", "code")`
-/// `("field_name", "code", "custom message")`
-#[proc_macro]
-pub fn field_err(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    todo!()
-}
- */

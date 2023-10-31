@@ -6,6 +6,9 @@
 - Remove `field` argument from `ValidationError::new_field` and add `ValidationError::new_field_named`.
 - `custom` validation now automatically appends the field name to the error when `new_field` is used. If the error
   already has a field name, it will not change it.
+- `schema_err!` is now a proc macro and no longer takes in errors param. It can now only be used inside functions
+  annotated with `schema_validation`.
+- `field_err!` can now be used outside `schema_validation` and is the preffered way of quickly constructing field errors
 
 - ## 1.0.12
 

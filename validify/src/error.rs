@@ -63,7 +63,7 @@ impl ValidationError {
         ValidationError::Schema {
             code,
             message: None,
-            location: String::new(),
+            location: String::from("/"),
         }
     }
 
@@ -130,7 +130,7 @@ impl ValidationError {
     }
 
     /// Used when the struct failing validation is nested in collections. It will concat the index
-    /// to the parent so as to follow the location. We always have the parent in string form in the field quoter.
+    /// to the parent so as to follow the location.
     pub fn set_location_idx<T: Display>(&mut self, idx: T, parent: &str) {
         match self {
             ValidationError::Field {
@@ -145,7 +145,7 @@ impl ValidationError {
     /// Returns the apsolute location of the error in a similiar manner to JSON pointers.
     pub fn location(&self) -> &str {
         match self {
-            ValidationError::Schema { .. } => "/",
+            ValidationError::Schema { ref location, .. } => location,
             ValidationError::Field { ref location, .. } => location,
         }
     }

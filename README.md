@@ -201,7 +201,7 @@ struct Testor {
 #[schema_validation]
 fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
   if t.a.as_str() == "yolo" && t.b < 2 {
-    schema_err!("Invalid Yolo", "Cannot yolo with b < 2", errors);
+    schema_err!("Invalid Yolo", "Cannot yolo with b < 2");
   }
 }
 ```
@@ -393,7 +393,7 @@ struct BigBoi {
 #[schema_validation]
 fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
     if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        schema_err!("Fulltime contract cannot have part time period", errors);
+        schema_err!("Fulltime contract cannot have part time period");
     }
 
     if bb.contract_type == "Fulltime"
@@ -403,7 +403,6 @@ fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
         schema_err!(
             "No probation duration",
             "Indefinite probation duration must be specified",
-            errors
         );
     }
 }

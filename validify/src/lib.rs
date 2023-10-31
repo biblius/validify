@@ -20,7 +20,7 @@ pub use validation::{
     required::validate_required,
     urls::validate_url,
 };
-pub use validify_derive::{schema_validation, Validate, Validify};
+pub use validify_derive::{schema_err, schema_validation, Validate, Validify};
 
 /// Deriving [Validate] will allow you to specify struct validations, but does not create an associated
 /// payload struct. Validate can be derived on structs containing references, while Validify cannot due
@@ -152,4 +152,25 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
         self.modify();
         self.validate()
     }
+}
+
+/// Creates a new field validation error.
+/// Serves as a shorthand for writing out errors for custom functions
+/// and schema validations.
+/// Accepts:
+///
+/// `("field_name", "code")`
+/// `("field_name", "code", "custom message")`
+#[macro_export]
+macro_rules! field_err {
+    ($code:literal) => {
+        ::validify::ValidationError::new_field($code)
+    };
+    ($code:literal, $message:literal) => {
+        ::validify::ValidationError::new_field($code).with_message($message.to_string())
+    };
+    ($field:literal, $code:literal, $message:literal) => {
+        ::validify::ValidationError::new_field_named($field, $code)
+            .with_message($message.to_string())
+    };
 }
