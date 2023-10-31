@@ -1,4 +1,97 @@
-use syn::{parenthesized, punctuated::Punctuated, Expr, Token};
+use quote::{format_ident, quote};
+use syn::{parenthesized, punctuated::Punctuated, Attribute, Expr, Ident, Path, Token};
+
+/// Represents whether custom serde comes from `deserialize_with` or just `with`.
+pub enum CustomDe {
+    /// `deserialize_with`
+    Fn(Path),
+    /// `with`
+    Mod(Path),
+}
+
+/// Quote the necessary deserialization function tokens for the payload. This will call the original function
+/// and simply wrap its resulting type in an `Option`. Any serde errors are propagated.
+pub fn quote_custom_serde_payload_field(
+    field_id: &Ident,
+    ty: &syn::Type,
+    custom_de: CustomDe,
+) -> (Ident, proc_macro2::TokenStream) {
+    let (id, fn_path) = match custom_de {
+        CustomDe::Fn(ref p) => (p.segments.last().unwrap(), p),
+        CustomDe::Mod(ref p) => (p.segments.last().unwrap(), p),
+    };
+
+    let custom_fn_id = format_ident!("{}_{field_id}_payload", id.ident);
+
+    // `with` must always be a module with `serialize` and `deserialize` as per serde
+    let module_de = matches!(custom_de, CustomDe::Mod(_)).then_some(quote!(::deserialize));
+
+    let tokens = quote!(
+        fn #custom_fn_id<'de, D>(deserializer: D) -> Result<Option<#ty>, D::Error>
+        where
+          D: serde::Deserializer<'de>
+        {
+            match #fn_path #module_de (deserializer) {
+                Ok(res) => Ok(Some(res)),
+                Err(e) => Err(e)
+            }
+        }
+    );
+
+    (custom_fn_id, tokens)
+}
+
+/// Attempts to find `serde(with = "..")` and returns it as the first element with the remaining attributes as the second
+pub fn extract_custom_serde<'a>(attrs: &[&'a Attribute]) -> (Option<CustomDe>, Vec<&'a Attribute>) {
+    let mut custom_fn = None;
+    let mut rest = vec![];
+
+    for attr in attrs {
+        if custom_fn.is_some() {
+            rest.push(*attr);
+            continue;
+        }
+
+        if !attr.path().is_ident("serde") {
+            rest.push(*attr);
+            continue;
+        }
+
+        let Ok(metas) = attr.meta.require_list() else {
+            rest.push(*attr);
+            continue;
+        };
+
+        let parsed = metas.parse_nested_meta(|meta| {
+            // Covers `deserialize_with = "function"`
+            if meta.path.is_ident("deserialize_with") && meta.input.peek(Token!(=)) {
+                let content = meta.value()?;
+                if let Ok(lit) = content.parse::<syn::LitStr>() {
+                    custom_fn = Some(CustomDe::Fn(syn::parse_str::<Path>(&lit.value())?));
+                    return Ok(());
+                }
+            }
+
+            // Covers `with = "module"`
+            if meta.path.is_ident("with") && meta.input.peek(Token!(=)) {
+                let content = meta.value()?;
+                if let Ok(lit) = content.parse::<syn::LitStr>() {
+                    custom_fn = Some(CustomDe::Mod(syn::parse_str::<Path>(&lit.value())?));
+                    return Ok(());
+                }
+            }
+
+            Ok(())
+        });
+
+        if parsed.is_err() {
+            rest.push(*attr);
+            continue;
+        };
+    }
+
+    (custom_fn, rest)
+}
 
 /// Attempts to find serde's `serde(rename_all = "..")` attribute and returns the specified rename rule.
 pub fn find_rename_all(attrs: &[syn::Attribute]) -> Option<RenameRule> {
@@ -13,7 +106,7 @@ pub fn find_rename_all(attrs: &[syn::Attribute]) -> Option<RenameRule> {
             continue;
         };
 
-        let _ = metas.parse_nested_meta(|meta| {
+        let parsed = metas.parse_nested_meta(|meta| {
             // Covers `rename_all = "something"`
             if meta.path.is_ident("rename_all") && meta.input.peek(Token!(=)) {
                 let content = meta.value()?;
@@ -53,6 +146,10 @@ pub fn find_rename_all(attrs: &[syn::Attribute]) -> Option<RenameRule> {
 
             Ok(())
         });
+
+        if parsed.is_err() {
+            continue;
+        }
     }
 
     rule
@@ -71,7 +168,8 @@ pub fn find_rename(field: &syn::Field) -> Option<String> {
             continue;
         };
 
-        let _ = serde_meta.parse_nested_meta(|meta| {
+        // The function will stop as soon as this errors
+        let parsed = serde_meta.parse_nested_meta(|meta| {
             if !meta.path.is_ident("rename") {
                 return Ok(());
             }
@@ -115,6 +213,10 @@ pub fn find_rename(field: &syn::Field) -> Option<String> {
 
             Ok(())
         });
+
+        if parsed.is_err() {
+            continue;
+        }
     }
     original_name
 }
