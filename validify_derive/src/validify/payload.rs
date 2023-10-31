@@ -1,7 +1,9 @@
-use crate::fields::FieldInfo;
+use crate::{
+    fields::FieldInfo,
+    serde::{extract_custom_serde, quote_custom_serde_payload_field},
+};
 use proc_macro_error::abort;
 use quote::{format_ident, quote};
-
 use syn::spanned::Spanned;
 
 pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, syn::Ident) {
@@ -17,10 +19,15 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
 
     let fields = FieldInfo::collect(input);
 
-    let payload_fields = fields
-        .iter()
-        .map(map_payload_fields)
-        .collect::<Vec<proc_macro2::TokenStream>>();
+    let mut payload_fields = vec![];
+    let mut custom_serdes = vec![];
+    for field in fields.iter() {
+        let (payload_tokens, custom_serde) = map_payload_fields(field);
+        payload_fields.push(payload_tokens);
+        if let Some(custom_de) = custom_serde {
+            custom_serdes.push(custom_de);
+        }
+    }
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -56,22 +63,93 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
                 }
             }
         }
+
+        #(#custom_serdes)*
     );
 
     (quoted, payload_ident)
 }
 
-fn map_payload_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
+fn map_payload_fields(
+    info: &FieldInfo,
+) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
     let ident = info.field.ident.as_ref().unwrap();
     let is_list = info.is_list();
     let ty = &info.field.ty;
 
+    // Grab all serde attributes and attempt to find custom deserializations
+    let serde_attrs = info.serde_attrs();
+    let (custom_serde, serde_attrs) = extract_custom_serde(&serde_attrs);
+
+    let mut custom_de_attr = None;
+    let mut custom_de_tokens = None;
+
+    if let Some(custom_de) = custom_serde {
+        let (custom_de_id, custom_de_toks) = quote_custom_serde_payload_field(ident, ty, custom_de);
+        let custom_de_id = custom_de_id.to_string();
+        custom_de_attr = Some(quote!(#[serde(deserialize_with = #custom_de_id)]));
+        custom_de_tokens = Some(custom_de_toks);
+    }
+
+    // Grab all remaining attributes
+    let remaining_attrs = info.remaining_attrs();
+
     if !info.is_option() {
-        return payload_path(info);
+        let ident = info.field.ident.as_ref().unwrap();
+        let ty = &info.field.ty;
+
+        if !info.is_nested_validify() {
+            return (
+                quote!(
+                    #custom_de_attr
+                    #(#serde_attrs)*
+                    #(#remaining_attrs)*
+                    #[validate(required)]
+                    #ident: Option<#ty>,
+                ),
+                custom_de_tokens,
+            );
+        }
+
+        let syn::Type::Path(mut path) = ty.clone() else {
+            abort!(
+                info.field.span(),
+                "Nested validifes must be structs implementing Validify or collections/options of"
+            )
+        };
+
+        if info.is_list() {
+            payload_path_angle_bracketed(&mut path);
+        } else {
+            let ty_ident = &path.path.segments.last().unwrap().ident;
+            path.path.segments.last_mut().unwrap().ident = format_ident!("{ty_ident}Payload");
+        }
+
+        let payload_type = syn::Type::Path(path);
+
+        return (
+            quote!(
+                #custom_de_attr
+                #(#serde_attrs)*
+                #(#remaining_attrs)*
+                #[validate(required)]
+                #[validate]
+                #ident: Option<#payload_type>,
+            ),
+            custom_de_tokens,
+        );
     }
 
     if !info.is_nested_validify() {
-        return quote!(#ident: #ty,);
+        return (
+            quote!(
+                #custom_de_attr
+                #(#serde_attrs)*
+                #(#remaining_attrs)*
+                #ident: #ty,
+            ),
+            custom_de_tokens,
+        );
     }
 
     let syn::Type::Path(mut path) = ty.clone() else {
@@ -96,15 +174,21 @@ fn map_payload_fields(info: &FieldInfo) -> proc_macro2::TokenStream {
     if is_list {
         payload_path_angle_bracketed(inner_path);
     } else {
-        let type_ident = inner_path.path.segments.last().unwrap().ident.to_string();
+        let type_ident = &inner_path.path.segments.last().unwrap().ident;
         inner_path.path.segments.last_mut().unwrap().ident = format_ident!("{type_ident}Payload");
     }
 
     let payload_type = syn::Type::Path(path);
 
-    quote!(
-        #[validate]
-        #ident: #payload_type,
+    (
+        quote!(
+            #custom_de_attr
+            #(#serde_attrs)*
+            #(#remaining_attrs)*
+            #[validate]
+            #ident: #payload_type,
+        ),
+        custom_de_tokens,
     )
 }
 
@@ -187,40 +271,6 @@ fn payload_path_angle_bracketed(path: &mut syn::TypePath) {
     segment.ident = format_ident!("{}Payload", segment.ident);
 }
 
-fn payload_path(info: &FieldInfo) -> proc_macro2::TokenStream {
-    let ident = &info.field.ident;
-    let ty = &info.field.ty;
-
-    if !info.is_nested_validify() {
-        return quote!(
-            #[validate(required)]
-            #ident: Option<#ty>,
-        );
-    }
-
-    let syn::Type::Path(mut path) = ty.clone() else {
-        abort!(
-            info.field.span(),
-            "Nested validifes must be structs implementing Validify or collections/options of"
-        )
-    };
-
-    if info.is_list() {
-        payload_path_angle_bracketed(&mut path);
-    } else {
-        let ty_ident = path.path.segments.last().unwrap().ident.to_string();
-        path.path.segments.last_mut().unwrap().ident = format_ident!("{ty_ident}Payload");
-    }
-
-    let payload_type = syn::Type::Path(path);
-
-    quote!(
-        #[validate(required)]
-        #[validate]
-        #ident: Option<#payload_type>,
-    )
-}
-
 #[allow(dead_code)]
 /// Could come in handy, parses the inner contents of an angle bracketed path and outputs
 /// the original and the payload paths in a tuple
@@ -246,13 +296,7 @@ fn get_inner_path(ty: syn::Type) -> (syn::TypePath, syn::TypePath) {
 
     let original = inner_path.clone();
 
-    let type_ident = inner_path
-        .path
-        .segments
-        .last_mut()
-        .unwrap()
-        .ident
-        .to_string();
+    let type_ident = &inner_path.path.segments.last_mut().unwrap().ident;
 
     inner_path.path.segments.last_mut().unwrap().ident = format_ident!("{type_ident}Payload");
 

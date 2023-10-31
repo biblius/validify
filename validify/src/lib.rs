@@ -159,8 +159,9 @@ pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
 /// and schema validations.
 /// Accepts:
 ///
-/// `("field_name", "code")`
-/// `("field_name", "code", "custom message")`
+/// - `("code")`
+/// - `("code", "message")`
+/// - `("field_name", "code", "custom message")`
 #[macro_export]
 macro_rules! field_err {
     ($code:literal) => {

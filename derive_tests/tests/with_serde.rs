@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::json;
-use validify::Validate;
+use validify::{Validate, Validify};
 
 #[test]
 fn returns_original_field_names() {
@@ -102,5 +102,47 @@ fn returns_original_field_names_with_rename_all_deser() {
 
     fn foo(_t: &Test) -> Result<(), validify::ValidationErrors> {
         Ok(())
+    }
+}
+
+#[test]
+fn returns_original_field_names_with_custom_serde() {
+    #[derive(Debug, Validify, Deserialize)]
+    #[serde(rename_all(deserialize = "camelCase"))]
+    #[validate(foo)]
+    struct Test {
+        #[validate(length(min = 10))]
+        #[serde(deserialize_with = "custom_serde::deserialize")]
+        snake_case: String,
+        #[validate(length(max = 5))]
+        #[serde(with = "custom_serde")]
+        snake_case_two: String,
+    }
+
+    let test = json!({"snakeCase": "", "snakeCaseTwo": "123123"}).to_string();
+
+    let json = serde_json::from_str::<Test>(&test).unwrap();
+    assert_eq!(json.snake_case_two, "SUCCESS");
+    let res = json.validate();
+    let err = res.unwrap_err();
+    assert_eq!(err.errors().len(), 2);
+    assert_eq!(err.errors()[0].field_name().unwrap(), "snakeCase");
+    assert_eq!(err.errors()[1].field_name().unwrap(), "snakeCaseTwo");
+    assert_eq!(err.errors()[0].location(), "/snakeCase");
+    assert_eq!(err.errors()[1].location(), "/snakeCaseTwo");
+
+    fn foo(_t: &Test) -> Result<(), validify::ValidationErrors> {
+        Ok(())
+    }
+
+    mod custom_serde {
+        use serde::{self, Deserialize, Deserializer};
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            String::deserialize(deserializer)?;
+            Ok("SUCCESS".to_string())
+        }
     }
 }

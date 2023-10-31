@@ -300,12 +300,21 @@ impl FieldInfo {
         )
     }
 
-    /// Return all the field's attributes that are unrelated to validify
+    /// Return all the field's attributes that are unrelated to validify and serde
     pub fn remaining_attrs(&self) -> Vec<&syn::Attribute> {
         self.field
             .attrs
             .iter()
-            .filter(|attr| !validify_attr_check(attr))
+            .filter(|attr| !validify_attr_check(attr) && !attr.path().is_ident("serde"))
+            .collect()
+    }
+
+    /// Return all the field's attributes related to `serde`
+    pub fn serde_attrs(&self) -> Vec<&syn::Attribute> {
+        self.field
+            .attrs
+            .iter()
+            .filter(|attr| attr.path().is_ident("serde"))
             .collect()
     }
 

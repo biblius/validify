@@ -5,10 +5,13 @@
 - Rehaul derive macro infrastructure. Improve type checking by using proper syn structs.
 - Remove `field` argument from `ValidationError::new_field` and add `ValidationError::new_field_named`.
 - `custom` validation now automatically appends the field name to the error when `new_field` is used. If the error
-  already has a field name, it will not change it.
-- `schema_err!` is now a proc macro and no longer takes in errors param. It can now only be used inside functions
+  already has a field name (i.e. was created with `new_field_named`), it will not change it.
+- `schema_err!` is now a proc macro and no longer takes in errors as a param. It can now only be used inside functions
   annotated with `schema_validation`.
-- `field_err!` can now be used outside `schema_validation` and is the preffered way of quickly constructing field errors
+- `field_err!` can now be used outside `schema_validation` and is the preferred way of consisely constructing field errors.
+- Fields in field errors are now renamed back to original (whatever it was before deserialization) if the struct has a `rename_all` serde attribute.
+- Field level attributes are now propagated to payload fields.
+- Field level custom deserialization is now applied on payload fields as well.
 
 - ## 1.0.12
 
@@ -19,7 +22,7 @@
 
 - ## 1.0.11
 
-- Serde attributes are now propagated to the payload
+- Struct level serde attributes are now propagated to the payload
 
 - ## 1.0.0
 
