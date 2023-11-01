@@ -236,15 +236,17 @@ Keep in mind, when specifying validations this way, all attribute parameters MUS
 
 you will get an error because the parser expects either a single value or multiple name value pairs.
 
+The `field_err!` macro provides a shorthand for creating field errors when using custom functions.
+
 ### Location
 
 Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html). When using custom validation, whatever field name you specify in the returned error will be used in the location for that field. Keep in mind locations are not reliable when dealing with hashed map/set collections as the item ordering for those is not guaranteed.
 
-Another thing to note for locations is that they will be displayed as the original struct fields (snake_case), unless the error was manually added for a specific field (via a custom validation function).
+Error location display will depend on the original client payload, i.e. they will be displayed in the original case the payload was received (e.g. when using serde's `rename_all`). Any overriden field names will be displayed as such.
 
 ### Schema
 
-Schema errors are usually created by the user in schema validation. The `schema_err!` and `field_err!` macros provide an ergonomic way to create errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
+Schema errors are usually created by the user in schema validation. The `schema_err!` macro alongside `#[schema_validation]` provides an ergonomic way to create schema errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
 
 ### Params
 
