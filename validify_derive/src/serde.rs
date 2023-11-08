@@ -2,6 +2,7 @@ use quote::{format_ident, quote};
 use syn::{parenthesized, punctuated::Punctuated, Attribute, Expr, Ident, Path, Token};
 
 /// Represents whether custom serde comes from `deserialize_with` or just `with`.
+#[derive(Debug)]
 pub enum CustomDe {
     /// `deserialize_with`
     Fn(Path),
@@ -11,10 +12,13 @@ pub enum CustomDe {
 
 /// Quote the necessary deserialization function tokens for the payload. This will call the original function
 /// and simply wrap its resulting type in an `Option`. Any serde errors are propagated.
+///
+/// If the field is an option with custom serde, we don't touch the return value.
 pub fn quote_custom_serde_payload_field(
     field_id: &Ident,
     ty: &syn::Type,
     custom_de: CustomDe,
+    option: bool,
 ) -> (Ident, proc_macro2::TokenStream) {
     let (id, fn_path) = match custom_de {
         CustomDe::Fn(ref p) => (p.segments.last().unwrap(), p),
@@ -26,13 +30,25 @@ pub fn quote_custom_serde_payload_field(
     // `with` must always be a module with `serialize` and `deserialize` as per serde
     let module_de = matches!(custom_de, CustomDe::Mod(_)).then_some(quote!(::deserialize));
 
+    let res = if option {
+        quote!(res)
+    } else {
+        quote!(Some(res))
+    };
+
+    let ty = if option {
+        quote!(#ty)
+    } else {
+        quote!(Option<#ty>)
+    };
+
     let tokens = quote!(
-        fn #custom_fn_id<'de, D>(deserializer: D) -> Result<Option<#ty>, D::Error>
+        fn #custom_fn_id<'de, D>(deserializer: D) -> Result<#ty, D::Error>
         where
           D: serde::Deserializer<'de>
         {
             match #fn_path #module_de (deserializer) {
-                Ok(res) => Ok(Some(res)),
+                Ok(res) => Ok(#res),
                 Err(e) => Err(e)
             }
         }
@@ -42,25 +58,20 @@ pub fn quote_custom_serde_payload_field(
 }
 
 /// Attempts to find `serde(with = "..")` and returns it as the first element with the remaining attributes as the second
-pub fn extract_custom_serde<'a>(attrs: &[&'a Attribute]) -> (Option<CustomDe>, Vec<&'a Attribute>) {
+pub fn extract_custom_serde<'a>(
+    serde_attrs: &[&'a Attribute],
+) -> (Option<CustomDe>, Vec<&'a Attribute>) {
     let mut custom_fn = None;
     let mut rest = vec![];
 
-    for attr in attrs {
+    for attr in serde_attrs {
         if custom_fn.is_some() {
             rest.push(*attr);
             continue;
         }
 
-        if !attr.path().is_ident("serde") {
-            rest.push(*attr);
-            continue;
-        }
-
-        let Ok(metas) = attr.meta.require_list() else {
-            rest.push(*attr);
-            continue;
-        };
+        // Safe to unwrap because we know all serde attrs are lists
+        let metas = attr.meta.require_list().unwrap();
 
         let parsed = metas.parse_nested_meta(|meta| {
             // Covers `deserialize_with = "function"`
@@ -81,7 +92,9 @@ pub fn extract_custom_serde<'a>(attrs: &[&'a Attribute]) -> (Option<CustomDe>, V
                 }
             }
 
-            Ok(())
+            // Return an error here because we want to push the serde
+            // attr to the rest vec if we didn't find a custom deser
+            Err(meta.error("will get caught"))
         });
 
         if parsed.is_err() {
@@ -158,6 +171,7 @@ pub fn find_rename_all(attrs: &[syn::Attribute]) -> Option<RenameRule> {
 /// Attempts to find the `serde(rename = "..")` value to use in the generated errors
 pub fn find_rename(field: &syn::Field) -> Option<String> {
     let mut original_name = None;
+
     for attr in field.attrs.iter() {
         if !attr.path().is_ident("serde") {
             continue;
@@ -218,6 +232,7 @@ pub fn find_rename(field: &syn::Field) -> Option<String> {
             continue;
         }
     }
+
     original_name
 }
 
