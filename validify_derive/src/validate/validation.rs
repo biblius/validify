@@ -36,6 +36,17 @@ pub enum Validator {
     Nested,
 }
 
+/// Shortcut for creating simple validation structs.
+///
+/// ```ignore
+/// validation! {
+///     StructName : "code"
+///     [, OptionalDerive]*;
+///     [field: T,]*
+/// }
+/// ```
+///
+/// All structs will have a `code` and `message` field
 macro_rules! validation {
     ($id:ident : $code:literal $(,)? $($der:path),* ; $($key:ident : $typ:ty $(,)?),*) => {
         #[derive(Debug, $($der),*)]
@@ -63,27 +74,27 @@ macro_rules! validation {
 
 validation!(
     Email : "email",
-    Default, Clone;
+    Default;
 );
 
 validation!(
     Url : "url",
-    Default, Clone;
+    Default;
 );
 
 validation!(
     Phone : "phone",
-    Default, Clone;
+    Default;
 );
 
 validation!(
     CreditCard : "credit_card",
-    Default, Clone;
+    Default;
 );
 
 validation!(
     NonControlChar : "non_control_char",
-    Default, Clone;
+    Default;
 );
 
 validation!(
@@ -127,8 +138,7 @@ validation!(
 );
 
 validation!(
-    Custom : "custom",
-    Clone;
+    Custom : "custom";
     path: syn::Path
 );
 
@@ -143,8 +153,7 @@ impl Custom {
 }
 
 validation!(
-    Regex : "regex",
-    Clone;
+    Regex : "regex";
     path: syn::Path
 );
 
@@ -160,11 +169,11 @@ impl Regex {
 
 validation!(
     Ip : "ip",
-    Clone, Default;
+    Default;
     format: Option<IpFormat>
 );
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum IpFormat {
     V4,
     V6,
@@ -253,7 +262,7 @@ pub struct Time {
     pub multiplier: TimeMultiplier,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub enum TimeMultiplier {
     Seconds,
     Minutes,
@@ -408,7 +417,7 @@ impl Time {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub enum TimeOp {
     BeforeNow,
     AfterNow,

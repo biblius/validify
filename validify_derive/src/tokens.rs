@@ -147,6 +147,7 @@ impl ToValidationTokens for Time {
 
         let has_time = field_info.has_time();
         let duration = duration.as_ref().map(|duration| match duration {
+            // The value will be in seconds due to the way it is parsed in parse_time [crate::validate::parser::parse_time]
             ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
             ValueOrPath::Path(path) => match multiplier {
                 TimeMultiplier::Seconds => quote!(chrono::Duration::seconds(#path)),
