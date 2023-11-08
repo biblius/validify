@@ -71,7 +71,7 @@ negative duration for `in_period` works fine.
 | after_from_now  | interval         | Check whether a date\[time] is after the specified interval from the today\[now] |
 | in_period       | target, interval | Check whether a date\[time] falls within a certain period                        |
 
-Annotate the struct you want to modify and validate with the `Validify` attribute (if you do not need payload modification, derive the `validify::Validate` trait):
+Annotate the struct you want to modify and validate with the `Validify` attribute (if you do not need the payload or modification, derive `validify::Validate`):
 
 ```rust
 use validify::Validify;
@@ -268,7 +268,7 @@ The `rename` attribute is used by validify to set the field name in any errors d
 
 ### **Date\[times]s**
 
-```rust
+```rust, ignore
 use chrono::{NaiveDate, NaiveDateTime};
 
 #[derive(Debug, validify::Validate)]

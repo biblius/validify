@@ -463,7 +463,26 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
         for (i, interval) in INTERVALS.iter().enumerate() {
             if meta.path.is_ident(interval) {
                 let content = meta.value()?;
+                match INTERVALS[i] {
+                    "seconds" => {
+                      validation.multiplier = TimeMultiplier::Seconds;
+                    },
+                    "minutes" => {
+                      validation.multiplier = TimeMultiplier::Minutes;
+                    },
+                    "hours" => {
+                      validation.multiplier = TimeMultiplier::Hours;
+                    },
+                    "days" => {
+                      validation.multiplier = TimeMultiplier::Days;
+                    },
+                    "weeks" => {
+                      validation.multiplier = TimeMultiplier::Weeks;
+                    },
+                    _=> unreachable!()
+                  }
                 match content.parse::<syn::LitInt>() {
+                    // If the value is a literal, we'll parse it directly to seconds for convenience
                     Ok(amount) => {
                         if validation.duration.is_some() {
                             return Err(meta.error("Interval already set"))
@@ -474,23 +493,18 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
                         }
                         match INTERVALS[i] {
                           "seconds" => {
-                            validation.multiplier = TimeMultiplier::Seconds;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::seconds(amount).num_seconds()))
                           },
                           "minutes" => {
-                            validation.multiplier = TimeMultiplier::Minutes;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::minutes(amount).num_seconds()))
                           },
                           "hours" => {
-                            validation.multiplier = TimeMultiplier::Hours;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::hours(amount).num_seconds()))
                           },
                           "days" => {
-                            validation.multiplier = TimeMultiplier::Days;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::days(amount).num_seconds()))
                           },
                           "weeks" => {
-                            validation.multiplier = TimeMultiplier::Weeks;
                             validation.duration = Some(ValueOrPath::Value(chrono::Duration::weeks(amount).num_seconds()))
                           },
                           _=> unreachable!()
@@ -500,24 +514,6 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
                         match content.parse::<syn::Path>() {
                             Ok(path) => {
                                 validation.duration = Some(ValueOrPath::Path(path));
-                                match INTERVALS[i] {
-                                    "seconds" => {
-                                      validation.multiplier = TimeMultiplier::Seconds;
-                                    },
-                                    "minutes" => {
-                                      validation.multiplier = TimeMultiplier::Minutes;
-                                    },
-                                    "hours" => {
-                                      validation.multiplier = TimeMultiplier::Hours;
-                                    },
-                                    "days" => {
-                                      validation.multiplier = TimeMultiplier::Days;
-                                    },
-                                    "weeks" => {
-                                      validation.multiplier = TimeMultiplier::Weeks;
-                                    },
-                                    _=> unreachable!()
-                                  }
                             },
                             Err(_) => {
                                 return Err(meta.error(format!("interval must be one of the following: {INTERVALS:?} and must be an int literal or path")))

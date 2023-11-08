@@ -107,6 +107,18 @@ mod tests {
     }
 
     #[test]
+    fn _in_period_date() {
+        let date = NaiveDate::parse_from_str("2000-01-15", "%Y-%m-%d").unwrap();
+        let target = NaiveDate::parse_from_str("2000-01-01", "%Y-%m-%d").unwrap();
+
+        assert_eq!(
+            date.checked_add_signed(chrono::Duration::weeks(-2))
+                .unwrap(),
+            target
+        )
+    }
+
+    #[test]
     fn _before_now_today() {
         let actual = DateTime::parse_from_rfc3339("2023-04-16T10:00:00.000Z")
             .unwrap()
