@@ -252,7 +252,17 @@ Schema errors are usually created by the user in schema validation. The `schema_
 
 When sensible, validify automatically appends failing parameters and the target values they were validated against to the errors created to provide more clarity to the client and to save some manual work.
 
-One parameter that is always appended is the `actual` field which represents the violating field's value during the validation. Some validators append additional data to the errors representing the expected values for the field.
+One parameter that is always appended is the `actual` field which represents the specific property of the violating field's validator during the validation. Some validators append additional data to the errors representing the expected values for the field.
+
+## The payload struct and serde
+
+Struct level attributes, such as `rename_all` are propagated to the payload. When attributes that modify field names are present, any field names in returned errors will be represented as the original (i.e. client payload).
+
+There are a few special serde attributes that validify treats differently; `rename`, `with` and `deserialize_with`.
+It is **highly** advised these attributes are kept in a separate annotation from any other serde attributes, due to the way
+they are parsed for the payload.
+
+The `rename` attribute is used by validify to set the field name in any errors during validation. The `with` and `deserialize_with` will be transfered to the payload field and will create a special deserialization function that will call the original and wrap the result in an option. If the custom deserializer already returns an option, it will do nothing.
 
 ## **Examples**
 

@@ -74,7 +74,11 @@ fn map_payload_fields(
     info: &FieldInfo,
 ) -> (proc_macro2::TokenStream, Option<proc_macro2::TokenStream>) {
     let ident = info.field.ident.as_ref().unwrap();
+
     let is_list = info.is_list();
+    let is_option = info.is_option();
+    let is_nested = info.is_nested_validify();
+
     let ty = &info.field.ty;
 
     // Grab all serde attributes and attempt to find custom deserializations
@@ -85,7 +89,8 @@ fn map_payload_fields(
     let mut custom_de_tokens = None;
 
     if let Some(custom_de) = custom_serde {
-        let (custom_de_id, custom_de_toks) = quote_custom_serde_payload_field(ident, ty, custom_de);
+        let (custom_de_id, custom_de_toks) =
+            quote_custom_serde_payload_field(ident, ty, custom_de, is_option);
         let custom_de_id = custom_de_id.to_string();
         custom_de_attr = Some(quote!(#[serde(deserialize_with = #custom_de_id)]));
         custom_de_tokens = Some(custom_de_toks);
@@ -94,22 +99,22 @@ fn map_payload_fields(
     // Grab all remaining attributes
     let remaining_attrs = info.remaining_attrs();
 
-    if !info.is_option() {
+    if !is_option && !is_nested {
+        return (
+            quote!(
+                #custom_de_attr
+                #(#serde_attrs)*
+                #(#remaining_attrs)*
+                #[validate(required)]
+                #ident: Option<#ty>,
+            ),
+            custom_de_tokens,
+        );
+    }
+
+    if !is_option {
         let ident = info.field.ident.as_ref().unwrap();
         let ty = &info.field.ty;
-
-        if !info.is_nested_validify() {
-            return (
-                quote!(
-                    #custom_de_attr
-                    #(#serde_attrs)*
-                    #(#remaining_attrs)*
-                    #[validate(required)]
-                    #ident: Option<#ty>,
-                ),
-                custom_de_tokens,
-            );
-        }
 
         let syn::Type::Path(mut path) = ty.clone() else {
             abort!(
@@ -118,7 +123,7 @@ fn map_payload_fields(
             )
         };
 
-        if info.is_list() {
+        if is_list {
             payload_path_angle_bracketed(&mut path);
         } else {
             let ty_ident = &path.path.segments.last().unwrap().ident;
@@ -140,7 +145,7 @@ fn map_payload_fields(
         );
     }
 
-    if !info.is_nested_validify() {
+    if !is_nested {
         return (
             quote!(
                 #custom_de_attr

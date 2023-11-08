@@ -146,3 +146,173 @@ fn returns_original_field_names_with_custom_serde() {
         }
     }
 }
+
+#[test]
+fn option_vec_custom_serde() {
+    #[derive(Deserialize, Debug, Validify)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TestQuery {
+        pub page: Option<u64>,
+        pub per_page: Option<u64>,
+        #[serde(alias = "foo")]
+        #[serde(alias = "FOO")]
+        pub order_by: Option<String>,
+        #[serde(default)]
+        #[serde(deserialize_with = "deserialize_string_vec")]
+        pub languages_used: Option<Vec<String>>,
+    }
+
+    fn deserialize_string_vec<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let languages = match String::deserialize(deserializer) {
+            Ok(languages) => languages,
+            Err(_) => return Ok(None),
+        };
+
+        Ok(Some(
+            languages
+                .split(',')
+                .map(|language| language.to_owned())
+                .collect(),
+        ))
+    }
+
+    // Regular
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "orderBy": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With foo alias
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "foo": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With FOO alias
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "FOO": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With empty
+
+    let json = json!({}).to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap()).unwrap();
+
+    assert!(res.page.is_none());
+    assert!(res.per_page.is_none());
+    assert!(res.languages_used.is_none());
+    assert!(res.order_by.is_none());
+}
+
+#[test]
+fn vec_custom_serde() {
+    #[derive(Deserialize, Debug, Validify)]
+    #[serde(rename_all = "camelCase")]
+    pub struct TestQuery {
+        pub page: Option<u64>,
+        pub per_page: Option<u64>,
+        #[serde(alias = "foo", alias = "FOO")]
+        pub order_by: Option<String>,
+        #[serde(default)]
+        #[serde(deserialize_with = "deserialize_string_vec")]
+        pub languages_used: Vec<String>,
+    }
+
+    fn deserialize_string_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let languages = match String::deserialize(deserializer) {
+            Ok(languages) => languages,
+            Err(_) => return Ok(vec![]),
+        };
+
+        if languages.is_empty() {
+            return Ok(vec![]);
+        }
+
+        Ok(languages
+            .split(',')
+            .map(|language| language.to_owned())
+            .collect())
+    }
+
+    // Regular
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "orderBy": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With foo alias
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "foo": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With FOO alias
+
+    let json = json!({
+        "page": 1,
+        "perPage": 5,
+        "FOO": "foo",
+        "languagesUsed": "foo,bar"
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    assert!(res.is_ok());
+
+    // With empty
+
+    let json = json!({
+        "languagesUsed": ""
+    })
+    .to_string();
+
+    let res = TestQuery::validify(serde_json::from_str(&json).unwrap()).unwrap();
+    dbg!(&res.languages_used);
+    assert!(res.page.is_none());
+    assert!(res.per_page.is_none());
+    assert!(res.languages_used.is_empty());
+    assert!(res.order_by.is_none());
+}
