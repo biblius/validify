@@ -23,13 +23,9 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
 
     let validate_impl = impl_validate(input);
 
-    let (payload_impl, payload_ident) = super::payload::generate(input);
-
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     quote!(
-
-    #payload_impl
 
     #validate_impl
 
@@ -40,27 +36,21 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 
     impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
-
-        type Payload = #payload_ident;
-
-        /// Apply the provided modifiers to self and run validations
-        fn validify(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors> {
-            <Self::Payload as ::validify::Validate>::validate(&payload)?;
-
-            let mut this = Self::from(payload);
-
+        fn validify(&mut self) -> Result<(), ::validify::ValidationErrors> {
             let mut errors = ::validify::ValidationErrors::new();
 
             #(#nested_validifies)*
 
-            if let Err(errs) = this.validify_self() {
+            <Self as ::validify::Modify>::modify(self);
+
+            if let Err(errs) = <Self as ::validify::Validate>::validate(self) {
                 errors.merge(errs);
             }
 
             if !errors.is_empty() {
                 Err(errors)
             } else {
-                Ok(this)
+                Ok(())
             }
         }
     })

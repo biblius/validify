@@ -1,5 +1,14 @@
 # Changelog
 
+- ## 1.2.0 - Breaking
+
+- The `Validify` trait now has only one function: `validify` which is now used
+  solely to perform modifications and validations on the implementing struct.
+- Removed the associated type `Payload` from `Validify` and make the generation optional.
+- Move payload generation to a separate macro (`#[derive(Payload)]`).
+- Payloads now have a `validate_into` and `validify_into` functions for easy conversion
+  between them and the original.
+
 - ## 1.1.0
 
 - Rehaul derive macro infrastructure. Improve type checking by using proper syn structs.

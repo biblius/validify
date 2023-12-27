@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use validify::{schema_err, schema_validation, ValidationError};
+use validify::{schema_err, schema_validation, Payload, ValidationError};
 #[allow(unused_imports)]
 use validify::{ValidationErrors, Validify};
 
@@ -8,7 +8,7 @@ const DISALLOWED: &[&str] = &["nono", "NO"];
 const NUMBERS: &[i32] = &[1, 2, 3];
 const NO_NUMBERS: &[i32] = &[4, 5, 6];
 
-#[derive(Debug, Clone, validify::Validify)]
+#[derive(Debug, Clone, validify::Validify, Payload)]
 #[validate(validator_test)]
 struct T {
     #[modify(custom(baz), trim, uppercase)]
@@ -92,7 +92,7 @@ fn validate() {
         f: "0.0.0.0".to_string(),
         g: chrono::Utc::now().naive_utc(),
     };
-    let res = T::validify(_t.into());
+    let res = <TPayload as From<T>>::from(_t).validify_into();
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);

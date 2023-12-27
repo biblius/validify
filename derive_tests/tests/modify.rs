@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use serde::Deserialize;
 use std::collections::HashMap;
-use validify::{Modify, Validify};
+use validify::{Modify, Payload, Validify};
 
 fn do_something(input: &mut String) {
     *input = String::from("modified");
@@ -73,7 +73,7 @@ fn nested_modify() {
         },
     };
 
-    testamentor.validify_self().unwrap();
+    testamentor.validify().unwrap();
 
     assert_eq!(testamentor.a, "lower me");
     assert_eq!(testamentor.nestor.a, 10);
@@ -213,7 +213,7 @@ fn custom_with_types() {
     assert_eq!(tt.i.b, "Haha".to_string());
 }
 
-#[derive(Debug, Validify)]
+#[derive(Debug, Validify, Payload)]
 struct JsonTest {
     #[modify(lowercase)]
     a: String,
@@ -232,9 +232,9 @@ fn from_json() {
     mock_handler(json)
 }
 
-fn mock_handler(data: actix_web::web::Json<<JsonTest as Validify>::Payload>) {
+fn mock_handler(data: actix_web::web::Json<JsonTestPayload>) {
     let data = data.0;
-    let data = JsonTest::validify(data).unwrap();
+    let data = data.validify_into().unwrap();
     mock_service(data);
 }
 
@@ -245,7 +245,7 @@ fn mock_service(data: JsonTest) {
 
 #[test]
 fn trim() {
-    #[derive(Debug, Clone, Validify)]
+    #[derive(Debug, Clone, Validify, Payload)]
     struct Optional {
         #[modify(lowercase, trim)]
         a: Option<String>,
@@ -266,14 +266,15 @@ fn trim() {
 
     let mut first = o.clone();
 
-    first.validify_self().unwrap();
+    first.validify().unwrap();
 
     assert!(matches!(first.a, Some(a) if a == "works"));
     assert_eq!(first.b, "works");
     assert!(matches!(first.c, Some(a) if a == "WORKS"));
     assert_eq!(first.d, "WORKS");
 
-    let second = Optional::validify(o.into()).unwrap();
+    let payload: OptionalPayload = o.into();
+    let second = payload.validify_into().unwrap();
 
     assert!(matches!(second.a, Some(a) if a == "works"));
     assert_eq!(second.b, "works");

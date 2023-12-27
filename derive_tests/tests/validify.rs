@@ -1,8 +1,8 @@
 use serde::Deserialize;
-use validify::Validify;
+use validify::{Payload, Validify};
 use validify::{ValidationError, ValidationErrors};
 
-#[derive(Debug, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify, Payload)]
 struct HasVec {
     #[modify(trim, uppercase)]
     #[validate(length(min = 2))]
@@ -21,7 +21,7 @@ fn vec_mod() {
             "     SNACKBAR    ".to_string(),
         ]),
     };
-    let res = HasVec::validify(v.into());
+    let res = HasVecPayload::from(v).validify_into();
     assert!(res.is_ok());
 
     let v = res.unwrap();
@@ -31,7 +31,7 @@ fn vec_mod() {
     assert_eq!(v.b.unwrap()[1], "Snackbar");
 }
 
-#[derive(Debug, Deserialize, Validify)]
+#[derive(Debug, Deserialize, Validify, Payload)]
 struct WithVal {
     #[validate(length(equal = 13))]
     #[modify(trim)]
@@ -52,7 +52,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithVal::validify(t.into());
+    let res = WithValPayload::from(t).validify_into();
     assert!(res.is_err());
 
     let t = WithVal {
@@ -60,7 +60,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithVal::validify(t.into());
+    let res = WithValPayload::from(t).validify_into();
     assert!(res.is_ok());
 
     let res = res.unwrap();
@@ -68,7 +68,7 @@ fn validify0() {
     assert_eq!(res.b, 9);
 }
 
-#[derive(Debug, Clone, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify, Payload)]
 struct Testor {
     #[modify(lowercase, trim)]
     #[validate(length(equal = 8))]
@@ -83,7 +83,7 @@ struct Testor {
     pub nested: Nestor,
 }
 
-#[derive(Debug, Clone, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify, Payload)]
 struct Nestor {
     #[modify(trim, uppercase)]
     #[validate(length(equal = 12))]
@@ -110,7 +110,7 @@ fn validify1() {
         },
     };
 
-    let res = Testor::validify(test.into());
+    let res = TestorPayload::from(test).validify_into();
     assert!(res.is_ok());
 
     let test = res.unwrap();
@@ -127,7 +127,7 @@ fn validify1() {
  * NESTED
  */
 
-#[derive(Debug, Clone, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify, Payload)]
 #[validate(validate_input)]
 struct Input {
     #[modify(trim, uppercase)]
@@ -138,7 +138,7 @@ struct Input {
     c: NestedInput,
 }
 
-#[derive(Debug, Clone, Deserialize, Validify)]
+#[derive(Debug, Clone, Deserialize, Validify, Payload)]
 #[validate(validate_nested)]
 struct NestedInput {
     a: Option<usize>,
@@ -190,7 +190,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_ok());
 
     // Condition b fails and a is empty, should fail
@@ -205,7 +205,7 @@ fn schema_mod_val() {
     };
 
     // 2 Errors in total
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(matches!(res, Err(e) if e.errors().len() == 2));
 
     // Condition b fails, but a is not empty
@@ -219,7 +219,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_err());
 
     // Condition b fails, but a is not empty
@@ -230,7 +230,7 @@ fn schema_mod_val() {
         c: NestedInput { a: None, b: None },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(matches!(res, Err(e) if e.errors().len() == 1));
 
     // Condition b fails, but a is not empty
@@ -244,7 +244,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_ok());
 
     // Condition b fails, but a is not empty
@@ -258,7 +258,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_ok());
 
     let input = res.unwrap();
@@ -277,7 +277,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_ok());
 
     let input = Input {
@@ -289,7 +289,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = Input::validify(input.into());
+    let res = InputPayload::from(input).validify_into();
     assert!(res.is_err());
 }
 
@@ -300,7 +300,7 @@ const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
 const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
 const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
 
-#[derive(Clone, Deserialize, Debug, Validify)]
+#[derive(Clone, Deserialize, Debug, Validify, Payload)]
 #[serde(rename_all = "camelCase")]
 #[validate(schema_validation)]
 struct BigBoi {
@@ -345,7 +345,7 @@ struct BigBoi {
     tags: TestTags,
 }
 
-#[derive(Deserialize, Debug, Clone, Validify)]
+#[derive(Deserialize, Debug, Clone, Validify, Payload)]
 #[serde(rename_all = "camelCase")]
 struct TestTags {
     #[modify(trim)]
@@ -355,7 +355,7 @@ struct TestTags {
 
 const PROFICIENCY: &[&str] = &["neznam", "sabijam"];
 
-#[derive(Clone, Deserialize, Debug, Validify)]
+#[derive(Clone, Deserialize, Debug, Validify, Payload)]
 #[serde(rename_all = "camelCase")]
 struct TestLanguages {
     company_opening_id: String,
@@ -462,9 +462,7 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let big = big.into();
-
-    let res = BigBoi::validify(big);
+    let res = BigBoiPayload::from(big).validify_into();
     assert!(res.is_ok());
 
     let big = res.unwrap();
@@ -549,7 +547,7 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let res = BigBoi::validify(big.into());
+    let res = BigBoiPayload::from(big).validify_into();
     assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
 
     let schema_errs = res.as_ref().unwrap_err().schema_errors();

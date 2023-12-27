@@ -3,6 +3,7 @@ use quote::{quote, ToTokens};
 use syn::{parse::Parse, ItemFn, LitStr, Token};
 
 mod fields;
+mod payload;
 mod serde;
 mod tokens;
 mod validate;
@@ -13,30 +14,15 @@ mod validify;
 /// Deriving this will allow you to annotate fields with the `modify` attribute. Modifiers are simple functions that modify
 /// the struct before validation. You can use the few out of the box ones or create your own.
 ///
-/// Structs deriving this trait will also get an associated `Payload` struct
-/// which is just a copy of the original, except with all the fields as
-/// `Option`s. The payload struct derives `Validate` and is named the same as
-/// the original suffixed with `...Payload`.
-///
-/// Fields in the original struct that are not options will be annotated
-/// with the `#[required]` flag and will be validated before the original struct.
-/// This enables the payload to be fully deserialized before being validated and is necessary for better validation errors,
-/// as deserialization errors are generally not that descriptive.
-///
-/// Validify's `validify` method takes in as its argument the generated payload as its primary focus is
-/// toward web payloads. The payload is meant to be used in handlers and after being validated transformed back
-/// to the original for further processing.
-/// The `validify` method returns the original struct upon successfull validation.
-///
 /// Visit the [repository](https://github.com/biblius/validify) to see the list of available validations and
 /// modifiers as well as more examples.
 ///
 ///  ### Example
 ///
 /// ```ignore
-/// use validify::Validify;
+/// use validify::{Validify, Payload};
 ///
-/// #[derive(Debug, Clone, serde::Deserialize, Validify)]
+/// #[derive(Debug, Clone, serde::Deserialize, Validify, Payload)]
 /// struct Testor {
 ///     #[modify(lowercase, trim)]
 ///     #[validate(length(equal = 8))]
@@ -51,7 +37,7 @@ mod validify;
 ///     pub nested: Nestor,
 /// }
 ///
-/// #[derive(Debug, Clone, serde::Deserialize, Validify)]
+/// #[derive(Debug, Clone, serde::Deserialize, Validify, Payload)]
 /// struct Nestor {
 ///     #[modify(trim, uppercase)]
 ///     #[validate(length(equal = 12))]
@@ -77,11 +63,9 @@ mod validify;
 /// };
 ///
 /// // The magic line
-/// let res = Testor::validify(test.into());
+/// let res = test.validify();
 ///
 /// assert!(matches!(res, Ok(_)));
-///
-/// let test = res.unwrap();
 ///
 /// // Parent
 /// assert_eq!(test.a, "lower me");
@@ -225,6 +209,57 @@ pub fn schema_validation(
 
     func.block.stmts.push(return_tokens);
     func.to_token_stream().into()
+}
+
+/// Generates a struct with the same structure of the implementing struct
+/// with all its fields as options. This can only be used on struct that implement `Validify`.
+/// Any nested structs must also contain their corresponding payloads.
+///
+/// The payload struct is Deserializable, has `From` and `Into` impls for
+/// the original, and implements `Validate`.
+///
+/// The payload has 2 associated functions;
+///
+/// `validify_into` which will validate the payload and call `Validify` on the original,
+///
+/// and
+///
+/// `validate_into` which does the same, but calls `Validate` instead of `Validify`
+/// on the original.
+///
+/// Both functions return the original struct and are the preferred way of handling payloads in e.g.,
+/// request handlers.
+///
+/// The payload can be used to represent a completely deserializable version of the struct
+/// even when some fields are missing.
+/// This can be used for more detailed descriptions of what fields are missing, along
+/// with any other validation errors.
+///
+/// Example:
+///
+/// ```ignore
+/// #[derive(Debug, Clone, serde::Deserialize, validify::Validify, validify::Payload)]
+/// struct Data {
+///     a: String,
+///     b: Option<String>
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```ignore
+/// #[derive(Debug, validify::Validate, serde::Deserialize)]
+/// struct DataPayload {
+///     #[validate(required)]
+///     a: Option<String>,
+///     b: Option<String>
+/// }
+/// ```
+#[proc_macro_derive(Payload)]
+#[proc_macro_error]
+pub fn derive_payload(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse(input).unwrap();
+    payload::r#impl::impl_payload(&input).into()
 }
 
 struct SchemaErr {
