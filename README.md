@@ -117,11 +117,9 @@ let mut test = Testor {
 };
 
 // The magic line
-let res = Testor::validify(test.into());
+let res = test.validify();
 
 assert!(matches!(res, Ok(_)));
-
-let test = res.unwrap();
 
 // Parent
 assert_eq!(test.a, "lower me");
@@ -135,12 +133,12 @@ assert_eq!(test.nested.b, "Capitalize me.");
 
 Notice how even though field `d` is an option, the function used to modify the field still takes in `&mut String`. This is because modifiers and validations are only executed when the field isn't `None`.
 
-## How it works
+## Payload
 
-Every struct annotated with `#[derive(Validify)]` gets an associated payload struct, e.g.
+Structs annotated with `#[derive(Payload)]` get an associated payload struct, e.g.
 
 ```rust
-#[derive(validify::Validify)]
+#[derive(validify::Validify, validify::Payload)]
 struct Something {
   a: usize,
   b: String,
@@ -289,9 +287,9 @@ struct DateTimeExamples {
 ### **With route handler**
 
 ```rust
-    use validify::Validify;
+    use validify::{Validify, Payload};
 
-    #[derive(Debug, Validify)]
+    #[derive(Debug, Validify, Payload)]
     struct JsonTest {
         #[modify(lowercase)]
         a: String,
@@ -308,14 +306,13 @@ struct DateTimeExamples {
           a: "MODIFIED".to_string(),
           b: "    makemeshout    ".to_string(),
       };
-      let json = Json(jt.into());
+      let json = Json(JsonTestPayload::from(jt));
       mock_handler(json)
     }
 
-    fn mock_handler(data: Json<JsonTestPayload>
-    /* OR data: Json<<JsonTest as Validify>::Payload> */) {
+    fn mock_handler(data: Json<JsonTestPayload>) {
       let data = data.0;
-      let data = JsonTest::validify(data).unwrap();
+      let data = data.validify_into().unwrap();
       mock_service(data);
     }
 
@@ -325,236 +322,4 @@ struct DateTimeExamples {
     }
 ```
 
-### **Big Boi**
-
-```rust
-use validify::{Validify, ValidationError, ValidationErrors, schema_validation, schema_err};
-use serde::Deserialize;
-
-const WORKING_HOURS: &[&str] = &["08", "09", "10", "11", "12", "13", "14", "15", "16"];
-const CAREER_LEVEL: &[&str] = &["One", "Two", "Over 9000"];
-const STATUSES: &[&str] = &["online", "offline"];
-const CONTRACT_TYPES: &[&str] = &["Fulltime", "Temporary"];
-const ALLOWED_MIME: &[&str] = &["jpeg", "png"];
-const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
-
-#[derive(Clone, Deserialize, Debug, Validify)]
-#[serde(rename_all = "camelCase")]
-#[validate(schema_validation)]
-struct BigBoi {
-    #[modify(trim)]
-    #[validate(length(max = 300))]
-    title: String,
-
-    #[modify(trim)]
-    #[validate(is_in(STATUSES))]
-    status: String,
-
-    #[modify(capitalize, trim)]
-    city_country: String,
-
-    #[validate(length(max = 1000))]
-    education: String,
-
-    #[modify(capitalize)]
-    type_of_workplace: Vec<String>,
-
-    #[validate(is_in(WORKING_HOURS))]
-    working_hours: String,
-
-    part_time_period: Option<String>,
-
-    #[modify(capitalize)]
-    #[validate(is_in(CONTRACT_TYPES))]
-    contract_type: String,
-
-    indefinite_probation_period: bool,
-
-    #[validate(is_in(ALLOWED_DURATIONS))]
-    indefinite_probation_period_duration: Option<i32>,
-
-    #[validate(is_in(CAREER_LEVEL))]
-    career_level: String,
-
-    #[modify(capitalize)]
-    benefits: String,
-
-    #[validate(length(max = 60))]
-    meta_title: String,
-
-    #[validate(length(max = 160))]
-    meta_description: String,
-
-    #[validate(is_in(ALLOWED_MIME))]
-    meta_image: String,
-
-    #[validate(custom(greater_than_now))]
-    published_at: String,
-
-    #[validate(custom(greater_than_now))]
-    expires_at: String,
-
-    #[validify]
-    languages: Vec<TestLanguages>,
-
-    #[validify]
-    tags: TestTags,
-}
-
-
-#[schema_validation]
-fn schema_validation(bb: &BigBoi) -> Result<(), ValidationErrors> {
-    if bb.contract_type == "Fulltime" && bb.part_time_period.is_some() {
-        schema_err!("Fulltime contract cannot have part time period");
-    }
-
-    if bb.contract_type == "Fulltime"
-        && bb.indefinite_probation_period
-        && bb.indefinite_probation_period_duration.is_none()
-    {
-        schema_err!(
-            "No probation duration",
-            "Indefinite probation duration must be specified",
-        );
-    }
-}
-
-fn greater_than_now(date: &str) -> Result<(), ValidationError> {
-    let parsed = chrono::NaiveDateTime::parse_from_str(date, "%Y-%m-%d %H:%M:%S");
-    match parsed {
-        Ok(date) => {
-            if date
-                < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
-                    .unwrap()
-            {
-                Err(ValidationError::new_field(
-                    "invalid_date",
-                ))
-            } else {
-                Ok(())
-            }
-        }
-        Err(e) => {
-            Err(ValidationError::new_field("invalid_date"))
-        }
-    }
-}
-
-#[derive(Deserialize, Debug, Clone, Validify)]
-#[serde(rename_all = "camelCase")]
-struct TestTags {
-    #[modify(trim)]
-    #[validate(length(min = 1, max = 10), custom(validate_names))]
-    names: Vec<String>,
-}
-
-fn validate_names(names: &[String]) -> Result<(), ValidationError> {
-    for n in names.iter() {
-        if n.len() > 10 || n.is_empty() {
-            return Err(ValidationError::new_field(
-                "invalid_name"
-            ));
-        }
-    }
-    Ok(())
-}
-
-const PROFICIENCY: &[&str] = &["dunno", "killinit"];
-
-#[derive(Clone, Deserialize, Debug, Validify)]
-#[serde(rename_all = "camelCase")]
-struct TestLanguages {
-    company_opening_id: String,
-    #[modify(trim)]
-    language: String,
-
-    #[modify(trim)]
-    #[validate(is_in(PROFICIENCY))]
-    proficiency: Option<String>,
-
-    required: Option<bool>,
-    created_by: String,
-}
-
-fn biggest_of_bois() {
-  let tags = TestTags {
-        // Invalid length due to `validate_names`
-        names: vec![
-            "taggggggggggggggggggggggggg".to_string(),
-            "tag".to_string(),
-            "tag".to_string(),
-        ],
-    };
-
-    let languages = vec![
-        TestLanguages {
-            company_opening_id: "yolo mcswag".to_string(),
-            language: "    tommorrowlang     ".to_string(),
-
-            // Invalid proficiency
-            proficiency: Some("invalid      ".to_string()),
-            required: Some(true),
-            created_by: "me".to_string(),
-        },
-        TestLanguages {
-            company_opening_id: "divops".to_string(),
-            language: "go".to_string(),
-
-            // Invalid proficiency
-            proficiency: Some("    invalid".to_string()),
-            required: None,
-            created_by: "they".to_string(),
-        },
-    ];
-
-    let big = BigBoi {
-        title: "me so big".to_string(),
-
-        // Invalid status
-        status: "invalid".to_string(),
-
-        city_country: "gradrzava".to_string(),
-        education: "any".to_string(),
-        type_of_workplace: vec!["dumpster".to_string(), "mcdonalds".to_string()],
-
-        // Invalid working hours
-        working_hours: "invalid".to_string(),
-
-        // Part time period with fulltime contract type
-        part_time_period: Some(String::new()),
-        contract_type: "Fulltime".to_string(),
-
-        // Fulltime period with no duration
-        indefinite_probation_period: true,
-        indefinite_probation_period_duration: None,
-
-        // Invalid career level
-        career_level: "Over 100000".to_string(),
-
-        benefits: "none".to_string(),
-        meta_title: "this struct is getting pretty big".to_string(),
-        meta_description: "and it's kind of annoying".to_string(),
-
-        // Invalid mime type
-        meta_image: "heic".to_string(),
-
-        // Invalid time
-        published_at: "1999-01-01 00:00:00".to_string(),
-
-        // Invalid time
-        expires_at: "1999-01-01 00:00:00".to_string(),
-        languages,
-        tags,
-    };
-
-    let res = BigBoi::validify(big.into());
-    assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
-
-    let schema_errs = res.as_ref().unwrap_err().schema_errors();
-    let field_errs = res.unwrap_err().field_errors();
-
-    assert_eq!(schema_errs.len(), 2);
-    assert_eq!(field_errs.len(), 9);
-}
-
-```
+See more examples in [the test directory](./derive_tests/tests)

@@ -20,26 +20,23 @@ pub use validation::{
     required::validate_required,
     urls::validate_url,
 };
-pub use validify_derive::{schema_err, schema_validation, Validate, Validify};
+pub use validify_derive::{schema_err, schema_validation, Payload, Validate, Validify};
 
-/// Deriving [Validate] will allow you to specify struct validations, but does not create an associated
-/// payload struct. Validate can be derived on structs containing references, while Validify cannot due
-/// to modifiers.
+/// Deriving [Validate] allows you to specify schema and field validations on structs.
+/// See the [repository](https://github.com/biblius/validify) for a full list of possible validations.
 pub trait Validate {
     fn validate(&self) -> Result<(), ValidationErrors>;
 }
 
 /// Modifies the struct based on the provided `modify` parameters. Automatically implemented when deriving Validify.
+/// See the [repository](https://github.com/biblius/validify) for a full list of possible modifiers.
 pub trait Modify {
     /// Apply the provided modifiers to self
     fn modify(&mut self);
 }
 
 /// Deriving [Validify] allows you to modify structs before they are validated by providing a out of the box validation implementations
-/// as well as the ability to write custom ones. It also generates a payload struct for the deriving struct,
-/// which can be used when deserialising web payloads. The payload struct is just a copy of the original, except will all the fields being
-/// `Option`s. This enables the payload to be fully deserialized (given that all existing fields are of the correct type) before being validated
-/// to allow for better validation errors.
+/// as well as the ability to write custom ones.
 ///
 /// ### Example
 ///
@@ -87,11 +84,9 @@ pub trait Modify {
 /// };
 ///
 /// // The magic line
-/// let res = Testor::validify(test.into());
+/// let res = test.validify();
 ///
 /// assert!(matches!(res, Ok(_)));
-///
-/// let test = res.unwrap();
 ///
 /// // Parent
 /// assert_eq!(test.a, "lower me");
@@ -102,56 +97,9 @@ pub trait Modify {
 /// assert_eq!(test.nested.a, "NOTSOTINYNOW");
 /// assert_eq!(test.nested.b, "Capitalize me.");
 /// ```
-pub trait Validify: Modify + Validate + Sized + From<Self::Payload> {
-    /// Represents the same structure of the implementing struct,
-    /// with all its fields as options. Used to represent a completely
-    /// deserializable version of the struct even if the fields are missing.
-    /// Used for more detailed descriptions of what fields are missing, along
-    /// with any other validation errors.
-    ///
-    /// This type is automatically implemented when deriving validify by creating
-    /// an accompanying payload struct:
-    ///
-    /// ```
-    /// #[derive(Debug, Clone, serde::Deserialize, validify::Validify)]
-    /// struct Data {
-    ///     a: String,
-    ///     b: Option<String>
-    /// }
-    /// ```
-    ///
-    /// Expands to:
-    ///
-    /// ```ignore
-    /// #[derive(Debug, Validate, serde::Deserialize)]
-    /// struct DataPayload {
-    ///     #[validate(required)]
-    ///     a: Option<String>,
-    ///     b: Option<String>
-    /// }
-    ///
-    /// /*
-    ///  * serde impls and other stuff
-    ///  */
-    ///
-    /// impl Validify for Data {
-    ///     type Payload = DataPayload;
-    ///
-    ///     fn validify(payload: Self::Payload) { /* ... */ }
-    /// }
-    ///
-    /// ```
-    type Payload: serde::de::DeserializeOwned + Validate;
-
-    /// Apply the provided modifiers to the payload and run validations, returning the original
-    /// struct if all the validations pass.
-    fn validify(payload: Self::Payload) -> Result<Self, ValidationErrors>;
-
+pub trait Validify: Modify + Validate {
     /// Apply the provided modifiers to self and run validations.
-    fn validify_self(&mut self) -> Result<(), ValidationErrors> {
-        self.modify();
-        self.validate()
-    }
+    fn validify(&mut self) -> Result<(), ValidationErrors>;
 }
 
 /// Creates a new field validation error.

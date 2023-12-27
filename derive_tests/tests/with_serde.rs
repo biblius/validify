@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::json;
-use validify::{Validate, Validify};
+use validify::{Payload, Validate, Validify};
 
 #[test]
 fn returns_original_field_names() {
@@ -107,7 +107,7 @@ fn returns_original_field_names_with_rename_all_deser() {
 
 #[test]
 fn returns_original_field_names_with_custom_serde() {
-    #[derive(Debug, Validify, Deserialize)]
+    #[derive(Debug, Validify, Deserialize, Payload)]
     #[serde(rename_all(deserialize = "camelCase"))]
     #[validate(foo)]
     struct Test {
@@ -149,7 +149,7 @@ fn returns_original_field_names_with_custom_serde() {
 
 #[test]
 fn option_vec_custom_serde() {
-    #[derive(Deserialize, Debug, Validify)]
+    #[derive(Deserialize, Debug, Validify, Payload)]
     #[serde(rename_all = "camelCase")]
     pub struct TestQuery {
         pub page: Option<u64>,
@@ -189,7 +189,9 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With foo alias
@@ -202,7 +204,9 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With FOO alias
@@ -215,14 +219,19 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With empty
 
     let json = json!({}).to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap()).unwrap();
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into()
+        .unwrap();
 
     assert!(res.page.is_none());
     assert!(res.per_page.is_none());
@@ -232,7 +241,7 @@ fn option_vec_custom_serde() {
 
 #[test]
 fn vec_custom_serde() {
-    #[derive(Deserialize, Debug, Validify)]
+    #[derive(Deserialize, Debug, Validify, Payload)]
     #[serde(rename_all = "camelCase")]
     pub struct TestQuery {
         pub page: Option<u64>,
@@ -273,7 +282,9 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With foo alias
@@ -286,7 +297,9 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With FOO alias
@@ -299,7 +312,9 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap());
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into();
     assert!(res.is_ok());
 
     // With empty
@@ -309,7 +324,11 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = TestQuery::validify(serde_json::from_str(&json).unwrap()).unwrap();
+    let res = serde_json::from_str::<TestQueryPayload>(&json)
+        .unwrap()
+        .validify_into()
+        .unwrap();
+
     dbg!(&res.languages_used);
     assert!(res.page.is_none());
     assert!(res.per_page.is_none());

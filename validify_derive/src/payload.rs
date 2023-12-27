@@ -6,16 +6,24 @@ use proc_macro_error::abort;
 use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 
-pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, syn::Ident) {
+pub mod r#impl;
+
+/// Create the payload ident: MyStruct => MyStructPayload
+pub(super) fn payload_ident(original: &syn::Ident) -> syn::Ident {
+    format_ident!("{}Payload", original)
+}
+
+pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
+
+    let payload_ident = payload_ident(ident);
+
     let attributes = input
         .attrs
         .iter()
         .filter(|attr| attr.meta.path().is_ident("serde"))
         .collect::<Vec<_>>();
     let visibility = &input.vis;
-
-    let payload_ident = format_ident!("{}Payload", &input.ident);
 
     let fields = FieldInfo::collect(input);
 
@@ -67,7 +75,7 @@ pub(super) fn generate(input: &syn::DeriveInput) -> (proc_macro2::TokenStream, s
         #(#custom_serdes)*
     );
 
-    (quoted, payload_ident)
+    quoted
 }
 
 fn map_payload_fields(

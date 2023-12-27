@@ -253,16 +253,13 @@ impl FieldInfo {
     pub fn wrap_modifier_if_option(
         &self,
         tokens: proc_macro2::TokenStream,
-        use_this: bool,
     ) -> proc_macro2::TokenStream {
         let field_ident = &self.field.ident;
-
-        let that = if use_this { quote!(this) } else { quote!(self) };
 
         if self.is_option() {
             let this = self.option_self_tokens_modifications();
             return quote!(
-                if let #this = #that.#field_ident.as_mut() {
+                if let #this = self.#field_ident.as_mut() {
                     #tokens
                 }
             );

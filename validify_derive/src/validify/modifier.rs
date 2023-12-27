@@ -35,7 +35,6 @@ impl Modifier {
                 (
                     field_info.wrap_modifier_if_option(
                         field_info.wrap_modifier_if_collection(param, tokens, self),
-                        false,
                     ),
                     None,
                 )
@@ -53,7 +52,6 @@ impl Modifier {
                 (
                     field_info.wrap_modifier_if_option(
                         field_info.wrap_modifier_if_collection(param, tokens, self),
-                        false,
                     ),
                     None,
                 )
@@ -71,7 +69,6 @@ impl Modifier {
                 (
                     field_info.wrap_modifier_if_option(
                         field_info.wrap_modifier_if_collection(param, tokens, self),
-                        false,
                     ),
                     None,
                 )
@@ -89,7 +86,6 @@ impl Modifier {
                 (
                     field_info.wrap_modifier_if_option(
                         field_info.wrap_modifier_if_collection(param, tokens, self),
-                        false,
                     ),
                     None,
                 )
@@ -104,7 +100,7 @@ impl Modifier {
                         #function(&mut #param);
                     )
                 };
-                (field_info.wrap_modifier_if_option(tokens, false), None)
+                (field_info.wrap_modifier_if_option(tokens), None)
             }
             Modifier::Nested => {
                 let par = param.to_string();
@@ -121,7 +117,7 @@ impl Modifier {
                 };
 
                 let field_ident: proc_macro2::TokenStream =
-                    format!("this.{field}").parse().unwrap();
+                    format!("self.{field}").parse().unwrap();
 
                 let param = if field_info.is_option() {
                     let field: proc_macro2::TokenStream = field.parse().unwrap();
@@ -133,7 +129,7 @@ impl Modifier {
                 let nested_validifies = if field_info.is_list() {
                     quote!(
                         for (i, el) in #param.iter_mut().enumerate() {
-                            if let Err(mut errs) = el.validify_self() {
+                            if let Err(mut errs) = el.validify() {
                                 errs.errors_mut().iter_mut().for_each(|err|err.set_location_idx(i, #field));
                                 errors.merge(errs);
                             }
@@ -141,15 +137,15 @@ impl Modifier {
                     )
                 } else {
                     quote!(
-                        if let Err(mut err) = #param.validify_self() {
+                        if let Err(mut err) = #param.validify() {
                             err.errors_mut().iter_mut().for_each(|e| e.set_location(#field));
                             errors.merge(err);
                         }
                     )
                 };
                 (
-                    field_info.wrap_modifier_if_option(modifications, false),
-                    Some(field_info.wrap_modifier_if_option(nested_validifies, true)),
+                    field_info.wrap_modifier_if_option(modifications),
+                    Some(field_info.wrap_modifier_if_option(nested_validifies)),
                 )
             }
         }
