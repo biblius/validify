@@ -11,12 +11,14 @@ pub fn impl_payload(input: &DeriveInput) -> proc_macro2::TokenStream {
     quote!(
         #strct
 
-        impl #impl_generics #payload_id #ty_generics #where_clause {
-            fn validate_into(self) -> Result<#ident, ::validify::ValidationErrors>
-            {
-                <Self as ::validify::Validate>::validate(&self)?;
+        impl #impl_generics ::validify::ValidifyPayload for #ident #ty_generics #where_clause {
+            type Payload = #payload_id;
 
-                let mut this = #ident ::from(self);
+            fn validate_from(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors>
+            {
+                <Self::Payload as ::validify::Validate>::validate(&payload)?;
+
+                let mut this = #ident ::from(payload);
 
                 let mut errors = ::validify::ValidationErrors::new();
 
@@ -31,11 +33,11 @@ pub fn impl_payload(input: &DeriveInput) -> proc_macro2::TokenStream {
                 }
             }
 
-            fn validify_into(self) -> Result<#ident, ::validify::ValidationErrors>
+            fn validify_from(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors>
             {
-                <Self as ::validify::Validate>::validate(&self)?;
+                <Self::Payload as ::validify::Validate>::validate(&payload)?;
 
-                let mut this = #ident ::from(self);
+                let mut this = #ident ::from(payload);
 
                 let mut errors = ::validify::ValidationErrors::new();
 

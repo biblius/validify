@@ -1,5 +1,12 @@
 # Changelog
 
+- ## 1.3.0 - Breaking
+
+- Added the `ValidifyPayload` trait to associate payloads to original structs. Moved
+  `validate_into` and `validify_into` to the trait as `validate_from` and `validify_from`.
+  The functions are now called from the original instead of the payload.
+  This is done to make it easier to interop with crates like `axum-valid`.
+
 - ## 1.2.0 - Breaking
 
 - The `Validify` trait now has only one function: `validify` which is now used

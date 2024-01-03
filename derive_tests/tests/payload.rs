@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::json;
-use validify::{Payload, Validify};
+use validify::{Payload, Validify, ValidifyPayload};
 
 #[test]
 fn nested() {
@@ -12,30 +12,22 @@ fn nested() {
     }
 
     let json = json!({"testor_a": "hello", "nested": null});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "required");
 
     let json = json!({"testor_a": "hello"});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "required");
 
     let json = json!({"testor_a": "hello", "nested": {"a": "world"}});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "length");
 
     let json = json!({"testor_a": "hello", "nested": {"a": "world ah ah jdklsdaldks"}});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok())
 }
 
@@ -49,28 +41,20 @@ fn nested_in_option() {
     }
 
     let json = json!({"testor_a": "hello", "_nested": null});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.unwrap()._nested.is_none());
 
     let json = json!({"testor_a": "hello"});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.unwrap()._nested.is_none());
 
     let json = json!({"testor_a": "hello", "_nested": {"a": "world"}});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "length");
 
     let json = json!({"testor_a": "hello", "_nested": {"a": "world ah ah jdklsdaldks"}});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok())
 }
 
@@ -84,33 +68,25 @@ fn nested_in_list_collection() {
     }
 
     let json = json!({"testor_a": "hello", "_nested": null});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "required");
     assert_eq!(errs.errors()[0].location(), "/_nested");
 
     let json = json!({"testor_a": "hello"});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "required");
     assert_eq!(errs.errors()[0].location(), "/_nested");
 
     let json = json!({"testor_a": "hello", "_nested": [{"a": "world"}]});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "length");
     assert_eq!(errs.errors()[0].location(), "/_nested/0/a");
 
     let json = json!({"testor_a": "hello", "_nested": [{"a": "world ah ah jdklsdaldks"}]});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok())
 }
 
@@ -124,29 +100,21 @@ fn option_nested_in_list_collection() {
     }
 
     let json = json!({"testor_a": "hello", "_nested": null});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok());
 
     let json = json!({"testor_a": "hello"});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok());
 
     let json = json!({"testor_a": "hello", "_nested": [{"a": "world"}]});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "length");
     assert_eq!(errs.errors()[0].location(), "/_nested/0/a");
 
     let json = json!({"testor_a": "hello", "_nested": [{"a": "world ah ah jdklsdaldks"}]});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok());
 
     let json = json!({"testor_a": 1, "_nested": [{"a": "world ah ah jdklsdaldks"}]});
@@ -193,9 +161,7 @@ fn nest_like_no_tomorrow() {
         "second": [
             { "i": 2, "nested": [{ "a": "gooooooooooooood" }] }]
     });
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok());
 
     let json = json!({
@@ -209,9 +175,7 @@ fn nest_like_no_tomorrow() {
             { "i": 1 }
         ]
     });
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "required");
     assert_eq!(errs.errors()[0].location(), "/second/0/nested");
@@ -227,9 +191,7 @@ fn nest_like_no_tomorrow() {
             { "i": 1, "nested": [{"a": "goooooooooooood"}] }
         ]
     });
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     let errs = res.unwrap_err();
     assert_eq!(errs.errors()[0].code(), "length");
     assert_eq!(
@@ -260,9 +222,7 @@ fn camel_case() {
     }
 
     let json = json!({"testorA": "yea", "testorB": "WOOO", "somethingCameled": {"caseThis": "goooooooooooooooooood"}});
-    let res = serde_json::from_value::<TestorPayload>(json)
-        .unwrap()
-        .validify_into();
+    let res = Testor::validify_from(serde_json::from_value::<TestorPayload>(json).unwrap());
     assert!(res.is_ok());
 }
 

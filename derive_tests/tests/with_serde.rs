@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::json;
-use validify::{Payload, Validate, Validify};
+use validify::{Payload, Validate, Validify, ValidifyPayload};
 
 #[test]
 fn returns_original_field_names() {
@@ -189,9 +189,7 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With foo alias
@@ -204,9 +202,7 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With FOO alias
@@ -219,19 +215,15 @@ fn option_vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With empty
 
     let json = json!({}).to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into()
-        .unwrap();
+    let res =
+        TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap()).unwrap();
 
     assert!(res.page.is_none());
     assert!(res.per_page.is_none());
@@ -282,9 +274,7 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With foo alias
@@ -297,9 +287,7 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With FOO alias
@@ -312,9 +300,7 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into();
+    let res = TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap());
     assert!(res.is_ok());
 
     // With empty
@@ -324,10 +310,8 @@ fn vec_custom_serde() {
     })
     .to_string();
 
-    let res = serde_json::from_str::<TestQueryPayload>(&json)
-        .unwrap()
-        .validify_into()
-        .unwrap();
+    let res =
+        TestQuery::validify_from(serde_json::from_str::<TestQueryPayload>(&json).unwrap()).unwrap();
 
     dbg!(&res.languages_used);
     assert!(res.page.is_none());

@@ -133,6 +133,20 @@ assert_eq!(test.nested.b, "Capitalize me.");
 
 Notice how even though field `d` is an option, the function used to modify the field still takes in `&mut String`. This is because modifiers and validations are only executed when the field isn't `None`.
 
+## Traits
+
+Validify is built around 3 simple traits:
+
+- Validate
+- Modify
+- Validify
+
+These traits should theoretically never have to be implemented manually.
+
+As their names suggest, the first two traits perform validation and modification, while the third combines those 2 actions into a single one - `validify`.
+
+The traits contain a single function which is constructed based on struct annotations when deriving them.
+
 ## Payload
 
 Structs annotated with `#[derive(Payload)]` get an associated payload struct, e.g.
@@ -161,31 +175,29 @@ struct SomethingPayload {
 }
 ```
 
-Note that every field that isn't an option will be an 'optional' required field in the payload. This is done to avoid deserialization errors for missing fields.
+The motivation for this is to aid in deserializing potentially missing fields. Even though the payload struct cannot help with deserializing wrong types, it can still prove useful and provide a bit more meaningful error messages when fields are missing.
 
-- _Do note that if a field exists in the incoming client payload, but is of the wrong type, a deserialization error will still occur as the payload is only being validated for whether the necessary fields exist. The same applies for invalid date\[time] formats._
+The original struct gets a `ValidifyPayload` implementation with 2 associated fns: `validate_from` and `validify_from` whose whose respective arguments are the generated payload.
 
-Even though the payload struct cannot help with wrong types, it can still prove useful and provide a bit more meaningful error messages when fields are missing.
+The `ValidifyPayload` implementations first validate the required fields of the payload. Then, if any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and/or validations are run on it.
+
+When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first. This means that any nested structs must also derive `Payload`.
+
+## The payload and serde
 
 Struct level annotations, such as `#[serde(renameAll = "...")]` are propagated to the payload.
 
-When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first.
+Struct level attributes, such as `rename_all` are propagated to the payload. When attributes that modify field names are present, any field names in returned errors will be represented as the original (i.e. client payload).
 
-Validify exposes two methods for validation/modification;
+There are a few special serde attributes that validify treats differently; `rename`, `with` and `deserialize_with`.
+It is **highly** advised these attributes are kept in a separate annotation from any other serde attributes, due to the way
+they are parsed for the payload.
 
-`validify` which takes in the payload and validates its required fields first and
-
-`validify_self` which runs modifications and validations on the original struct, without ever using the payload.
-
-In the context of web, you'll most likely be using `validify`. As such, the request handler should always take in the payload struct.
-
-The `Validify` implementation first validates the required fields of the generated payload. If any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and validations are run on it.
-
-Validify's `validify` method is called from the original struct with the associated payload struct as its argument and outputs the original struct if all validations have passed.
+The `rename` attribute is used by validify to set the field name in any errors during validation. The `with` and `deserialize_with` will be transfered to the payload field and will create a special deserialization function that will call the original and wrap the result in an option. If the custom deserializer already returns an option, it will do nothing.
 
 ## Schema validation
 
-Schema level validations can be performed using the following:
+Schema level validation can be performed using the following:
 
 ```rust
 use validify::{Validify, ValidationErrors, schema_validation, schema_err};
@@ -250,17 +262,7 @@ Schema errors are usually created by the user in schema validation. The `schema_
 
 When sensible, validify automatically appends failing parameters and the target values they were validated against to the errors created to provide more clarity to the client and to save some manual work.
 
-One parameter that is always appended is the `actual` field which represents the specific property of the violating field's validator during the validation. Some validators append additional data to the errors representing the expected values for the field.
-
-## The payload struct and serde
-
-Struct level attributes, such as `rename_all` are propagated to the payload. When attributes that modify field names are present, any field names in returned errors will be represented as the original (i.e. client payload).
-
-There are a few special serde attributes that validify treats differently; `rename`, `with` and `deserialize_with`.
-It is **highly** advised these attributes are kept in a separate annotation from any other serde attributes, due to the way
-they are parsed for the payload.
-
-The `rename` attribute is used by validify to set the field name in any errors during validation. The `with` and `deserialize_with` will be transfered to the payload field and will create a special deserialization function that will call the original and wrap the result in an option. If the custom deserializer already returns an option, it will do nothing.
+One parameter that is always appended is the `actual` field which represents the value of the violating field's target property during the validation. Some validators append additional data to the errors representing the expected values for the field.
 
 ## **Examples**
 
@@ -287,7 +289,7 @@ struct DateTimeExamples {
 ### **With route handler**
 
 ```rust
-    use validify::{Validify, Payload};
+    use validify::{Validify, Payload, ValidifyPayload};
 
     #[derive(Debug, Validify, Payload)]
     struct JsonTest {
@@ -312,7 +314,7 @@ struct DateTimeExamples {
 
     fn mock_handler(data: Json<JsonTestPayload>) {
       let data = data.0;
-      let data = data.validify_into().unwrap();
+      let data = JsonTest::validify_from(data.into()).unwrap();
       mock_service(data);
     }
 

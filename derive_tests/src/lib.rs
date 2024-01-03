@@ -83,6 +83,8 @@ fn validator_test(t: &T) -> Result<(), ValidationErrors> {
 
 #[test]
 fn validate() {
+    use validify::ValidifyPayload;
+
     let _t = T {
         a: String::from("nono"),
         b: U { b: 2 },
@@ -92,7 +94,7 @@ fn validate() {
         f: "0.0.0.0".to_string(),
         g: chrono::Utc::now().naive_utc(),
     };
-    let res = <TPayload as From<T>>::from(_t).validify_into();
+    let res = T::validify_from(_t.into());
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);

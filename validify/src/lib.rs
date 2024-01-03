@@ -6,6 +6,7 @@ mod validation;
 
 pub use error::{ValidationError, ValidationErrors};
 pub use validation::time;
+
 pub use validation::{
     cards::validate_credit_card,
     contains::validate_contains,
@@ -20,11 +21,13 @@ pub use validation::{
     required::validate_required,
     urls::validate_url,
 };
+
 pub use validify_derive::{schema_err, schema_validation, Payload, Validate, Validify};
 
 /// Deriving [Validate] allows you to specify schema and field validations on structs.
 /// See the [repository](https://github.com/biblius/validify) for a full list of possible validations.
 pub trait Validate {
+    /// Apply the provided validations to self
     fn validate(&self) -> Result<(), ValidationErrors>;
 }
 
@@ -100,6 +103,19 @@ pub trait Modify {
 pub trait Validify: Modify + Validate {
     /// Apply the provided modifiers to self and run validations.
     fn validify(&mut self) -> Result<(), ValidationErrors>;
+}
+
+/// Exposes validify functionality on generated [Payload] structs.
+pub trait ValidifyPayload: Sized {
+    type Payload: Validate;
+
+    /// Validates the payload then runs validations on the original struct, returning it
+    /// if all validations pass.
+    fn validate_from(payload: Self::Payload) -> Result<Self, ValidationErrors>;
+
+    /// Validates the payload then runs modifications and validations on the original struct,
+    /// returning it if all validations pass.
+    fn validify_from(payload: Self::Payload) -> Result<Self, ValidationErrors>;
 }
 
 /// Creates a new field validation error.
