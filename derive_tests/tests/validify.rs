@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use validify::{Payload, Validify};
-use validify::{ValidationError, ValidationErrors};
+use validify::{ValidationError, ValidationErrors, ValidifyPayload};
 
 #[derive(Debug, Deserialize, Validify, Payload)]
 struct HasVec {
@@ -21,7 +21,7 @@ fn vec_mod() {
             "     SNACKBAR    ".to_string(),
         ]),
     };
-    let res = HasVecPayload::from(v).validify_into();
+    let res = HasVec::validify_from(v.into());
     assert!(res.is_ok());
 
     let v = res.unwrap();
@@ -52,7 +52,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithValPayload::from(t).validify_into();
+    let res = WithVal::validify_from(t.into());
     assert!(res.is_err());
 
     let t = WithVal {
@@ -60,7 +60,7 @@ fn validify0() {
         b: 420,
     };
 
-    let res = WithValPayload::from(t).validify_into();
+    let res = WithVal::validify_from(t.into());
     assert!(res.is_ok());
 
     let res = res.unwrap();
@@ -110,7 +110,7 @@ fn validify1() {
         },
     };
 
-    let res = TestorPayload::from(test).validify_into();
+    let res = Testor::validify_from(test.into());
     assert!(res.is_ok());
 
     let test = res.unwrap();
@@ -190,7 +190,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_ok());
 
     // Condition b fails and a is empty, should fail
@@ -205,7 +205,7 @@ fn schema_mod_val() {
     };
 
     // 2 Errors in total
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(matches!(res, Err(e) if e.errors().len() == 2));
 
     // Condition b fails, but a is not empty
@@ -219,7 +219,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_err());
 
     // Condition b fails, but a is not empty
@@ -230,7 +230,7 @@ fn schema_mod_val() {
         c: NestedInput { a: None, b: None },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(matches!(res, Err(e) if e.errors().len() == 1));
 
     // Condition b fails, but a is not empty
@@ -244,7 +244,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_ok());
 
     // Condition b fails, but a is not empty
@@ -258,7 +258,7 @@ fn schema_mod_val() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_ok());
 
     let input = res.unwrap();
@@ -277,7 +277,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_ok());
 
     let input = Input {
@@ -289,7 +289,7 @@ fn validify_nested_input() {
         },
     };
 
-    let res = InputPayload::from(input).validify_into();
+    let res = Input::validify_from(input.into());
     assert!(res.is_err());
 }
 
@@ -462,7 +462,7 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let res = BigBoiPayload::from(big).validify_into();
+    let res = BigBoi::validify_from(big.into());
     assert!(res.is_ok());
 
     let big = res.unwrap();
@@ -547,7 +547,7 @@ fn biggest_of_bois() {
         tags,
     };
 
-    let res = BigBoiPayload::from(big).validify_into();
+    let res = BigBoi::validify_from(big.into());
     assert!(matches!(res, Err(ref e) if e.errors().len() == 11));
 
     let schema_errs = res.as_ref().unwrap_err().schema_errors();

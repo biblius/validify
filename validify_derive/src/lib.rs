@@ -218,13 +218,13 @@ pub fn schema_validation(
 /// The payload struct is Deserializable, has `From` and `Into` impls for
 /// the original, and implements `Validate`.
 ///
-/// The payload has 2 associated functions;
+/// The origianl struct gets a `ValidatePayload` implementation with 2 associated functions;
 ///
-/// `validify_into` which will validate the payload and call `Validify` on the original,
+/// `validify_from` which will validate the payload and call `Validify` on the original,
 ///
 /// and
 ///
-/// `validate_into` which does the same, but calls `Validate` instead of `Validify`
+/// `validate_from` which does the same, but calls `Validate` instead of `Validify`
 /// on the original.
 ///
 /// Both functions return the original struct and are the preferred way of handling payloads in e.g.,

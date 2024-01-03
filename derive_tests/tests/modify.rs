@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use serde::Deserialize;
 use std::collections::HashMap;
-use validify::{Modify, Payload, Validify};
+use validify::{Modify, Payload, Validify, ValidifyPayload};
 
 fn do_something(input: &mut String) {
     *input = String::from("modified");
@@ -234,7 +234,7 @@ fn from_json() {
 
 fn mock_handler(data: actix_web::web::Json<JsonTestPayload>) {
     let data = data.0;
-    let data = data.validify_into().unwrap();
+    let data = JsonTest::validify_from(data).unwrap();
     mock_service(data);
 }
 
@@ -274,7 +274,7 @@ fn trim() {
     assert_eq!(first.d, "WORKS");
 
     let payload: OptionalPayload = o.into();
-    let second = payload.validify_into().unwrap();
+    let second = Optional::validify_from(payload).unwrap();
 
     assert!(matches!(second.a, Some(a) if a == "works"));
     assert_eq!(second.b, "works");
