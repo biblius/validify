@@ -6,15 +6,20 @@ const DISALLOWED_STRS: &[&str] = &["NO", "BAD"];
 const ALLOWED_NUMS: &[u64] = &[1, 2, 3];
 const DISALLOWED_NUMS: &[u64] = &[4, 5, 6];
 
+/// Use for `in/not_in` validation to convert the slices to strings.
+pub fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
+    slice.iter().map(|el| String::from(*el)).collect()
+}
+
 #[test]
 fn properly_validates() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(is_in(ALLOWED_STRS))]
+        #[validate(is_in(collection = str_slice_to_string(ALLOWED_STRS)))]
         a: String,
         #[validate(is_in(ALLOWED_NUMS))]
         b: u64,
-        #[validate(not_in(DISALLOWED_STRS))]
+        #[validate(not_in(collection = str_slice_to_string(DISALLOWED_STRS)))]
         c: String,
         #[validate(not_in(DISALLOWED_NUMS))]
         d: u64,
@@ -43,11 +48,11 @@ fn properly_validates() {
 fn properly_errors() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(is_in(collection = ALLOWED_STRS, message = "NOT_IN_ALLOWED"))]
+        #[validate(is_in(collection = str_slice_to_string(ALLOWED_STRS), message = "NOT_IN_ALLOWED"))]
         a: String,
         #[validate(is_in(collection = ALLOWED_NUMS, message = "NOT_IN_ALLOWED"))]
         b: u64,
-        #[validate(not_in(collection = DISALLOWED_STRS, message = "IN_DISALLOWED"))]
+        #[validate(not_in(collection = str_slice_to_string(DISALLOWED_STRS), message = "IN_DISALLOWED"))]
         c: String,
         #[validate(not_in(collection = DISALLOWED_NUMS, message = "IN_DISALLOWED"))]
         d: u64,
@@ -111,7 +116,7 @@ fn properly_errors() {
 fn properly_validates_option() {
     #[derive(Debug, Validate)]
     struct TestStruct {
-        #[validate(is_in(collection = ALLOWED_STRS, message = "NOT_IN_ALLOWED"))]
+        #[validate(is_in(collection = str_slice_to_string(ALLOWED_STRS), message = "NOT_IN_ALLOWED"))]
         a: Option<String>,
         #[validate(is_in(collection = ALLOWED_NUMS, code = "FUK", message = "NOT_IN_ALLOWED"))]
         b: Option<u64>,

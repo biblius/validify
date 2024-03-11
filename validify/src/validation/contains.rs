@@ -3,7 +3,6 @@ use crate::traits::Contains;
 /// Validates whether the value contains the needle
 /// The value needs to implement the Contains trait, which is implemented on String, str and `Hashmap<String>`
 /// by default.
-#[must_use]
 pub fn validate_contains<T: Contains>(haystack: T, needle: T::Needle<'_>, not: bool) -> bool {
     if not {
         !haystack.has_element(needle)
