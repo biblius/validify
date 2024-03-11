@@ -11,7 +11,7 @@ license = "MIT"
 name = "validify_derive"
 readme = "../README.md"
 repository = "https://github.com/biblius/validify"
-version = "1.3.0"
+version = "1.4.0"
 
 [lib]
 proc-macro = true
