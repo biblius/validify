@@ -1,13 +1,27 @@
 # Changelog
 
-- ## 1.3.0 - Breaking
+- ## 1.4.0
+
+- Add new validator - `iter`.
+- `validate(length)` - Change "actual" parameter to be the length of the item instead of the item contents.
+- `validate(time)` - Add `time` key which now must explicitly be set to true if validating datetimes (as opposed to just dates). The validator no longer
+  checks the field to determine whether datetimes should be used. This now makes it interoperable with the new `iter` validator.
+- `validate(contains)` - Remove `actual` parameter since it can be derived from the error location.
+- `validate(is_in/not_in)` - The `collection` parameter must now explicitly be specified when dealing with string slices.
+  It now takes in an expression instead of a path due to quirks when trying to use `&[&str]` collections.
+  Now the collections can be mapped inline to match the type of the field.
+  The collection now also must have a `Contains` implementation with `Contains::Needle` as the type being validated.
+  See [the test directory](./derive_tests/lib.rs) for examples.
+- Make the `Contains` trait public.
+
+- ## 1.3.0
 
 - Added the `ValidifyPayload` trait to associate payloads to original structs. Moved
   `validate_into` and `validify_into` to the trait as `validate_from` and `validify_from`.
   The functions are now called from the original instead of the payload.
   This is done to make it easier to interop with crates like `axum-valid`.
 
-- ## 1.2.0 - Breaking
+- ## 1.2.0
 
 - The `Validify` trait now has only one function: `validify` which is now used
   solely to perform modifications and validations on the implementing struct.

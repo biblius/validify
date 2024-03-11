@@ -8,7 +8,7 @@ fn before() {
     struct Testor {
         #[validate(time(op = before, target = "2500-04-20", format = "%Y-%m-%d"))]
         date: NaiveDate,
-        #[validate(time(op = before, target = "2500-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f"))]
+        #[validate(time(op = before, target = "2500-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f", time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -59,7 +59,8 @@ fn before_inclusive() {
             op = before,
             target = "2500-04-20 12:00:00.000",
             format = "%Y-%m-%-d %H:%M:%S%.3f",
-            inclusive = true
+            inclusive = true,
+            time = true
         ))]
         datetime: NaiveDateTime,
     }
@@ -98,6 +99,7 @@ fn before_code_message() {
             target = "2500-04-20 12:00:00.000",
             format = "%Y-%m-%-d %H:%M:%S%.3f",
             inclusive = true,
+            time = true,
             code = "NOT_GOOD",
             message = "VERY_BAD"
         ))]
@@ -137,7 +139,7 @@ fn after() {
     struct Testor {
         #[validate(time(op = after, target = "2022-04-20", format = "%Y-%m-%d"))]
         date: NaiveDate,
-        #[validate(time(op = after, target = "2022-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f"))]
+        #[validate(time(op = after, target = "2022-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f", time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -188,7 +190,8 @@ fn after_inclusive() {
             op = after,
             target = "2022-04-20 12:00:00.000",
             format = "%Y-%m-%-d %H:%M:%S%.3f",
-            inclusive = true
+            inclusive = true,
+            time = true
         ))]
         datetime: NaiveDateTime,
     }
@@ -227,6 +230,7 @@ fn after_code_message() {
             target = "2500-04-20 12:00:00.000",
             format = "%Y-%m-%-d %H:%M:%S%.3f",
             inclusive = true,
+            time = true,
             code = "NOT_GOOD",
             message = "VERY_BAD"
         ))]
@@ -266,7 +270,7 @@ fn before_now() {
     struct Testor {
         #[validate(time(op = before_now))]
         date: NaiveDate,
-        #[validate(time(op = before_now))]
+        #[validate(time(op = before_now, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -308,7 +312,7 @@ fn before_now_code_message() {
     struct Testor {
         #[validate(time(op = before_now, code = "NOT_GONNA_HAPPEN"))]
         date: NaiveDate,
-        #[validate(time(op = before_now, code = "NUH_UH", message = "Must be before now"))]
+        #[validate(time(op = before_now, code = "NUH_UH", message = "Must be before now", time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -340,7 +344,7 @@ fn after_now() {
     struct Testor {
         #[validate(time(op = after_now))]
         date: NaiveDate,
-        #[validate(time(op = after_now))]
+        #[validate(time(op = after_now, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -382,7 +386,7 @@ fn after_now_code_message() {
     struct Testor {
         #[validate(time(op = after_now, code = "NOT_GONNA_HAPPEN"))]
         date: NaiveDate,
-        #[validate(time(op = after_now, code = "NUH_UH", message = "Must be after now"))]
+        #[validate(time(op = after_now, code = "NUH_UH", message = "Must be after now", time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -415,7 +419,7 @@ fn before_from_now() {
     struct Testor {
         #[validate(time(op = before_from_now, seconds = _18_YEARS))]
         date: NaiveDate,
-        #[validate(time(op = before_from_now, seconds = _18_YEARS))]
+        #[validate(time(op = before_from_now, seconds = _18_YEARS, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -465,7 +469,7 @@ fn after_from_now() {
     struct Testor {
         #[validate(time(op = after_from_now, days = _18_YEARS))]
         date: NaiveDate,
-        #[validate(time(op = after_from_now, days = _18_YEARS))]
+        #[validate(time(op = after_from_now, days = _18_YEARS, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -522,7 +526,7 @@ fn in_period_positive() {
     struct Testor {
         #[validate(time(op = in_period, target = "2022-04-20", format = "%Y-%m-%d", weeks = 2))]
         date: NaiveDate,
-        #[validate(time(op = in_period, target = sometime, weeks = TWO_WEEKS))]
+        #[validate(time(op = in_period, target = sometime, weeks = TWO_WEEKS, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -587,7 +591,7 @@ fn in_period_negative() {
     struct Testor {
         #[validate(time(op = in_period, target = "2022-04-20", format = "%Y-%m-%d", weeks = -2))]
         date: NaiveDate,
-        #[validate(time(op = in_period, target = sometime, weeks = MINUS_TWO_WEEKS))]
+        #[validate(time(op = in_period, target = sometime, weeks = MINUS_TWO_WEEKS, time = true))]
         datetime: NaiveDateTime,
     }
 
@@ -659,6 +663,7 @@ fn in_period_code_message() {
             target = "2022-04-20T10:00:00",
             format = "%Y-%m-%dT%H:%M:%S",
             weeks = -2,
+            time = true,
             code = "NO",
             message = "sry"
         ))]
@@ -701,7 +706,7 @@ fn with_option() {
     struct Testor {
         #[validate(time(op = before, target = "2500-04-20", format = "%Y-%m-%d"))]
         date: Option<NaiveDate>,
-        #[validate(time(op = before, target = "2500-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f"))]
+        #[validate(time(op = before, target = "2500-04-20T12:00:00.000", format = "%Y-%m-%-dT%H:%M:%S%.3f", time = true))]
         datetime: Option<NaiveDateTime>,
     }
 
@@ -753,7 +758,7 @@ fn with_option_and_duration() {
     struct Testor {
         #[validate(time(op = before_from_now, weeks = 2))]
         date: Option<NaiveDate>,
-        #[validate(time(op = before_from_now, weeks = 2))]
+        #[validate(time(op = before_from_now, weeks = 2, time = true))]
         datetime: Option<NaiveDateTime>,
     }
 

@@ -129,6 +129,21 @@ impl ValidationError {
         }
     }
 
+    /// Append the provided parent to the current location
+    pub fn append_location<T>(&mut self, child: T)
+    where
+        T: Display,
+    {
+        match self {
+            ValidationError::Field {
+                ref mut location, ..
+            } => location.push_str(&format!("/{child}")),
+            ValidationError::Schema {
+                ref mut location, ..
+            } => location.push_str(&format!("/{child}")),
+        }
+    }
+
     /// Used when the struct failing validation is nested in collections. It will concat the index
     /// to the parent so as to follow the location.
     pub fn set_location_idx<T: Display>(&mut self, idx: T, parent: &str) {
@@ -142,7 +157,7 @@ impl ValidationError {
         }
     }
 
-    /// Returns the apsolute location of the error in a similiar manner to JSON pointers.
+    /// Returns the absolute location of the error in a similiar manner to JSON pointers.
     pub fn location(&self) -> &str {
         match self {
             ValidationError::Schema { ref location, .. } => location,

@@ -6,7 +6,7 @@
 [![docs](https://img.shields.io/docsrs/validify?logo=rust&style=plastic)](https://docs.rs/validify/latest/validify/)
 [![version](https://img.shields.io/crates/v/validify?logo=rust&style=plastic)](https://crates.io/crates/validify)
 
-A procedural macro that provides attributes for field validation and modifiers. Particularly useful in the context of web payloads.
+Procedural macros that provide attributes for data validation and modification. Particularly useful in the context of web payloads.
 
 ## **Modifiers**
 
@@ -25,30 +25,32 @@ A procedural macro that provides attributes for field validation and modifiers. 
 
 All validators also take in a `code` and `message` as parameters, their values are must be string literals if specified.
 
-| Validator        | Type             | Params          | Param type    | Description                                                                                                                           |
-| ---------------- | ---------------- | --------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| email            | String           | --              | --            | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                           |
-| ip               | String           | format          | Ident (v4/v6) | Checks if the string is an IP address.                                                                                                |
-| url              | String           | --              | --            | Checks if the string is a URL.                                                                                                        |
-| length           | Collection       | min, max, equal | LitInt        | Checks if the collection length is within the specified params. Works through the HasLen trait.                                       |
-| range            | Int/Float        | min, max        | LitFloat      | Checks if the value is in the specified range.                                                                                        |
-| must_match       | Any              | value           | Ident         | Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.        |
-| contains         | Collection       | value           | Lit/Path      | Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.        |
-| contains_not     | Collection       | value           | Lit/Path      | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key. |
-| non_control_char | String           | --              | --            | Checks if the field contains control characters                                                                                       |
-| custom           | Function         | function        | Path          | Executes custom validation on the field by calling the provided function                                                              |
-| regex            | String           | path            | Path          | Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.       |
-| credit_card      | String           | --              | --            | Checks if the field's value is a valid credit card number                                                                             |
-| phone            | String           | --              | --            | Checks if the field's value is a valid phone number                                                                                   |
-| required         | Option\<T>       | --              | --            | Checks whether the field's value is Some                                                                                              |
-| is_in            | impl PartialEq   | collection      | Path          | Checks whether the field's value is in the specified collection                                                                       |
-| not_in           | impl PartialEq   | collection      | Path          | Checks whether the field's value is not in the specified collection                                                                   |
-| validate         | impl Validate    | --              | --            | Calls the underlying structs                                                                                                          |
-| time             | NaiveDate\[Time] | See below       | See below     | Performs a check based on the specified op                                                                                            |
+| Validator        | Type             | Params             | Param type    | Description                                                                                                                           |
+| ---------------- | ---------------- | ------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| email            | String           | --                 | --            | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                           |
+| ip               | String           | format             | Ident (v4/v6) | Checks if the string is an IP address.                                                                                                |
+| url              | String           | --                 | --            | Checks if the string is a URL.                                                                                                        |
+| length           | Collection       | min, max, equal    | LitInt        | Checks if the collection length is within the specified params. Works through the HasLen trait.                                       |
+| range            | Int/Float        | min, max           | LitFloat      | Checks if the value is in the specified range.                                                                                        |
+| must_match       | Any              | value              | Ident         | Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.        |
+| contains         | Collection       | value              | Lit/Path      | Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.        |
+| contains_not     | Collection       | value              | Lit/Path      | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key. |
+| non_control_char | String           | --                 | --            | Checks if the field contains control characters                                                                                       |
+| custom           | Function         | function           | Path          | Executes custom validation on the field by calling the provided function                                                              |
+| regex            | String           | path               | Path          | Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.       |
+| credit_card      | String           | --                 | --            | Checks if the field's value is a valid credit card number                                                                             |
+| phone            | String           | --                 | --            | Checks if the field's value is a valid phone number                                                                                   |
+| required         | Option\<T>       | --                 | --            | Checks whether the field's value is Some                                                                                              |
+| is_in            | impl PartialEq   | collection         | Path          | Checks whether the field's value is in the specified collection                                                                       |
+| not_in           | impl PartialEq   | collection         | Path          | Checks whether the field's value is not in the specified collection                                                                   |
+| validate         | impl Validate    | --                 | --            | Calls the underlying struct's `validate` implementation                                                                               |
+| iter             | impl Iterator    | List of validators | Validator     | Runs the provided validators on each element of the iterable                                                                          |
+| time             | NaiveDate\[Time] | See below          | See below     | Performs a check based on the specified op                                                                                            |
 
 ### **Time operators**
 
-All time operators can take in `inclusive = bool`.
+All time operators may take in `inclusive = bool`.
+All time operator must take in `time = bool` when validating datetimes, by default time validators will attempt to validate dates.
 
 `in_period` and the `*_from_now` operators are inclusive by default.
 
@@ -184,8 +186,6 @@ The `ValidifyPayload` implementations first validate the required fields of the 
 When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first. This means that any nested structs must also derive `Payload`.
 
 ## The payload and serde
-
-Struct level annotations, such as `#[serde(renameAll = "...")]` are propagated to the payload.
 
 Struct level attributes, such as `rename_all` are propagated to the payload. When attributes that modify field names are present, any field names in returned errors will be represented as the original (i.e. client payload).
 
@@ -325,3 +325,7 @@ struct DateTimeExamples {
 ```
 
 See more examples in [the test directory](./derive_tests/tests)
+
+### Contributing
+
+If you have any ideas on how to improve Validify, such as common validations you find useful or better error messages, do not hesitate to open an issue or PR. All ideas are welcome!
