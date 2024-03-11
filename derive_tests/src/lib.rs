@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use validify::{schema_err, schema_validation, Payload, ValidationError};
+use validify::{schema_err, schema_validation, ValidationError};
 #[allow(unused_imports)]
 use validify::{ValidationErrors, Validify};
 
@@ -8,14 +8,14 @@ const DISALLOWED: &[&str] = &["nono", "NO"];
 const NUMBERS: &[i32] = &[1, 2, 3];
 const NO_NUMBERS: &[i32] = &[4, 5, 6];
 
-#[derive(Debug, Clone, validify::Validify, Payload)]
+#[derive(Debug, Clone, validify::Validify)]
 #[validate(validator_test)]
 struct T {
     #[modify(custom(baz), trim, uppercase)]
     #[validate(
        length(min = 0, max = 12, code = "yea"),
-       is_in(collection = ALLOWED, code = "CODE"),
-       not_in(DISALLOWED),
+       is_in(collection = ALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>(), code = "CODE"),
+       not_in(collection = DISALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>()),
        contains(value = "YO", message = "hello"),
        custom(function = foo, code = "foo", message = "bar"),
        custom(bar),
@@ -30,7 +30,10 @@ struct T {
     c: Vec<String>,
 
     #[modify(custom(baz), trim, uppercase)]
-    #[validate(length(min = 1), is_in(ALLOWED), not_in(DISALLOWED))]
+    #[validate(
+        length(min = 1),
+        is_in(collection = ALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>()),
+        not_in(collection = DISALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>()))]
     d: Option<String>,
 
     #[validate(
@@ -44,6 +47,7 @@ struct T {
     f: String,
 
     #[validate(time(
+        time = true,
         op = after,
         target = some_date,
     ))]
@@ -57,7 +61,7 @@ fn some_date() -> NaiveDateTime {
         .naive_utc()
 }
 
-#[derive(Debug, Clone, serde::Deserialize, Validify)]
+#[derive(Debug, Clone, Validify)]
 struct U {
     #[validate(range(min = 1.))]
     b: usize,
@@ -83,9 +87,7 @@ fn validator_test(t: &T) -> Result<(), ValidationErrors> {
 
 #[test]
 fn validate() {
-    use validify::ValidifyPayload;
-
-    let _t = T {
+    let mut _t = T {
         a: String::from("nono"),
         b: U { b: 2 },
         c: vec!["  LMEO  ".to_string()],
@@ -94,7 +96,7 @@ fn validate() {
         f: "0.0.0.0".to_string(),
         g: chrono::Utc::now().naive_utc(),
     };
-    let res = T::validify_from(_t.into());
+    let res = _t.validify();
     assert!(res.is_err());
     let err = res.unwrap_err();
     assert_eq!(err.errors().len(), 1);

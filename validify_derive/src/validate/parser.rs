@@ -331,22 +331,20 @@ pub fn parse_regex_full(meta: &ParseNestedMeta) -> Result<Regex, syn::Error> {
 }
 
 pub fn parse_in_full(meta: &ParseNestedMeta, not: bool) -> Result<In, syn::Error> {
-    let mut validation = In::new(
-        syn::Path {
-            leading_colon: None,
-            segments: Punctuated::new(),
-        },
-        not,
-    );
+    let mut validation = In::new(not);
 
     meta.parse_nested_meta(|meta| {
         if meta.path.is_ident("collection") {
             let content = meta.value()?;
-            match content.parse::<syn::Path>() {
-                Ok(path) => {
-                    validation.path = path;
+            match content.parse::<syn::Expr>() {
+                Ok(expr) => {
+                    validation.expr = Some(expr);
                 }
-                Err(_) => return Err(meta.error("[not_]in collection must be a valid path")),
+                Err(e) => {
+                    return Err(
+                        meta.error(format!("[not_]in collection must be a valid path ({e})"))
+                    )
+                }
             }
             return Ok(());
         }
@@ -356,7 +354,7 @@ pub fn parse_in_full(meta: &ParseNestedMeta, not: bool) -> Result<In, syn::Error
         Err(meta.error("Unrecognized [not_]in parameter, accepted are: collection, code, message"))
     })?;
 
-    if validation.path.segments.is_empty() {
+    if validation.expr.is_none() {
         abort!(meta.input.span(), "[not_]in validation must have a path")
     }
 
@@ -456,6 +454,15 @@ pub fn parse_time(meta: &ParseNestedMeta) -> Result<Time, syn::Error> {
             match content.parse::<LitBool>() {
                 Ok(inclusive) => validation.inclusive = inclusive.value(),
                 Err(_) => return Err(meta.error("inclusive must be a bool literal"))
+            }
+            return Ok(());
+        }
+
+        if meta.path.is_ident("time") {
+            let content = meta.value()?;
+            match content.parse::<LitBool>() {
+                Ok(has_time) => validation.has_time = has_time.value(),
+                Err(_) => return Err(meta.error("time must be a bool literal"))
             }
             return Ok(());
         }

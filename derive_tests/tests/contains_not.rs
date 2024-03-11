@@ -57,7 +57,6 @@ fn string_containing_needle_fails_validation() {
     assert_eq!(errs[0].code(), "contains_not");
     assert_eq!(errs[0].location(), "/val");
     assert_eq!(errs[0].params()["target"], "he");
-    assert_eq!(errs[0].params()["actual"], "hello");
 }
 
 #[test]
@@ -117,7 +116,6 @@ fn can_specify_code_for_does_not_contain() {
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "oops");
     assert_eq!(errs[0].params()["target"], "he");
-    assert_eq!(errs[0].params()["actual"], "hello");
 }
 
 #[test]
@@ -137,5 +135,4 @@ fn can_specify_message_for_does_not_contain() {
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].clone().message().unwrap(), "oops");
     assert_eq!(errs[0].params()["target"], "he");
-    assert_eq!(errs[0].params()["actual"], "hello");
 }

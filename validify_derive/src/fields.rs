@@ -1,6 +1,5 @@
 use crate::{
     serde::RenameRule,
-    tokens::ToValidationTokens,
     validate::{r#impl::collect_validations, validation::Validator},
     validify::{modifier::Modifier, r#impl::collect_modifiers},
 };
@@ -68,7 +67,11 @@ impl FieldInfo {
                     .expect("Found unnamed field")
                     .to_string();
 
-                let (validations, modifiers, original_name) = collect_field_attributes(field);
+                let validations = collect_validations(field);
+                let modifiers = collect_modifiers(field);
+
+                // The original name refers to the field name set with serde rename.
+                let original_name = crate::serde::find_rename(field);
 
                 Self::new(
                     field.clone(),
@@ -342,15 +345,6 @@ impl FieldInfo {
         is_map(&self.field.ty)
     }
 
-    /// Returns true if the field is a `String` or an `Option<String>`
-    pub fn is_string(&self) -> bool {
-        is_string(&self.field.ty)
-    }
-
-    pub fn has_time(&self) -> bool {
-        has_time(&self.field.ty)
-    }
-
     /// Returns true if the field is annotated with `#[validify]`
     pub fn is_nested_validify(&self) -> bool {
         self.field
@@ -398,22 +392,6 @@ pub fn validify_attr_check(attr: &syn::Attribute) -> bool {
         || attr.path().is_ident("modify")
 }
 
-fn has_time(ty: &syn::Type) -> bool {
-    if let Some(ty) = try_extract_option(ty) {
-        return has_time(ty);
-    }
-
-    let syn::Type::Path(p) = ty else {
-        return false;
-    };
-
-    if let Some(id) = p.path.get_ident() {
-        id.to_string().contains("Time")
-    } else {
-        false
-    }
-}
-
 fn is_reference(ty: &syn::Type) -> bool {
     // Strip any `Option`s
     if let Some(ty) = try_extract_option(ty) {
@@ -421,14 +399,6 @@ fn is_reference(ty: &syn::Type) -> bool {
     }
 
     matches!(ty, syn::Type::Reference(_))
-}
-
-fn is_string(ty: &syn::Type) -> bool {
-    if let Some(ty) = try_extract_option(ty) {
-        return is_string(ty);
-    }
-
-    matches!(ty, syn::Type::Path(p) if p.path.is_ident("String"))
 }
 
 fn is_list(ty: &syn::Type) -> bool {
@@ -498,19 +468,4 @@ fn try_extract_option(ty: &syn::Type) -> Option<&syn::Type> {
         syn::GenericArgument::Type(ty) => Some(ty),
         _ => None,
     }
-}
-
-/// Find everything we need to know about a field: its real name if it's changed from the deserialization
-/// and the list of validators and modifiers to run on it
-fn collect_field_attributes(field: &syn::Field) -> (Vec<Validator>, Vec<Modifier>, Option<String>) {
-    let mut validators = vec![];
-    let mut modifiers = vec![];
-
-    collect_validations(&mut validators, field);
-    collect_modifiers(&mut modifiers, field);
-
-    // The original name refers to the field name set with serde rename.
-    let original_name = crate::serde::find_rename(field);
-
-    (validators, modifiers, original_name)
 }

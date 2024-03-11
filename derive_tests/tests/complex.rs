@@ -108,7 +108,7 @@ fn failed_validation_points_to_original_field_name() {
     };
     let res = signup.validate().unwrap_err();
     assert_eq!(res.errors()[0].location(), "/firstName");
-    assert_eq!(res.errors()[0].params()["actual"], "");
+    assert_eq!(res.errors()[0].params()["actual"], 0);
     assert_eq!(res.errors()[1].location(), "/phone/number");
     assert_eq!(res.errors()[1].params()["actual"], "123 invalid");
     assert_eq!(res.errors()[2].location(), "/card/number");
@@ -117,8 +117,10 @@ fn failed_validation_points_to_original_field_name() {
     assert_eq!(res.errors()[3].params()["actual"], 1);
     assert_eq!(res.errors()[3].params()["min"], 100.);
     assert_eq!(res.errors()[3].params()["max"], 9999.);
+    assert_eq!(res.errors()[4].code(), "length");
     assert_eq!(res.errors()[4].location(), "/preferences/0/name");
-    assert_eq!(res.errors()[4].params()["actual"], "abc");
+    assert_eq!(res.errors()[4].params()["actual"], 3);
+    assert_eq!(res.errors()[4].params()["min"], 4);
 }
 
 #[test]

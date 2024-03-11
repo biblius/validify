@@ -96,7 +96,8 @@ fn value_out_of_length_fails_validation() {
     let errs = err.field_errors();
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "length");
-    assert_eq!(errs[0].params()["actual"], "");
+    assert_eq!(errs[0].location(), "/val");
+    assert_eq!(errs[0].params()["actual"], 0);
     assert_eq!(errs[0].params()["min"], 5);
     assert_eq!(errs[0].params()["max"], 10);
 }
@@ -133,6 +134,8 @@ fn can_specify_message_for_length() {
     assert_eq!(errs[0].clone().message().unwrap(), "oops");
 }
 
+// This one doesn't do much since serialization errors would occurs first,
+// but is useful as a proof of concept
 #[test]
 fn can_validate_array_for_length() {
     #[derive(Debug, Validate)]
@@ -152,4 +155,61 @@ fn can_validate_array_for_length() {
     assert_eq!(errs[0].code(), "length");
     assert_eq!(errs[0].params()["min"], 5);
     assert_eq!(errs[0].params()["max"], 10);
+}
+
+#[test]
+fn can_validate_vec_of_strings() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(length(min = 5, max = 10))]
+        val: Vec<String>,
+    }
+
+    let test = TestStruct {
+        val: vec![String::new(), String::new()],
+    };
+    let res = test.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "length");
+    assert_eq!(errs[0].params()["min"], 5);
+    assert_eq!(errs[0].params()["max"], 10);
+
+    let test = TestStruct {
+        val: vec![
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ],
+    };
+    assert!(test.validate().is_ok())
+}
+
+#[test]
+fn can_validate_vec_of_primitives() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(length(min = 5, max = 10))]
+        val: Vec<u8>,
+    }
+
+    let test = TestStruct { val: vec![0, 1] };
+    let res = test.validate();
+    assert!(res.is_err());
+    let err = res.unwrap_err();
+    let errs = err.field_errors();
+    assert_eq!(errs.len(), 1);
+    assert_eq!(errs[0].code(), "length");
+    assert_eq!(errs[0].params()["min"], 5);
+    assert_eq!(errs[0].params()["max"], 10);
+
+    let test = TestStruct {
+        val: vec![1, 2, 3, 4, 5],
+    };
+    assert!(test.validate().is_ok())
 }

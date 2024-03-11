@@ -1,7 +1,7 @@
 #![doc = include_str!(concat!("../", std::env!("CARGO_PKG_README")))]
 
 mod error;
-mod traits;
+pub mod traits;
 mod validation;
 
 pub use error::{ValidationError, ValidationErrors};

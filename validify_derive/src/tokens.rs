@@ -4,16 +4,13 @@ use crate::validate::validation::{
     Contains, CreditCard, Custom, Describe, Email, In, Ip, Length, MustMatch, NonControlChar,
     Phone, Range, Regex, Required, SchemaValidation, Time, TimeMultiplier, Url, Validator,
 };
-use proc_macro2::{self};
+use proc_macro2::{self, TokenStream};
+use proc_macro_error::abort;
 use quote::quote;
+use syn::spanned::Spanned;
 
-/// Implement on validators/modifiers that need to be expanded in the derive invocation.
-pub trait ToValidationTokens {
-    /// Output the validation/modification tokens in a validation type
-    /// that specifies whether the tokens are a direct validation/modification call or a nested
-    /// validation/modification call.
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens;
-
+/// Utility for generating error messages
+pub trait ValidationErrorTokens {
     /// Quote an error based on the validation's settings
     fn quote_error(&self, field_name: &str) -> proc_macro2::TokenStream
     where
@@ -33,6 +30,32 @@ pub trait ToValidationTokens {
             #add_message_quoted
         )
     }
+}
+
+macro_rules! impl_error {
+    ($($id:ident),*) => (
+        $(
+            impl ValidationErrorTokens for $id {}
+        )*
+    )
+}
+
+impl_error! {
+    Length,
+    Range,
+    Email,
+    Url,
+    CreditCard,
+    Phone,
+    Custom,
+    NonControlChar,
+    Required,
+    MustMatch,
+    Regex,
+    Contains,
+    Time,
+    In,
+    Ip
 }
 
 /// Whether the tokens are for nested or direct validations.
@@ -84,24 +107,144 @@ pub(super) fn quote_field_modifiers(
     (modifications, nested_validifies)
 }
 
-impl ToValidationTokens for Validator {
-    fn to_validify_tokens(&self, field_info: &crate::fields::FieldInfo) -> ValidationTokens {
+impl Validator {
+    pub fn to_validify_tokens(&self, field_info: &crate::fields::FieldInfo) -> ValidationTokens {
+        let field_name = field_info.name();
+        let validator_param = field_info.quote_validator_param();
+
         match self {
-            Validator::Email(v) => v.to_validify_tokens(field_info),
-            Validator::Url(v) => v.to_validify_tokens(field_info),
-            Validator::CreditCard(v) => v.to_validify_tokens(field_info),
-            Validator::Phone(v) => v.to_validify_tokens(field_info),
-            Validator::Custom(v) => v.to_validify_tokens(field_info),
-            Validator::Range(v) => v.to_validify_tokens(field_info),
-            Validator::Length(v) => v.to_validify_tokens(field_info),
-            Validator::NonControlCharacter(v) => v.to_validify_tokens(field_info),
-            Validator::Required(v) => v.to_validify_tokens(field_info),
-            Validator::MustMatch(v) => v.to_validify_tokens(field_info),
-            Validator::Regex(v) => v.to_validify_tokens(field_info),
-            Validator::Contains(v) => v.to_validify_tokens(field_info),
-            Validator::Time(v) => v.to_validify_tokens(field_info),
-            Validator::In(v) => v.to_validify_tokens(field_info),
-            Validator::Ip(v) => v.to_validify_tokens(field_info),
+            Validator::Email(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Url(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::CreditCard(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Phone(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Ip(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Custom(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Range(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Length(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::NonControlCharacter(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Regex(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Contains(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::MustMatch(v) => {
+                let ident = field_info.field.ident.as_ref();
+                let validator_param = quote!(&self.#ident);
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Required(v) => {
+                let ident = field_info.field.ident.as_ref();
+                let validator_param = quote!(&self.#ident);
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(tokens)
+            }
+            Validator::In(v) => {
+                let ident = field_info.field.ident.as_ref();
+                let validator_param = quote!(&self.#ident);
+                let tokens = v.to_validify_tokens(
+                    field_name,
+                    validator_param,
+                    field_info.is_option(),
+                    false,
+                );
+                ValidationTokens::Normal(tokens)
+            }
+            Validator::Time(v) => {
+                let tokens = v.to_validify_tokens(field_name, validator_param, false);
+                ValidationTokens::Normal(field_info.wrap_tokens_if_option(tokens))
+            }
+            Validator::Iter(v) => {
+                let validator_param = quote!(el);
+                let inner_tokens = v.iter().map(|v| match v {
+                    Validator::Iter(_) => {
+                        abort!(field_info.field.span(), "`iter` validator cannot be nested")
+                    }
+                    Validator::Nested => {
+                        abort!(field_info.field.span(), "`nested` is not valid in `iter`. To recursively validate collections, use `nested` directly on the field")
+                    },
+                    Validator::Email(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Url(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::CreditCard(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Phone(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Custom(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Range(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Length(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Ip(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::NonControlCharacter(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Required(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::MustMatch(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Regex(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Contains(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    }
+                    Validator::Time(v) => {
+                        v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
+                    },
+                    Validator::In(v) => v.to_validify_tokens(field_name.clone(), validator_param.clone(), false, true),
+                });
+                let ident = field_info.field.ident.as_ref();
+                let tokens = quote!(
+                    for (__i, el) in self.#ident.iter().enumerate() {
+                        #(#inner_tokens)*
+                    }
+                );
+                ValidationTokens::Normal(tokens)
+            }
             Validator::Nested => {
                 let validator_field = field_info.quote_validator_field();
                 let field_name = field_info.name();
@@ -119,21 +262,506 @@ impl ToValidationTokens for Validator {
     }
 }
 
-impl ToValidationTokens for Time {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
+impl Ip {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
         let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        let Ip { ref format, .. } = self;
+
+        let validate_fn = match format {
+            Some(format) => match format {
+                crate::validate::validation::IpFormat::V4 => quote!(validate_ip_v4),
+                crate::validate::validation::IpFormat::V6 => quote!(validate_ip_v6),
+            },
+            None => quote!(validate_ip),
+        };
+
+        quote!(
+            if !::validify::#validate_fn(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Length {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let Length {
+            ref min,
+            ref max,
+            ref equal,
+            ..
+        } = self;
+
+        let quoted_error = self.quote_error(&field_name);
+        let error_param = quote!(err.add_param("actual", &#validator_param.len()););
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        let min_err_param_quoted = if let Some(ref v) = min {
+            quote!(err.add_param("min", &#v);)
+        } else {
+            quote!()
+        };
+
+        let max_err_param_quoted = if let Some(ref v) = max {
+            quote!(err.add_param("max", &#v);)
+        } else {
+            quote!()
+        };
+
+        let equal_err_param_quoted = if let Some(ref v) = equal {
+            quote!(err.add_param("equal", &#v);)
+        } else {
+            quote!()
+        };
+
+        let min_tokens = min
+            .as_ref()
+            .map(ValueOrPath::tokens)
+            .map(|x| quote!(Some(#x as u64)))
+            .unwrap_or(quote!(None));
+
+        let max_tokens = max
+            .as_ref()
+            .map(ValueOrPath::tokens)
+            .map(|x| quote!(Some(#x as u64)))
+            .unwrap_or(quote!(None));
+
+        let equal_tokens = equal
+            .as_ref()
+            .map(ValueOrPath::tokens)
+            .map(|x| quote!(Some(#x as u64)))
+            .unwrap_or(quote!(None));
+
+        quote!(
+            if !::validify::validate_length(
+                #validator_param,
+                #min_tokens,
+                #max_tokens,
+                #equal_tokens
+            ) {
+                #quoted_error
+                #min_err_param_quoted
+                #max_err_param_quoted
+                #equal_err_param_quoted
+                #error_param
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Range {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        let Range {
+            ref min, ref max, ..
+        } = self;
+
+        let min_err_param_quoted = if let Some(v) = min {
+            quote!(err.add_param("min", &#v);)
+        } else {
+            quote!()
+        };
+
+        let max_err_param_quoted = if let Some(v) = max {
+            quote!(err.add_param("max", &#v);)
+        } else {
+            quote!()
+        };
+
+        let min_tokens = min
+            .as_ref()
+            .map(ValueOrPath::tokens)
+            .map(|x| quote!(Some(#x as f64)))
+            .unwrap_or(quote!(None));
+
+        let max_tokens = max
+            .as_ref()
+            .map(ValueOrPath::tokens)
+            .map(|x| quote!(Some(#x as f64)))
+            .unwrap_or(quote!(None));
+
+        quote!(
+            if !::validify::validate_range(
+                *#validator_param as f64,
+                #min_tokens,
+                #max_tokens
+            ) {
+                #quoted_error
+                #min_err_param_quoted
+                #max_err_param_quoted
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl CreditCard {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_credit_card(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Phone {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_phone(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Custom {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let Custom { ref path, .. } = self;
+
+        let err_with_msg = if let Some(msg) = self.message() {
+            quote!(err.with_message(#msg.to_string()))
+        } else {
+            quote!(err)
+        };
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        quote!(
+            if let Err(mut err) = #path(#validator_param) {
+                let f_name = err.field_name().map(|s|s.to_string());
+                if let Some(field_name) = f_name {
+                    err.set_location(field_name);
+                } else {
+                    err.set_field(#field_name);
+                    #error_location
+                }
+                errors.add(#err_with_msg);
+            };
+        )
+    }
+}
+
+impl NonControlChar {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_non_control_character(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Url {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_url(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Email {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_email(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl MustMatch {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let MustMatch { ref value, .. } = self;
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_must_match(#validator_param, &self.#value) {
+                #quoted_error
+                err.add_param("actual", #validator_param);
+                err.add_param("target", &self.#value);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Regex {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let Regex { ref path, .. } = self;
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        quote!(
+            if !#path.is_match(#validator_param) {
+                #quoted_error
+                err.add_param("actual", &#validator_param);
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl In {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        is_option: bool,
+        in_iter: bool,
+    ) -> TokenStream {
+        let In { ref expr, not, .. } = self;
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        if is_option {
+            quote!(
+                if let Some(ref param) = #validator_param {
+                    if !::validify::validate_in(&#expr, &param, #not) {
+                        #quoted_error
+                        #error_location
+                        errors.add(err);
+                    }
+                }
+            )
+        } else {
+            quote!(
+                if !::validify::validate_in(&#expr, &#validator_param, #not) {
+                    #quoted_error
+                    #error_location
+                    errors.add(err);
+            })
+        }
+    }
+}
+
+impl Contains {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let Contains { not, ref value, .. } = self;
+
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+
+        let validation_val = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
+            quote!(String::from(#value))
+        } else {
+            quote!(#value)
+        };
+
+        // Only add the target if it's a literal since otherwise it will just be the variable name
+        let added_param = matches!(value, Some(ValueOrPath::Value(_)))
+            .then_some(quote!(err.add_param("target", &#value);));
+
+        quote!(
+            if !::validify::validate_contains(#validator_param, &#validation_val, #not) {
+                #quoted_error
+                #added_param
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Required {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
+        quote!(
+            if !::validify::validate_required(#validator_param) {
+                #quoted_error
+                #error_location
+                errors.add(err);
+            }
+        )
+    }
+}
+
+impl Time {
+    fn to_validify_tokens(
+        &self,
+        field_name: String,
+        validator_param: TokenStream,
+        in_iter: bool,
+    ) -> TokenStream {
+        let quoted_error = self.quote_error(&field_name);
+        let error_location = if in_iter {
+            quote!(err.set_location_idx(__i, #field_name);)
+        } else {
+            quote!(err.set_location(#field_name);)
+        };
 
         let Time {
             op,
             inclusive,
+            has_time,
             multiplier,
             ref format,
             ref duration,
             ref target,
             ..
         } = self;
+        let has_time = *has_time;
 
         let code = self.code();
         let quoted_parse_error = quote!(
@@ -141,11 +769,10 @@ impl ToValidationTokens for Time {
             err.set_field(#field_name);
             err.add_param("actual", &#validator_param);
             err.add_param("format", &#format);
-            err.set_location(#field_name);
+            #error_location
             errors.add(err);
         );
 
-        let has_time = field_info.has_time();
         let duration = duration.as_ref().map(|duration| match duration {
             // The value will be in seconds due to the way it is parsed in parse_time [crate::validate::parser::parse_time]
             ValueOrPath::Value(val) => quote!(chrono::Duration::seconds(#val)),
@@ -201,19 +828,18 @@ impl ToValidationTokens for Time {
                             #quoted_error
                             err.add_param("actual", &#validator_param);
                             err.add_param("target", target);
-                            err.set_location(#field_name);
+                            #error_location
                             errors.add(err);
                         }
                     )
                 };
-                let quoted = quote_time_with_target(
+                return quote_time_with_target(
                     target.as_ref().unwrap(),
                     validation,
                     quoted_parse_error,
                     format.as_deref(),
                     has_time,
                 );
-                return ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted));
             }
             TO::After => {
                 let validation = {
@@ -227,19 +853,18 @@ impl ToValidationTokens for Time {
                             #quoted_error
                             err.add_param("actual", &#validator_param);
                             err.add_param("target", target);
-                            err.set_location(#field_name);
+                            #error_location
                             errors.add(err);
                         }
                     )
                 };
-                let quoted = quote_time_with_target(
+                return quote_time_with_target(
                     target.as_ref().unwrap(),
                     validation,
                     quoted_parse_error,
                     format.as_deref(),
                     has_time,
                 );
-                return ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted));
             }
             TO::InPeriod => {
                 let validation = {
@@ -262,33 +887,30 @@ impl ToValidationTokens for Time {
                                 err.add_param("from", target);
                                 err.add_param("to", &end);
                             }
-                            err.set_location(#field_name);
+                            #error_location
                             errors.add(err);
                         }
                     )
                 };
-                let quoted = quote_time_with_target(
+                return quote_time_with_target(
                     target.as_ref().unwrap(),
                     validation,
                     quoted_parse_error,
                     format.as_deref(),
                     has_time,
                 );
-                return ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted));
             }
             TO::None => unreachable!(),
         };
 
-        let quoted = quote!(
+        quote!(
             if !#validation_fn {
                 #quoted_error
                 err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
+                #error_location
                 errors.add(err);
             }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
+        )
     }
 }
 
@@ -323,419 +945,5 @@ fn quote_time_with_target(
                 #quoted_validation
             )
         }
-    }
-}
-
-impl ToValidationTokens for Ip {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-        let quoted_error = self.quote_error(&field_name);
-
-        let Ip { ref format, .. } = self;
-
-        let validate_fn = match format {
-            Some(format) => match format {
-                crate::validate::validation::IpFormat::V4 => quote!(validate_ip_v4),
-                crate::validate::validation::IpFormat::V6 => quote!(validate_ip_v6),
-            },
-            None => quote!(validate_ip),
-        };
-
-        let quoted = quote!(
-            if !::validify::#validate_fn(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Length {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let Length {
-            ref min,
-            ref max,
-            ref equal,
-            ..
-        } = self;
-
-        let min_err_param_quoted = if let Some(ref v) = min {
-            quote!(err.add_param("min", &#v);)
-        } else {
-            quote!()
-        };
-
-        let max_err_param_quoted = if let Some(ref v) = max {
-            quote!(err.add_param("max", &#v);)
-        } else {
-            quote!()
-        };
-
-        let equal_err_param_quoted = if let Some(ref v) = equal {
-            quote!(err.add_param("equal", &#v);)
-        } else {
-            quote!()
-        };
-
-        let min_tokens = &min
-            .as_ref()
-            .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
-            .unwrap_or(quote!(None));
-
-        let max_tokens = &max
-            .as_ref()
-            .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
-            .unwrap_or(quote!(None));
-
-        let equal_tokens = &equal
-            .as_ref()
-            .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
-            .unwrap_or(quote!(None));
-
-        let quoted_error = self.quote_error(&field_name);
-
-        let is_collection = field_info.is_list() || field_info.is_map();
-        // For strings it's ok to add the param, but we don't want to add whole collections
-        let added_param =
-            (!is_collection).then_some(quote!(err.add_param("actual", &#validator_param);));
-
-        let quoted = quote!(
-            if !::validify::validate_length(
-                #validator_param,
-                #min_tokens,
-                #max_tokens,
-                #equal_tokens
-            ) {
-                #quoted_error
-                #min_err_param_quoted
-                #max_err_param_quoted
-                #equal_err_param_quoted
-                #added_param
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Range {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let quoted_ident = field_info.quote_validator_param();
-
-        let Range {
-            ref min, ref max, ..
-        } = self;
-
-        let min_err_param_quoted = if let Some(v) = min {
-            quote!(err.add_param("min", &#v);)
-        } else {
-            quote!()
-        };
-
-        let max_err_param_quoted = if let Some(v) = max {
-            quote!(err.add_param("max", &#v);)
-        } else {
-            quote!()
-        };
-
-        let min_tokens = min
-            .as_ref()
-            .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as f64)))
-            .unwrap_or(quote!(None));
-
-        let max_tokens = max
-            .as_ref()
-            .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as f64)))
-            .unwrap_or(quote!(None));
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_range(
-                *#quoted_ident as f64,
-                #min_tokens,
-                #max_tokens
-            ) {
-                #quoted_error
-                #min_err_param_quoted
-                #max_err_param_quoted
-                err.add_param("actual", &#quoted_ident);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for CreditCard {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_credit_card(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Phone {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_phone(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for NonControlChar {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_non_control_character(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-impl ToValidationTokens for Url {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_url(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Email {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_email(#validator_param) {
-                #quoted_error
-                err.add_param("actual", &#validator_param);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for MustMatch {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let ident = &field_info.field.ident;
-        let field_name = field_info.name();
-        let MustMatch { ref value, .. } = self;
-        let quoted_error = self.quote_error(&field_name);
-        let quoted = quote!(
-            if !::validify::validate_must_match(&self.#ident, &self.#value) {
-                #quoted_error
-                err.add_param("actual", &self.#ident);
-                err.add_param("target", &self.#value);
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Custom {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let validator_param = field_info.quote_validator_param();
-        let field_name = field_info.name();
-
-        let Custom { ref path, .. } = self;
-
-        let err_with_msg = if let Some(msg) = self.message() {
-            quote!(err.with_message(#msg.to_string()))
-        } else {
-            quote!(err)
-        };
-
-        let quoted = quote!(
-            if let Err(mut err) = #path(#validator_param) {
-                let f_name = err.field_name().map(|s|s.to_string());
-                if let Some(field_name) = f_name {
-                    err.set_location(field_name);
-                } else {
-                    err.set_field(#field_name);
-                    err.set_location(#field_name);
-                }
-                errors.add(#err_with_msg);
-            };
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Regex {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-
-        let Regex { ref path, .. } = self;
-        let quoted_error = self.quote_error(&field_name);
-
-        let quoted = quote!(
-        if !#path.is_match(#validator_param) {
-            #quoted_error
-            err.add_param("actual", &#validator_param);
-            err.set_location(#field_name);
-            errors.add(err);
-        });
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-/// This is a bit of a special case where we can't use the wrap if option since this is usually used with const slices where we'll
-/// usually need a double reference
-impl ToValidationTokens for In {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-
-        let field_ident = &field_info.field.ident;
-        let In { ref path, not, .. } = self;
-        let quoted_error = self.quote_error(&field_name);
-
-        // Cast strings to strs because the usual application for string comparisons
-        // with this kind of validation is with const arrays
-        let as_str = if field_info.is_string() {
-            quote!(.as_str())
-        } else {
-            quote!()
-        };
-
-        if field_info.is_option() {
-            return ValidationTokens::Normal(quote!(
-                if let Some(ref param) = self.#field_ident {
-                    if !::validify::validate_in(#path, &param #as_str, #not) {
-                        #quoted_error
-                        err.set_location(#field_name);
-                        errors.add(err);
-                    }
-                }
-            ));
-        }
-
-        ValidationTokens::Normal(quote!(
-            if !::validify::validate_in(#path, &self.#field_ident #as_str, #not) {
-                #quoted_error
-                err.set_location(#field_name);
-                errors.add(err);
-        }))
-    }
-}
-
-impl ToValidationTokens for Contains {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let validator_param = field_info.quote_validator_param();
-        let Contains { not, ref value, .. } = self;
-
-        let quoted_error = self.quote_error(&field_name);
-
-        let validation_val = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
-            quote!(String::from(#value))
-        } else {
-            quote!(#value)
-        };
-
-        // Only add the target if it's a literal since otherwise it will just be the variable name
-        let added_param = matches!(value, Some(ValueOrPath::Value(_)))
-            .then_some(quote!(err.add_param("target", &#value);));
-
-        // Only add the value if it's a string since we don't want to serialize whole collections
-        let added_value = (!field_info.is_list() && !field_info.is_map())
-            .then_some(quote!(err.add_param("actual", &#validator_param);));
-
-        let quoted = quote!(
-            if !::validify::validate_contains(#validator_param, &#validation_val, #not) {
-                #quoted_error
-                #added_param
-                #added_value
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        );
-
-        ValidationTokens::Normal(field_info.wrap_tokens_if_option(quoted))
-    }
-}
-
-impl ToValidationTokens for Required {
-    fn to_validify_tokens(&self, field_info: &FieldInfo) -> ValidationTokens {
-        let field_name = field_info.name();
-        let ident = &field_info.field.ident;
-        let validator_param = quote!(&self.#ident);
-
-        let quoted_error = self.quote_error(&field_name);
-        ValidationTokens::Normal(quote!(
-            if !::validify::validate_required(#validator_param) {
-                #quoted_error
-                err.set_location(#field_name);
-                errors.add(err);
-            }
-        ))
     }
 }

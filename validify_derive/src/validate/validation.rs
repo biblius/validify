@@ -18,6 +18,7 @@ pub trait Describe {
 /// Contains all the validators that can be used
 #[derive(Debug)]
 pub enum Validator {
+    Iter(Vec<Self>),
     Email(Email),
     Url(Url),
     CreditCard(CreditCard),
@@ -182,16 +183,16 @@ pub enum IpFormat {
 #[derive(Debug)]
 pub struct In {
     pub not: bool,
-    pub path: syn::Path,
+    pub expr: Option<syn::Expr>,
     pub code: Option<String>,
     pub message: Option<String>,
 }
 
 impl In {
-    pub fn new(path: syn::Path, not: bool) -> Self {
+    pub fn new(not: bool) -> Self {
         Self {
-            path,
             not,
+            expr: None,
             code: None,
             message: None,
         }
@@ -260,6 +261,9 @@ pub struct Time {
 
     /// Used in case a path is used for the duration. We have to keep track of which chrono::Duration method to call.
     pub multiplier: TimeMultiplier,
+
+    /// Whether to use chrono date or datetime
+    pub has_time: bool,
 }
 
 #[derive(Debug)]

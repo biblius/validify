@@ -18,17 +18,20 @@ pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStr
 
     let payload_ident = payload_ident(ident);
 
+    // Collect only serde attributes to propagate to the payload
     let attributes = input
         .attrs
         .iter()
         .filter(|attr| attr.meta.path().is_ident("serde"))
         .collect::<Vec<_>>();
+
     let visibility = &input.vis;
 
     let fields = FieldInfo::collect(input);
 
     let mut payload_fields = vec![];
     let mut custom_serdes = vec![];
+
     for field in fields.iter() {
         let (payload_tokens, custom_serde) = map_payload_fields(field);
         payload_fields.push(payload_tokens);
