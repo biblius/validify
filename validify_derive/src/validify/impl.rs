@@ -56,7 +56,8 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     })
 }
 
-pub fn collect_modifiers(modifiers: &mut Vec<Modifier>, field: &syn::Field) {
+pub fn collect_modifiers(field: &syn::Field) -> Vec<Modifier> {
+    let mut modifiers = vec![];
     for attr in &field.attrs {
         // Nest validified fields
         if attr.path().is_ident(VALIDIFY) {
@@ -101,4 +102,5 @@ pub fn collect_modifiers(modifiers: &mut Vec<Modifier>, field: &syn::Field) {
         })
         .unwrap_or_else(|e| abort!(e.span(), e));
     }
+    modifiers
 }
