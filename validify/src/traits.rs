@@ -141,7 +141,6 @@ pub trait Contains {
     type Needle<'a>
     where
         Self: 'a;
-    #[must_use]
     fn has_element(&self, needle: Self::Needle<'_>) -> bool;
 }
 
@@ -162,6 +161,17 @@ where
     type Needle<'a> = &'a T where Self: 'a;
     fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
         self.iter().any(|a| a == needle)
+    }
+}
+
+impl<T> Contains for &[T]
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains(needle)
     }
 }
 
