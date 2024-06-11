@@ -18,7 +18,7 @@ version = "1.4.0"
 [dependencies]
 card-validate = { version = "2.3" }
 chrono = "0.4.24"
-idna = "0.5"
+idna = "1.0"
 indexmap = { version = "2", features = ["serde"] }
 lazy_static = "1.4.0"
 phonenumber = "0.3.2"
