@@ -97,7 +97,7 @@ pub fn collect_validations(field: &syn::Field) -> Vec<Validator> {
             let syn::Meta::Path(_) = attr.meta else {
                 abort!(
                     attr.meta.span(),
-                    "Validate must be applied as a list, i.e. `validate(/*...*/)` or as a path `validate` for nested validation"
+                    "Validate must be applied as a list `#[validate(/*...*/)]` or as a path `#[validate]` for nested validation"
                 )
             };
             validators.push(Validator::Nested);
@@ -176,7 +176,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(CONTAINS) {
-        if meta.is_single_lit("contains") {
+        if meta.is_single_lit(CONTAINS) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(lit) = content.parse::<syn::Lit>() else {
@@ -188,7 +188,7 @@ fn parse_single_validation(
                 ValueOrPath::Value(lit),
                 false,
             )));
-        } else if meta.is_single_path("contains") {
+        } else if meta.is_single_path(CONTAINS) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(path) = content.parse::<syn::Path>() else {
@@ -208,7 +208,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(CONTAINS_NOT) {
-        if meta.is_single_lit("contains_not") {
+        if meta.is_single_lit(CONTAINS_NOT) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(lit) = content.parse::<syn::Lit>() else {
@@ -220,7 +220,7 @@ fn parse_single_validation(
                 ValueOrPath::Value(lit),
                 true,
             )));
-        } else if meta.is_single_path("contains") {
+        } else if meta.is_single_path(CONTAINS_NOT) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(path) = content.parse::<syn::Path>() else {
@@ -250,7 +250,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(CUSTOM) {
-        if meta.is_single_path("custom") {
+        if meta.is_single_path(CUSTOM) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(function) = content.parse::<syn::Path>() else {
@@ -265,7 +265,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(REGEX) {
-        if meta.is_single_path("regex") {
+        if meta.is_single_path(REGEX) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(path) = content.parse::<syn::Path>() else {
@@ -312,7 +312,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(IS_IN) {
-        if meta.is_single_path("in") {
+        if meta.is_single_path(IS_IN) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(expr) = content.parse::<syn::Expr>() else {
@@ -329,7 +329,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(NOT_IN) {
-        if meta.is_single_path("in") {
+        if meta.is_single_path(NOT_IN) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(expr) = content.parse::<syn::Expr>() else {
