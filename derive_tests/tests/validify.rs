@@ -3,7 +3,7 @@ use validify::{Payload, Validify};
 use validify::{ValidationError, ValidationErrors, ValidifyPayload};
 
 /// Use for `in/not_in` validation to convert the slices to strings.
-pub fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
+fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
     slice.iter().map(|el| String::from(*el)).collect()
 }
 
@@ -411,8 +411,9 @@ fn greater_than_now(date: &str) -> Result<(), ValidationError> {
     match parsed {
         Ok(date) => {
             if date
-                < chrono::NaiveDateTime::from_timestamp_opt(chrono::Utc::now().timestamp(), 0)
+                < chrono::DateTime::from_timestamp(chrono::Utc::now().timestamp(), 0)
                     .unwrap()
+                    .naive_utc()
             {
                 Err(ValidationError::new_field("invalid_date"))
             } else {

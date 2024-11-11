@@ -7,7 +7,7 @@ pub mod validation;
 
 pub trait ValidationMeta {
     /// Returns `true` if the meta consists of an ident, code and message.
-    /// Used for simple path validators.
+    /// Used for simple path validators such as `email` or `phone`.
     fn is_full_pattern(&self) -> bool;
 
     /// Returns `true` if the meta consists of a single literal

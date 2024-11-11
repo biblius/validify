@@ -23,11 +23,19 @@ pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStr
         .attrs
         .iter()
         .filter(|attr| attr.meta.path().is_ident("serde"))
+        .cloned()
         .collect::<Vec<_>>();
 
     let visibility = &input.vis;
 
-    let fields = FieldInfo::collect(input);
+    let syn::Data::Struct(ref strct) = input.data else {
+        abort!(
+            input.span(),
+            "#[derive(Validate/Validify)] can only be used on structs with named fields"
+        )
+    };
+
+    let fields = FieldInfo::collect_to_vec(&attributes, &strct.fields);
 
     let mut payload_fields = vec![];
     let mut custom_serdes = vec![];

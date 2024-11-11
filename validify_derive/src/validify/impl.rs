@@ -4,6 +4,7 @@ use crate::{fields::FieldInfo, validate::r#impl::impl_validate};
 use proc_macro_error::abort;
 use quote::quote;
 use syn::parenthesized;
+use syn::spanned::Spanned;
 
 const TRIM_MODIFIER: &str = "trim";
 const CUSTOM_MODIFIER: &str = "custom";
@@ -17,7 +18,14 @@ const MODIFY: &str = "modify";
 pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
 
-    let field_info = FieldInfo::collect(input);
+    let syn::Data::Struct(ref strct) = input.data else {
+        abort!(
+            input.span(),
+            "#[derive(Validify)] can only be used on structs with named fields"
+        )
+    };
+
+    let field_info = FieldInfo::collect_to_vec(&input.attrs, &strct.fields);
 
     let (modifiers, nested_validifies) = quote_field_modifiers(field_info);
 

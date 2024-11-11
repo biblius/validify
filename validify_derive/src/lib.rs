@@ -9,13 +9,14 @@ mod tokens;
 mod validate;
 mod validify;
 
-/// Combines `Validate` and `Modify` in one trait and provides the intermediary payload struct.
+/// Implements `Validate` and `Modify` in one trait.
 ///
-/// Deriving this will allow you to annotate fields with the `modify` attribute. Modifiers are simple functions that modify
-/// the struct before validation. You can use the few out of the box ones or create your own.
+/// Deriving this will allow you to annotate fields with `modify` attributes, in addition to `validate`.
+/// Modifiers are simple functions that modify the struct before validation.
+/// You can use the few out of the box ones or create your own.
 ///
 /// Visit the [repository](https://github.com/biblius/validify) to see the list of available validations and
-/// modifiers as well as more examples.
+/// modifiers, as well as more examples.
 ///
 ///  ### Example
 ///
@@ -83,7 +84,11 @@ pub fn derive_validify(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     validify::r#impl::impl_validify(&ast).into()
 }
 
-/// Derives `Validate` based on the provided field attributes.
+/// Enables the use of `#[validate]` attributes on struct/enum fields and
+/// implements the `Validate` trait based on the provided attributes.
+///
+/// Visit the [repository](https://github.com/biblius/validify) to see the list of available validations and
+/// modifiers, as well as more examples.
 ///
 /// ### Example
 ///

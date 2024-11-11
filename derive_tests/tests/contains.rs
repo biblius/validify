@@ -89,7 +89,7 @@ fn validates_struct_vec() {
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].code(), "contains");
     assert_eq!(errs[0].location(), "/val");
-    assert!(errs[0].params().get("target").is_none());
+    assert!(!errs[0].params().contains_key("target"));
 
     let s = TestStruct {
         val: vec![

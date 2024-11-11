@@ -3,12 +3,11 @@ use super::validation::{
     Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
     SchemaValidation, Url, Validator,
 };
-use crate::fields::FieldInfo;
-use crate::tokens::quote_field_validations;
-use crate::tokens::quote_schema_validations;
+use crate::fields::{FieldInfo, NameOrIndex};
+use crate::tokens::{quote_field_validation, quote_schema_validation};
 use crate::validate::ValidationMeta;
 use proc_macro_error::abort;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::meta::ParseNestedMeta;
 use syn::parenthesized;
 use syn::spanned::Spanned;
@@ -38,35 +37,103 @@ const ITER: &str = "iter";
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
 
-    let field_info = FieldInfo::collect(input);
-    let validations = quote_field_validations(field_info);
+    match input.data {
+        syn::Data::Struct(ref data_struct) => {
+            let fields = FieldInfo::collect_to_vec(&input.attrs, &data_struct.fields);
+            let field_validation = quote_field_validation(fields);
 
-    let struct_validations = collect_struct_validation(&input.attrs).unwrap();
-    let schema_validations = quote_schema_validations(&struct_validations);
+            let schema_validation = collect_schema_validation(&input.attrs).unwrap();
+            let schema_validation = quote_schema_validation(&schema_validation);
 
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+            let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    quote!(
-        impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
-            fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
-                let mut errors = ::validify::ValidationErrors::new();
+            quote!(
+                impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
+                    fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
+                        let mut errors = ::validify::ValidationErrors::new();
 
-                #(#validations)*
+                        #(#field_validation)*
 
-                #(#schema_validations)*
+                        #(#schema_validation)*
 
-                if errors.is_empty() {
-                    ::std::result::Result::Ok(())
-                } else {
-                    ::std::result::Result::Err(errors)
+                        if errors.is_empty() {
+                            ::std::result::Result::Ok(())
+                        } else {
+                            ::std::result::Result::Err(errors)
+                        }
+                    }
                 }
-            }
+            )
         }
-    )
+        syn::Data::Enum(ref data_enum) => {
+            let variants = FieldInfo::collect_from_enum(data_enum);
+
+            let field_validation =
+                variants
+                    .into_iter()
+                    .fold(quote!(), |mut tokens, (variant, mut fields, is_named)| {
+                        let variant_fields = fields
+                            .iter_mut()
+                            .map(|field| {
+                                let ident = match field.name_or_index {
+                                    NameOrIndex::Name(ref n) => format_ident!("{n}"),
+                                    NameOrIndex::Index(i) => format_ident!("arg_{i}"),
+                                };
+                                field.ident_override = Some(ident.clone());
+                                ident
+                            })
+                            .collect::<Vec<_>>();
+
+                        let variant_field_tokens = quote!(#(#variant_fields),*);
+
+                        let field_validation = quote_field_validation(fields);
+
+                        if is_named {
+                            tokens.extend(quote!(
+                                Self::#variant { #variant_field_tokens } => { #(#field_validation)* }
+                        ));
+                        } else {
+                            tokens.extend(quote!(
+                                Self::#variant(#variant_field_tokens) => { #(#field_validation)* }
+                            ));
+                        }
+
+                        tokens
+                    });
+
+            let field_validation = quote!(match self { #field_validation });
+
+            let schema_validation = collect_schema_validation(&input.attrs).unwrap();
+            let schema_validation = quote_schema_validation(&schema_validation);
+
+            let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+            quote!(
+                    impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
+                        fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
+                            let mut errors = ::validify::ValidationErrors::new();
+
+                            #field_validation
+
+                            #(#schema_validation)*
+
+                            if errors.is_empty() {
+                                ::std::result::Result::Ok(())
+                            } else {
+                                ::std::result::Result::Err(errors)
+                            }
+                        }
+                    }
+            )
+        }
+        syn::Data::Union(_) => abort!(
+            input.span(),
+            "#[derive(Validate)] can only be used on structs with named fields or enums"
+        ),
+    }
 }
 
 /// Find if a struct has some schema validation and returns the info if so
-fn collect_struct_validation(
+fn collect_schema_validation(
     attrs: &[syn::Attribute],
 ) -> Result<Vec<SchemaValidation>, syn::Error> {
     let mut validations = vec![];
@@ -82,10 +149,11 @@ fn collect_struct_validation(
             Ok(())
         })?;
     }
+
     Ok(validations)
 }
 
-pub fn collect_validations(field: &syn::Field) -> Vec<Validator> {
+pub fn collect_validation(field: &syn::Field) -> Vec<Validator> {
     let mut validators = vec![];
 
     for attr in field.attrs.iter() {
