@@ -643,8 +643,6 @@ impl MustMatch {
         quote!(
             if !::validify::validate_must_match(#validator_param, &self.#value) {
                 #quoted_error
-                err.add_param("actual", #validator_param);
-                err.add_param("target", &self.#value);
                 #error_location
                 errors.add(err);
             }
