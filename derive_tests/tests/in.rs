@@ -1,13 +1,17 @@
 use validify::Validate;
 
 const ALLOWED_STRS: &[&str] = &["YES", "GOOD"];
-const DISALLOWED_STRS: &[&str] = &["NO", "BAD"];
+const DISALLOWED_STRS: [&str; 2] = ["NO", "BAD"];
 
 const ALLOWED_NUMS: &[u64] = &[1, 2, 3];
-const DISALLOWED_NUMS: &[u64] = &[4, 5, 6];
+const DISALLOWED_NUMS: [u64; 3] = [4, 5, 6];
 
 /// Use for `in/not_in` validation to convert the slices to strings.
-pub fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
+fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
+    slice.iter().map(|el| String::from(*el)).collect()
+}
+
+fn str_arr_to_string<const N: usize>(slice: [&str; N]) -> Vec<String> {
     slice.iter().map(|el| String::from(*el)).collect()
 }
 
@@ -19,7 +23,7 @@ fn properly_validates() {
         a: String,
         #[validate(is_in(ALLOWED_NUMS))]
         b: u64,
-        #[validate(not_in(collection = str_slice_to_string(DISALLOWED_STRS)))]
+        #[validate(not_in(collection = str_arr_to_string(DISALLOWED_STRS)))]
         c: String,
         #[validate(not_in(DISALLOWED_NUMS))]
         d: u64,
@@ -52,7 +56,7 @@ fn properly_errors() {
         a: String,
         #[validate(is_in(collection = ALLOWED_NUMS, message = "NOT_IN_ALLOWED"))]
         b: u64,
-        #[validate(not_in(collection = str_slice_to_string(DISALLOWED_STRS), message = "IN_DISALLOWED"))]
+        #[validate(not_in(collection = str_arr_to_string(DISALLOWED_STRS), message = "IN_DISALLOWED"))]
         c: String,
         #[validate(not_in(collection = DISALLOWED_NUMS, message = "IN_DISALLOWED"))]
         d: u64,

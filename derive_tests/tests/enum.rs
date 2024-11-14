@@ -59,7 +59,7 @@ macro_rules! invalid_validation_test {
         $simple_fn_id:ident,
         $multiple_fn_id:ident,
         $nested_fn_id:ident,
-        $named_fn_id:ident, 
+        $named_fn_id:ident,
         $value:expr
     ) => {
         #[test]
@@ -69,11 +69,11 @@ macro_rules! invalid_validation_test {
             let err = err.errors();
 
             assert_eq!(1, err.len());
-        
+
             let err = &err[0];
             assert_eq!(err.location(), "/0");
         }
-        
+
         #[test]
         fn multiple_enum_invalid() {
             let multiple = TestEnum::Multiple($value, None);
@@ -81,28 +81,26 @@ macro_rules! invalid_validation_test {
             let err = err.errors();
 
             assert_eq!(1, err.len());
-        
+
             let err = &err[0];
             assert_eq!(err.location(), "/0");
-        
+
             let multiple = TestEnum::Multiple($value, Some($value));
             let err = multiple.validate().unwrap_err();
             let errors = err.errors();
 
             assert_eq!(2, errors.len());
-        
+
             let err = &errors[0];
             assert_eq!(err.location(), "/0");
-        
+
             let err = &errors[1];
             assert_eq!(err.location(), "/1");
         }
 
         #[test]
         fn nested_enum_invalid() {
-            let nested = TestEnum::Nested(TestStruct {
-                val: $value,
-            });
+            let nested = TestEnum::Nested(TestStruct { val: $value });
             let err = nested.validate().unwrap_err();
             let err = err.errors();
 
@@ -114,12 +112,7 @@ macro_rules! invalid_validation_test {
 
         #[test]
         fn doubly_nested_enum_invalid() {
-            let nested = TestEnum::DoublyNested(
-                TestStruct {
-                    val: $value,
-                },
-                None,
-            );
+            let nested = TestEnum::DoublyNested(TestStruct { val: $value }, None);
             let err = nested.validate().unwrap_err();
             let err = err.errors();
 
@@ -129,12 +122,8 @@ macro_rules! invalid_validation_test {
             assert_eq!(err.location(), "/0/val");
 
             let nested = TestEnum::DoublyNested(
-                TestStruct {
-                    val: $value,
-                },
-                Some(TestStruct {
-                    val: $value,
-                }),
+                TestStruct { val: $value },
+                Some(TestStruct { val: $value }),
             );
             let err = nested.validate().unwrap_err();
             let errors = err.errors();
@@ -351,7 +340,7 @@ mod iter {
         Unnamed(#[validate(iter(email))] Vec<String>),
         Named {
             #[validate(iter(email))]
-            iter: Vec<String>,            
+            iter: Vec<String>,
         },
     }
 
@@ -366,8 +355,7 @@ mod iter {
         assert_eq!(1, err.len());
         let err = &err[0];
         assert_eq!(err.location(), "/0/1");
-
-    }   
+    }
 
     #[test]
     fn validates_named_iter() {
@@ -382,5 +370,92 @@ mod iter {
         assert_eq!(1, err.len());
         let err = &err[0];
         assert_eq!(err.location(), "/iter/1");
+    }
+}
+
+mod complex_enum {
+    use serde::{Deserialize, Serialize};
+    use validify::Validate;
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+    struct BigStructInner {
+        #[validate(range(min = 1., max = 10.))]
+        usize: usize,
+        #[validate(length(min = 1, max = 3))]
+        str: String,
+        #[validate(iter(length(min = 1, max = 3)))]
+        iter: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+    #[serde(rename_all = "camelCase")]
+    struct BigStructOuter {
+        #[validate]
+        inner: BigStructInner,
+        #[validate(range(min = 1., max = 10.))]
+        usize: usize,
+        #[validate(length(min = 1, max = 3))]
+        str: String,
+        #[validate(iter(length(min = 1, max = 3)))]
+        iter: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+    #[serde(rename_all = "camelCase")]
+    enum BigStruct {
+        Inner(#[validate] BigStructInner),
+        Outer(#[validate] BigStructOuter),
+    }
+
+    #[test]
+    fn validates_complex_enum() {
+        let v = BigStruct::Outer(BigStructOuter {
+            inner: BigStructInner {
+                usize: 1,
+                str: "bob".to_string(),
+                iter: vec!["bob".to_string()],
+            },
+            usize: 1,
+            str: "bob".to_string(),
+            iter: vec!["bob".to_string()],
+        });
+
+        let res = v.validate();
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn complex_enum_location() {
+        let v = BigStruct::Outer(BigStructOuter {
+            inner: BigStructInner {
+                usize: 100,
+                str: "notbob".to_string(),
+                iter: vec!["notbob".to_string()],
+            },
+            usize: 100,
+            str: "notbob".to_string(),
+            iter: vec!["bob".to_string(), "notbob".to_string()],
+        });
+
+        let res = v.validate();
+        let err = res.unwrap_err();
+
+        let errors = err.errors();
+
+        assert_eq!(6, errors.len());
+
+        let err = &errors[0];
+        assert_eq!(err.location(), "/0/inner/usize");
+        let err = &errors[1];
+        assert_eq!(err.location(), "/0/inner/str");
+        let err = &errors[2];
+        assert_eq!(err.location(), "/0/inner/iter/0");
+        let err = &errors[3];
+        assert_eq!(err.location(), "/0/usize");
+        let err = &errors[4];
+        assert_eq!(err.location(), "/0/str");
+        let err = &errors[5];
+        assert_eq!(err.location(), "/0/iter/1");
     }
 }

@@ -175,6 +175,39 @@ where
     }
 }
 
+impl<T> Contains for &&[T]
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains(needle)
+    }
+}
+
+impl<T, const N: usize> Contains for [T; N]
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains(needle)
+    }
+}
+
+impl<T, const N: usize> Contains for &[T; N]
+where
+    T: PartialEq,
+{
+    type Needle<'a> = &'a T where Self: 'a;
+
+    fn has_element<'a>(&'a self, needle: Self::Needle<'a>) -> bool {
+        self.contains(needle)
+    }
+}
+
 impl<T, V> Contains for HashMap<T, V>
 where
     T: PartialEq + Eq + Hash,
