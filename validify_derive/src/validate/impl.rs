@@ -3,11 +3,11 @@ use super::validation::{
     Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
     SchemaValidation, Url, Validator,
 };
-use crate::fields::{FieldInfo, NameOrIndex};
-use crate::tokens::{quote_field_validation, quote_schema_validation};
+use crate::fields::{Fields, Variants};
+use crate::tokens::quote_schema_validation;
 use crate::validate::ValidationMeta;
 use proc_macro_error::abort;
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::meta::ParseNestedMeta;
 use syn::parenthesized;
 use syn::spanned::Spanned;
@@ -34,13 +34,14 @@ const IP: &str = "ip";
 const TIME: &str = "time";
 const ITER: &str = "iter";
 
+/// Entrypoint for `#[derive(Validate)]`.
 pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     let ident = &input.ident;
 
     match input.data {
         syn::Data::Struct(ref data_struct) => {
-            let fields = FieldInfo::collect_to_vec(&input.attrs, &data_struct.fields);
-            let field_validation = quote_field_validation(fields);
+            let fields = Fields::collect(&input.attrs, &data_struct.fields);
+            let field_validation = fields.to_validate_tokens();
 
             let schema_validation = collect_schema_validation(&input.attrs).unwrap();
             let schema_validation = quote_schema_validation(&schema_validation);
@@ -66,63 +67,29 @@ pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
             )
         }
         syn::Data::Enum(ref data_enum) => {
-            let variants = FieldInfo::collect_from_enum(data_enum);
-
-            let field_validation =
-                variants
-                    .into_iter()
-                    .fold(quote!(), |mut tokens, (variant, mut fields, is_named)| {
-                        let variant_fields = fields
-                            .iter_mut()
-                            .map(|field| {
-                                let ident = match field.name_or_index {
-                                    NameOrIndex::Name(ref n) => format_ident!("{n}"),
-                                    NameOrIndex::Index(i) => format_ident!("arg_{i}"),
-                                };
-                                field.ident_override = Some(ident.clone());
-                                ident
-                            })
-                            .collect::<Vec<_>>();
-
-                        let variant_field_tokens = quote!(#(#variant_fields),*);
-
-                        let field_validation = quote_field_validation(fields);
-
-                        if is_named {
-                            tokens.extend(quote!(
-                                Self::#variant { #variant_field_tokens } => { #(#field_validation)* }
-                        ));
-                        } else {
-                            tokens.extend(quote!(
-                                Self::#variant(#variant_field_tokens) => { #(#field_validation)* }
-                            ));
-                        }
-
-                        tokens
-                    });
-
-            let field_validation = quote!(match self { #field_validation });
+            let variant_validation = Variants::collect(data_enum).to_validate_tokens();
 
             let schema_validation = collect_schema_validation(&input.attrs).unwrap();
             let schema_validation = quote_schema_validation(&schema_validation);
 
             let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
             quote!(
-                    impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
-                        fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
-                            let mut errors = ::validify::ValidationErrors::new();
+                impl #impl_generics ::validify::Validate for #ident #ty_generics #where_clause {
+                    fn validate(&self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
+                        let mut errors = ::validify::ValidationErrors::new();
 
-                            #field_validation
+                        #variant_validation
 
-                            #(#schema_validation)*
+                        #(#schema_validation)*
 
-                            if errors.is_empty() {
-                                ::std::result::Result::Ok(())
-                            } else {
-                                ::std::result::Result::Err(errors)
-                            }
+                        if errors.is_empty() {
+                            ::std::result::Result::Ok(())
+                        } else {
+                            ::std::result::Result::Err(errors)
                         }
                     }
+                }
             )
         }
         syn::Data::Union(_) => abort!(
@@ -132,7 +99,7 @@ pub fn impl_validate(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     }
 }
 
-/// Find if a struct has some schema validation and returns the info if so
+/// Find if a struct or enum has some schema validation and returns the info if so.
 fn collect_schema_validation(
     attrs: &[syn::Attribute],
 ) -> Result<Vec<SchemaValidation>, syn::Error> {

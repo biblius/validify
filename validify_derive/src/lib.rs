@@ -297,12 +297,15 @@ impl Parse for SchemaErr {
     }
 }
 
-/// Designed to be used with the [schema_validation] macro. Used for ergonomic custom error handling.
+/// Designed to be used with the [schema_validation] macro.
+/// Used for ergonomic custom error handling.
 ///
 /// Adds a schema validaton error to the generated `ValidationErrors`.
 ///
 /// The errors argument should pass in an instance of `ValidationErrors`,
 /// and usually is used with the one generated from `schema_validation`.
+///
+/// Schema errors always have a location of "/".
 ///
 /// Accepts:
 ///

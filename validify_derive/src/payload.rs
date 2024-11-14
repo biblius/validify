@@ -1,5 +1,5 @@
 use crate::{
-    fields::FieldInfo,
+    fields::{FieldInfo, Fields},
     serde::{extract_custom_serde, quote_custom_serde_payload_field},
 };
 use proc_macro_error::abort;
@@ -35,12 +35,12 @@ pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStr
         )
     };
 
-    let fields = FieldInfo::collect_to_vec(&attributes, &strct.fields);
+    let fields = Fields::collect(&attributes, &strct.fields);
 
     let mut payload_fields = vec![];
     let mut custom_serdes = vec![];
 
-    for field in fields.iter() {
+    for field in fields.0.iter() {
         let (payload_tokens, custom_serde) = map_payload_fields(field);
         payload_fields.push(payload_tokens);
         if let Some(custom_de) = custom_serde {
@@ -51,11 +51,13 @@ pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStr
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let into_fields = fields
+        .0
         .iter()
         .map(map_into_fields)
         .collect::<Vec<proc_macro2::TokenStream>>();
 
     let from_fields = fields
+        .0
         .iter()
         .map(map_from_fields)
         .collect::<Vec<proc_macro2::TokenStream>>();

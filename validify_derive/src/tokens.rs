@@ -1,4 +1,3 @@
-use crate::fields::FieldInfo;
 use crate::validate::parser::ValueOrPath;
 use crate::validate::validation::{
     Contains, CreditCard, Custom, Describe, Email, In, Ip, Length, MustMatch, NonControlChar,
@@ -79,38 +78,8 @@ pub fn quote_schema_validation(validation: &[SchemaValidation]) -> Vec<proc_macr
         .collect()
 }
 
-/// Output the necessary tokens for field validation when implementing `Validate`.
-///
-/// * `fields`: The collected fields.
-pub fn quote_field_validation(fields: Vec<FieldInfo>) -> Vec<proc_macro2::TokenStream> {
-    let mut validations = vec![];
-
-    for field_info in fields {
-        let tokens = field_info.quote_validation();
-        validations.extend(tokens);
-    }
-
-    validations
-}
-
-/// Creates a token stream applying the modifiers based on the field annotations.
-pub(super) fn quote_field_modifiers(
-    fields: Vec<FieldInfo>,
-) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-    let mut modifications = vec![];
-    let mut nested_validifies = vec![];
-
-    for field_info in fields {
-        let (mods, nested) = field_info.quote_validifes();
-        modifications.extend(mods);
-        nested_validifies.extend(nested);
-    }
-
-    (modifications, nested_validifies)
-}
-
 impl Validator {
-    pub fn to_validify_tokens(
+    pub fn to_validate_tokens(
         &self,
         field_info: &crate::fields::FieldInfo,
         validator_param: TokenStream,
@@ -215,7 +184,7 @@ impl Validator {
                         abort!(field_info.field.span(), "`iter` validator cannot be nested.")
                     }
                     Validator::Nested => {
-                        abort!(field_info.field.span(), "`validate/validify` is not valid in `iter`. To validate collection fields of type T, use `validate/validify` directly on the field.")
+                        abort!(field_info.field.span(), "`validate/validify` is not valid in `iter`. To validate collections of type T, use `validate/validify` directly on the field.")
                     },
                     Validator::Email(v) => {
                         v.to_validify_tokens(field_name.clone(), validator_param.clone(), true)
@@ -282,7 +251,15 @@ impl Validator {
                     .ident_override
                     .as_ref()
                     .map(|id| quote!(#id))
-                    .unwrap_or_else(|| field_info.quote_validator_field());
+                    .unwrap_or_else(|| {
+                        let ident = &field_info.field.ident;
+
+                        if field_info.is_option() || field_info.is_list() || field_info.is_map() {
+                            quote!(#ident)
+                        } else {
+                            quote!(self.#ident)
+                        }
+                    });
 
                 let field_name = field_info.name();
 

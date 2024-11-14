@@ -333,7 +333,7 @@ fn contains_not_iter_works() {
 
 #[test]
 fn in_not_in_iter_works() {
-    const NUMS: &[usize] = &[1, 2, 3];
+    const NUMS: [usize; 3] = [1, 2, 3];
 
     #[derive(Debug, Validate)]
     struct IterTest {

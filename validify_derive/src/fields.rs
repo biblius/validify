@@ -4,10 +4,198 @@ use crate::{
     validify::{modifier::Modifier, r#impl::collect_modifiers},
 };
 use proc_macro_error::abort;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{spanned::Spanned, Ident};
 
-/// Holds the combined validations and modifiers for one field
+/// Holds variants of an enum and their respective fields.
+#[derive(Debug)]
+pub struct Variants(Vec<VariantInfo>);
+
+impl Variants {
+    /// Returns the variants of an enum, its fields, and whether the variant is named.
+    ///
+    /// In enums, each variant's attributes are used to rename fields as opposed to the
+    /// top level ones, since in enums the top level attributes rename the variants and we
+    /// don't care about those.
+    pub fn collect(input: &syn::DataEnum) -> Self {
+        let mut variants = Vec::new();
+
+        for variant in input.variants.iter() {
+            let mut fields = Fields::collect(&variant.attrs, &variant.fields);
+
+            fields.0.iter_mut().for_each(|field| {
+                let ident = match field.name_or_index {
+                    NameOrIndex::Name(ref n) => format_ident!("{n}"),
+                    NameOrIndex::Index(i) => format_ident!("arg_{i}"),
+                };
+                field.ident_override = Some(ident.clone());
+            });
+
+            variants.push(VariantInfo::new(
+                variant.ident.clone(),
+                fields,
+                matches!(variant.fields, syn::Fields::Named(_)),
+            ));
+        }
+
+        Self(variants)
+    }
+
+    /// Output the necessary tokens for variant, and in turn field
+    /// validation when implementing `Validate`.
+    pub fn to_validate_tokens(&self) -> proc_macro2::TokenStream {
+        let field_validation = self.0.iter().fold(
+            quote!(),
+            |mut tokens,
+             VariantInfo {
+                 ident: ref variant,
+                 ref fields,
+                 ref named,
+             }| {
+                let variant_fields = fields.0.iter().map(|field| match field.name_or_index {
+                    NameOrIndex::Name(ref n) => format_ident!("{n}"),
+                    NameOrIndex::Index(i) => format_ident!("arg_{i}"),
+                });
+
+                let variant_field_tokens = quote!(#(#variant_fields),*);
+
+                let field_validation = fields.to_validate_tokens();
+
+                if *named {
+                    tokens.extend(quote!(
+                            Self::#variant { #variant_field_tokens } => { #(#field_validation)* }
+                    ));
+                } else {
+                    tokens.extend(quote!(
+                        Self::#variant(#variant_field_tokens) => { #(#field_validation)* }
+                    ));
+                }
+
+                tokens
+            },
+        );
+
+        quote!(match self { #field_validation })
+    }
+
+    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+        let mut modifiers = vec![];
+
+        for variant in self.0.iter() {
+            let VariantInfo {
+                ident: ref variant,
+                ref fields,
+                ref named,
+            } = variant;
+
+            let variant_fields = fields.0.iter().map(|field| match field.name_or_index {
+                NameOrIndex::Name(ref n) => format_ident!("{n}"),
+                NameOrIndex::Index(i) => format_ident!("arg_{i}"),
+            });
+
+            let variant_field_tokens = quote!(#(ref mut #variant_fields),*);
+
+            let field_modifiers = fields.to_validify_tokens();
+
+            if *named {
+                let tokens =
+                    quote!( Self::#variant { #variant_field_tokens } => { #(#field_modifiers)* });
+                modifiers.push(tokens);
+            } else {
+                let tokens =
+                    quote!( Self::#variant ( #variant_field_tokens ) => { #(#field_modifiers)* });
+                modifiers.push(tokens);
+            }
+        }
+
+        modifiers
+    }
+}
+
+/// Holds the combined validations and modifiers for one enum variant.
+#[derive(Debug)]
+pub struct VariantInfo {
+    pub ident: syn::Ident,
+    pub fields: Fields,
+    pub named: bool,
+}
+
+impl VariantInfo {
+    fn new(ident: syn::Ident, fields: Fields, named: bool) -> Self {
+        Self {
+            ident,
+            fields,
+            named,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Fields(pub Vec<FieldInfo>);
+
+impl Fields {
+    /// Used by both the `Validate` and `Validify` implementations. Validate ignores the modifiers.
+    pub fn collect(attributes: &[syn::Attribute], input: &syn::Fields) -> Self {
+        let rename_rule = crate::serde::find_rename_all(attributes);
+
+        let fields = input
+            .iter()
+            .enumerate()
+            .map(|(i, field)| {
+                {
+                    let name_or_index = field
+                        .ident
+                        .as_ref()
+                        .map(|i| NameOrIndex::Name(i.to_string()))
+                        .unwrap_or(NameOrIndex::Index(i));
+
+                    let validations = collect_validation(field);
+                    let modifiers = collect_modifiers(field);
+
+                    // The original name refers to the field name set with serde rename.
+                    let original_name = crate::serde::find_rename(field);
+
+                    FieldInfo::new(
+                        field.clone(),
+                        name_or_index,
+                        original_name,
+                        validations,
+                        modifiers,
+                        rename_rule,
+                    )
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Self(fields)
+    }
+
+    /// Output the necessary tokens for field validation when implementing `Validate`.
+    pub fn to_validate_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+        let mut validations = vec![];
+
+        for field_info in self.0.iter() {
+            let tokens = field_info.to_validate_tokens();
+            validations.extend(tokens);
+        }
+
+        validations
+    }
+
+    /// Creates a token stream applying the modifiers based on the field annotations.
+    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+        let mut modifications = vec![];
+
+        for field_info in self.0.iter() {
+            let mods = field_info.to_validify_tokens();
+            modifications.extend(mods);
+        }
+
+        modifications
+    }
+}
+
+/// Holds the combined validations and modifiers for one field.
 #[derive(Debug)]
 pub struct FieldInfo {
     /// The original field
@@ -53,63 +241,6 @@ impl FieldInfo {
         }
     }
 
-    /// Used by both the `Validate` and `Validify` implementations. Validate ignores the modifiers.
-    pub fn collect_to_vec(attributes: &[syn::Attribute], input: &syn::Fields) -> Vec<Self> {
-        let rename_rule = crate::serde::find_rename_all(attributes);
-
-        input
-            .iter()
-            .enumerate()
-            .map(|(i, field)| {
-                {
-                    let name_or_index = field
-                        .ident
-                        .as_ref()
-                        .map(|i| NameOrIndex::Name(i.to_string()))
-                        .unwrap_or(NameOrIndex::Index(i));
-
-                    let validations = collect_validation(field);
-                    let modifiers = collect_modifiers(field);
-
-                    // The original name refers to the field name set with serde rename.
-                    let original_name = crate::serde::find_rename(field);
-
-                    Self::new(
-                        field.clone(),
-                        name_or_index,
-                        original_name,
-                        validations,
-                        modifiers,
-                        rename_rule,
-                    )
-                }
-            })
-            .collect::<Vec<_>>()
-    }
-
-    /// Returns the variants of an enum, its fields, and whether the variant is named.
-    ///
-    /// In enums, each variant's attributes are used to rename fields as opposed to the
-    /// top level ones, since in enums the top level attributes rename the variants and we
-    /// usually don't care about those.
-    pub fn collect_from_enum(input: &syn::DataEnum) -> Vec<(&syn::Ident, Vec<FieldInfo>, bool)> {
-        let mut variants = Vec::new();
-
-        for variant in input.variants.iter() {
-            let variant_id = &variant.ident;
-
-            let field_info = FieldInfo::collect_to_vec(&variant.attrs, &variant.fields);
-
-            variants.push((
-                variant_id,
-                field_info,
-                matches!(variant.fields, syn::Fields::Named(_)),
-            ));
-        }
-
-        variants
-    }
-
     /// Returns the field name or the name from serde rename in case of named field.
     /// Returns the index if the field is unnamed.
     /// Used for errors.
@@ -129,14 +260,14 @@ impl FieldInfo {
     // QUOTING
 
     /// Returns the validation tokens. Nested validations are always at the start of the token stream.
-    pub fn quote_validation(&self) -> Vec<proc_macro2::TokenStream> {
+    pub fn to_validate_tokens(&self) -> Vec<proc_macro2::TokenStream> {
         let mut nested_validations = vec![];
         let mut quoted_validations = vec![];
 
         for validator in self.validations.iter() {
             let validator_param = self.quote_validator_param();
 
-            let tokens = validator.to_validify_tokens(self, validator_param);
+            let tokens = validator.to_validate_tokens(self, validator_param);
 
             match tokens {
                 crate::tokens::ValidationTokens::Normal(v) => quoted_validations.push(v),
@@ -146,6 +277,18 @@ impl FieldInfo {
 
         nested_validations.extend(quoted_validations);
         nested_validations
+    }
+
+    /// Returns the modification tokens as the first element and any nested validifes as the second.
+    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+        let mut modifications = vec![];
+
+        for modifier in self.modifiers.iter() {
+            let tokens = modifier.to_validify_tokens(self);
+            modifications.push(tokens);
+        }
+
+        modifications
     }
 
     /// Quotes the field as necessary for passing the resulting tokens into a validation
@@ -185,27 +328,13 @@ impl FieldInfo {
         }
     }
 
-    /// Returns the modification tokens as the first element and any nested validifes as the second.
-    pub fn quote_validifes(
-        &self,
-    ) -> (Vec<proc_macro2::TokenStream>, Vec<proc_macro2::TokenStream>) {
-        let mut nested_validifies = vec![];
-        let mut quoted_modifications = vec![];
-
-        for modifier in self.modifiers.iter() {
-            let (tokens, nested) = modifier.to_validify_tokens(self);
-            quoted_modifications.push(tokens);
-            if let Some(nested) = nested {
-                nested_validifies.push(nested);
-            }
-        }
-
-        (quoted_modifications, nested_validifies)
-    }
-
     /// Returns `self.#ident`, unless the field is an option in which case it just
     /// returns an `#ident` as we always do a `if let` check on Option fields
     pub fn quote_modifier_param(&self) -> proc_macro2::TokenStream {
+        if let Some(ident) = &self.ident_override {
+            return quote!(#ident);
+        }
+
         let ident = &self.field.ident;
 
         if self.is_reference() {
@@ -216,21 +345,6 @@ impl FieldInfo {
         }
 
         if self.is_option() {
-            quote!(#ident)
-        } else {
-            quote!(self.#ident)
-        }
-    }
-
-    /// Returns either
-    ///
-    /// `field` or `self.field`
-    ///
-    /// depending on whether the field is an Option or collection.
-    pub fn quote_validator_field(&self) -> proc_macro2::TokenStream {
-        let ident = &self.field.ident;
-
-        if self.is_option() || self.is_list() || self.is_map() {
             quote!(#ident)
         } else {
             quote!(self.#ident)
@@ -292,7 +406,7 @@ impl FieldInfo {
 
         // When we're using an option, we'll have the field unwrapped, so we should not access it
         // through `self`.
-        let prefix = (!self.is_option()).then(|| quote! { self. });
+        let prefix = (!self.is_option() && self.ident_override.is_none()).then(|| quote! { self. });
 
         // When iterating over a list, the iterator has Item=T, while a map yields Item=(K, V), and
         // we're only interested in V.
@@ -475,7 +589,7 @@ fn is_list(ty: &syn::Type) -> bool {
         || seg.ident == "IndexSet"
 }
 
-/// Used in [Field]
+/// Used in [FieldInfo].
 #[derive(Debug, Clone)]
 pub enum NameOrIndex {
     Name(String),

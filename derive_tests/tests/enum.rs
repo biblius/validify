@@ -26,32 +26,49 @@ macro_rules! simple_enum {
             val: $ty,
         }
     };
-    let err = named.validate().unwrap_err();
-    let err = err.errors();
-    assert_eq!(1, err.len());
+}
 
 macro_rules! valid_validation_test {
     ($fn_id:ident, $value:expr) => {
         use serde_json::json;
         use validify::Validate;
 
-    let named = TestEnum::Named {
-        foo_bar: "bob".to_string(),
-        qux_quack: Some(0),
+        #[test]
+        fn $fn_id() {
+            let simple = json! {{
+                "Simple": $value
+            }};
+
+            let enu: TestEnum = serde_json::from_str(simple.to_string().as_str()).unwrap();
+            assert!(enu.validate().is_ok());
+
+            let multiple = json! {{
+                "Multiple": [$value, $value]
+            }};
+
+            let enu: TestEnum = serde_json::from_str(multiple.to_string().as_str()).unwrap();
+            assert!(enu.validate().is_ok());
+
+            let nested = json! {{
+                "Nested": {
+                    "val": $value
+                }
+            }};
+
+            let enu: TestEnum = serde_json::from_str(nested.to_string().as_str()).unwrap();
+            assert!(enu.validate().is_ok());
+
+            let named = json! {{
+                "Named": {
+                    "foo": $value,
+                    "quxQuack": $value
+                }
+            }};
+
+            let enu: TestEnum = serde_json::from_str(named.to_string().as_str()).unwrap();
+            assert!(enu.validate().is_ok());
+        }
     };
-    let err = named.validate().unwrap_err();
-    let errors = err.errors();
-    assert_eq!(2, errors.len());
-
-    let err = &errors[0];
-    assert_eq!(err.code(), "email");
-    assert_eq!(err.location(), "/foo");
-
-    let err = &errors[1];
-    assert_eq!("range", err.code());
-    assert_eq!("/quxQuack", err.location());
-    assert_eq!(1.0, err.params()["min"]);
-    assert_eq!(0.0, err.params()["actual"]);
 }
 
 macro_rules! invalid_validation_test {
@@ -166,35 +183,42 @@ macro_rules! invalid_validation_test {
             assert_eq!("/quxQuack", err.location());
         }
     };
+}
 
-    assert!(nested.validate().is_ok());
+mod email {
+    simple_enum! { validate(email), String }
+    valid_validation_test!(successfully_validates_email, "bob@bob.com");
+    invalid_validation_test! {
+        validates_email_simple,
+        validates_email_multiple,
+        validates_email_nested,
+        validates_email_named,
+        "bob".to_string()
+    }
+}
 
-    let nested = NestedEnum::Variant {
-        foo_bar: "bob".to_string(),
-        nest: TestEnum::Named {
-            foo_bar: "bob".to_string(),
-            qux_quack: Some(0),
-        },
-    };
+mod ip {
+    simple_enum! { validate(ip), String }
+    valid_validation_test!(successfully_validates_ip, "127.0.0.1");
+    invalid_validation_test! {
+        validates_ip_simple,
+        validates_ip_multiple,
+        validates_ip_nested,
+        validates_ip_named,
+        "bob".to_string()
+    }
+}
 
-    let err = nested.validate().unwrap_err();
-    let errors = err.errors();
-
-    assert_eq!(3, errors.len());
-
-    let err = &errors[0];
-    assert_eq!(err.code(), "email");
-    assert_eq!(err.location(), "/fooBar");
-
-    let err = &errors[1];
-    assert_eq!("email", err.code());
-    assert_eq!("/nest/foo", err.location()); // Because of serde(rename)
-
-    let err = &errors[2];
-    assert_eq!("range", err.code());
-    assert_eq!("/nest/quxQuack", err.location());
-    assert_eq!(1.0, err.params()["min"]);
-    assert_eq!(0.0, err.params()["actual"]);
+mod length {
+    simple_enum! { validate(length(min = 1, max = 10)), String }
+    valid_validation_test!(successfully_validates_length, "bob");
+    invalid_validation_test! {
+        validates_length_simple,
+        validates_length_multiple,
+        validates_length_nested,
+        validates_length_named,
+        "bobbobbobbob".to_string()
+    }
 }
 
 mod range {
@@ -457,5 +481,69 @@ mod complex_enum {
         assert_eq!(err.location(), "/0/str");
         let err = &errors[5];
         assert_eq!(err.location(), "/0/iter/1");
+    }
+}
+
+mod schema {
+    use serde::{Deserialize, Serialize};
+    use validify::{schema_err, schema_validation, Validate, ValidationErrors};
+
+    #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+    #[validate(validate_test_enum)]
+    enum TestEnum {
+        Unnamed(String),
+        Named { val: String },
+    }
+
+    #[schema_validation]
+    fn validate_test_enum(value: &TestEnum) -> Result<(), ValidationErrors> {
+        match value {
+            TestEnum::Unnamed(v) => {
+                if v.len() > 5 {
+                    schema_err!("too long");
+                }
+            }
+            TestEnum::Named { val } => {
+                if val.len() > 5 {
+                    schema_err!("too long");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn validation_success() {
+        let v = TestEnum::Unnamed("bob".to_string());
+        let res = v.validate();
+        assert!(res.is_ok());
+
+        let v = TestEnum::Named {
+            val: "bob".to_string(),
+        };
+        let res = v.validate();
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn validation_failure() {
+        let v = TestEnum::Unnamed("bobbbbbbbbb".to_string());
+        let res = v.validate();
+        let err = res.unwrap_err();
+        let err = err.errors();
+        assert_eq!(1, err.len());
+        let err = &err[0];
+        assert_eq!(err.location(), "/");
+        assert_eq!(err.code(), "too long");
+
+        let v = TestEnum::Named {
+            val: "bobbbbbbbbb".to_string(),
+        };
+        let res = v.validate();
+        let err = res.unwrap_err();
+        let err = err.errors();
+        assert_eq!(1, err.len());
+        let err = &err[0];
+        assert_eq!(err.location(), "/");
+        assert_eq!(err.code(), "too long");
     }
 }
