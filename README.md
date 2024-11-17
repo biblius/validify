@@ -6,7 +6,7 @@
 [![docs](https://img.shields.io/docsrs/validify?logo=rust&style=plastic)](https://docs.rs/validify/latest/validify/)
 [![version](https://img.shields.io/crates/v/validify?logo=rust&style=plastic)](https://crates.io/crates/validify)
 
-Procedural macros that provide attributes for data validation and modification. Particularly useful in the context of web payloads.
+Procedural macros that provide attributes for data validation and modification.
 
 ## **Modifiers**
 
@@ -30,7 +30,7 @@ All validators also take in a `code` and `message` as parameters, their values a
 | email            | String           | --                 | --            | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                           |
 | ip               | String           | format             | Ident (v4/v6) | Checks if the string is an IP address.                                                                                                |
 | url              | String           | --                 | --            | Checks if the string is a URL.                                                                                                        |
-| length           | Collection       | min, max, equal    | LitInt        | Checks if the collection length is within the specified params. Works through the HasLen trait.                                       |
+| length           | impl Length      | min, max, equal    | LitInt        | Checks if the collection length is within the specified params. Works via the `Length` trait.                                         |
 | range            | Int/Float        | min, max           | LitFloat      | Checks if the value is in the specified range.                                                                                        |
 | must_match       | Any              | value              | Ident         | Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.        |
 | contains         | Collection       | value              | Lit/Path      | Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.        |
@@ -73,7 +73,10 @@ negative duration for `in_period` works fine.
 | after_from_now  | interval         | Check whether a date\[time] is after the specified interval from the today\[now] |
 | in_period       | target, interval | Check whether a date\[time] falls within a certain period                        |
 
-Annotate the struct you want to modify and validate with the `Validify` attribute (if you do not need the payload or modification, derive `validify::Validate`):
+## Derive Validate/Validify
+
+Annotate the struct or enum you want to modify and validate with the `Validify` attribute
+(if you do not need modification, derive only `Validate`):
 
 ```rust
 use validify::Validify;
@@ -137,17 +140,17 @@ Notice how even though field `d` is an option, the function used to modify the f
 
 ## Traits
 
-Validify is built around 3 simple traits:
+Validify is built around 3 traits:
 
 - Validate
 - Modify
-- Validify
+- Validify (Validate + Modify)
 
 These traits should theoretically never have to be implemented manually.
 
 As their names suggest, the first two traits perform validation and modification, while the third combines those 2 actions into a single one - `validify`.
 
-The traits contain a single function which is constructed based on struct annotations when deriving them.
+The traits contain a single function which is constructed based on field annotations when deriving them.
 
 ## Payload
 
@@ -184,6 +187,8 @@ The original struct gets a `ValidifyPayload` implementation with 2 associated fn
 The `ValidifyPayload` implementations first validate the required fields of the payload. Then, if any required fields are missing, no further modification/validation is done and the errors are returned. Next, the payload is transformed to the original struct and modifications and/or validations are run on it.
 
 When a struct contains nested validifies (child structs annotated with `#[validify]`), all the children in the payload will also be transformed and validated as payloads first. This means that any nested structs must also derive `Payload`.
+
+The `Payload` derive macro does not work on enums.
 
 ## The payload and serde
 
@@ -231,6 +236,9 @@ fn validate_testor(t: &Testor) -> Result<(), ValidationErrors> {
 This makes schema validations a bit more ergonomic and concise.
 Like field level validation, schema level validation is performed after modification.
 
+When you have annotated a function with `#[schema_validation]`, you can use the `schema_err!` macro to ergonomically
+create schema errors.
+
 ## Errors
 
 The main ValidationError is an enum with 2 variants, Field and Schema. Field errors are, as the name suggests, created when fields fail validation and are usually automatically generated unless using custom handlers (custom field validation functions always must return a result whose Err variant is ValidationError).
@@ -250,19 +258,26 @@ The `field_err!` macro provides a shorthand for creating field errors when using
 
 ### Location
 
-Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html). When using custom validation, whatever field name you specify in the returned error will be used in the location for that field. Keep in mind locations are not reliable when dealing with hashed map/set collections as the item ordering for those is not guaranteed.
+Locations are tracked for each error in a similar manner to [JSON pointers](https://opis.io/json-schema/2.x/pointers.html).
+When using custom validation, whatever field name you specify in the returned error will be used in the location for that field.
+Keep in mind locations are not reliable when dealing with hashed map/set collections as the item ordering for those is not guaranteed.
 
-Error location display will depend on the original client payload, i.e. they will be displayed in the original case the payload was received (e.g. when using serde's `rename_all`). Any overriden field names will be displayed as such.
+Error location display will depend on the original client payload, i.e.
+they will be displayed in the original case the payload was received (e.g. when using serde's `rename_all` or `rename` attributes).
+Any overriden field names will be displayed as such.
 
 ### Schema
 
-Schema errors are usually created by the user in schema validation. The `schema_err!` macro alongside `#[schema_validation]` provides an ergonomic way to create schema errors. All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
+Schema errors are usually created by the user in schema validation.
+The `schema_err!` macro alongside `#[schema_validation]` provides an ergonomic way to create schema errors.
+All errors are composed to a `ValidationErrors` struct which contains a vec of all the validation errors.
+All schema errors generated by `validify` will have their location set to '/'.
 
 ### Params
 
 When sensible, validify automatically appends failing parameters and the target values they were validated against to the errors created to provide more clarity to the client and to save some manual work.
 
-One parameter that is always appended is the `actual` field which represents the value of the violating field's target property during the validation. Some validators append additional data to the errors representing the expected values for the field.
+One parameter that is often appended is the `actual` field which represents the value of the violating field's target property during the validation. Some validators append additional data to the errors representing the expected values for the field.
 
 ## **Examples**
 

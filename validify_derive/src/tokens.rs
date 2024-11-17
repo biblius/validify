@@ -327,7 +327,8 @@ impl Length {
         } = self;
 
         let quoted_error = self.quote_error(&field_name);
-        let error_param = quote!(err.add_param("actual", &::validify::traits::HasLen::length(&#validator_param)););
+        let error_param =
+            quote!(err.add_param("actual", &::validify::Length::length(&#validator_param)););
         let error_location = if in_iter {
             quote!(err.set_location_idx(__i, #field_name);)
         } else {
@@ -355,19 +356,19 @@ impl Length {
         let min_tokens = min
             .as_ref()
             .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
+            .map(|x| quote!(Some(#x as usize)))
             .unwrap_or(quote!(None));
 
         let max_tokens = max
             .as_ref()
             .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
+            .map(|x| quote!(Some(#x as usize)))
             .unwrap_or(quote!(None));
 
         let equal_tokens = equal
             .as_ref()
             .map(ValueOrPath::tokens)
-            .map(|x| quote!(Some(#x as u64)))
+            .map(|x| quote!(Some(#x as usize)))
             .unwrap_or(quote!(None));
 
         quote!(
@@ -708,18 +709,12 @@ impl Contains {
             quote!(err.set_location(#field_name);)
         };
 
-        let validation_val = if matches!(value, Some(ValueOrPath::Value(syn::Lit::Str(_)))) {
-            quote!(String::from(#value))
-        } else {
-            quote!(#value)
-        };
-
         // Only add the target if it's a literal since otherwise it will just be the variable name
         let added_param = matches!(value, Some(ValueOrPath::Value(_)))
             .then_some(quote!(err.add_param("target", &#value);));
 
         quote!(
-            if !::validify::validate_contains(#validator_param, &#validation_val, #not) {
+            if !::validify::validate_contains(#validator_param, &#value, #not) {
                 #quoted_error
                 #added_param
                 #error_location

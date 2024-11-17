@@ -5,9 +5,9 @@ mod tests {
     use validify::{ValidationErrors, Validify};
 
     const ALLOWED: &[&str] = &["YOLO", "mcswag"];
-    const DISALLOWED: &[&str] = &["nono", "NO"];
+    const DISALLOWED: [&str; 2] = ["nono", "NO"];
     const NUMBERS: &[i32] = &[1, 2, 3];
-    const NO_NUMBERS: &[i32] = &[4, 5, 6];
+    const NO_NUMBERS: [i32; 3] = [4, 5, 6];
 
     #[derive(Debug, Clone, Validify)]
     #[validate(validator_test)]
@@ -15,8 +15,8 @@ mod tests {
         #[modify(custom(baz), trim, uppercase)]
         #[validate(
            length(min = 0, max = 12, code = "yea"),
-           is_in(collection = ALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>(), code = "CODE"),
-           not_in(collection = DISALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>()),
+           is_in(collection = ALLOWED, code = "CODE"),
+           not_in(collection = DISALLOWED),
            contains(value = "YO", message = "hello"),
            custom(function = foo, code = "foo", message = "bar"),
            custom(bar),
@@ -33,8 +33,8 @@ mod tests {
         #[modify(custom(baz), trim, uppercase)]
         #[validate(
             length(min = 1),
-            is_in(collection = ALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>()),
-            not_in(collection = DISALLOWED.iter().map(|el| String::from(*el)).collect::<Vec<String>>())
+            is_in(collection = ALLOWED),
+            not_in(collection = DISALLOWED)
         )]
         d: Option<String>,
 

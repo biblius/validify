@@ -1,7 +1,7 @@
 use crate::traits::Contains;
 
 /// Validates whether or not a slice contains an element
-pub fn validate_in<T: Contains>(haystack: T, needle: T::Needle<'_>, not: bool) -> bool {
+pub fn validate_in<T: Contains<C>, C>(haystack: T, needle: &C, not: bool) -> bool {
     if not {
         !haystack.has_element(needle)
     } else {

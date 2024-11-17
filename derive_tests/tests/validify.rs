@@ -367,7 +367,7 @@ struct TestLanguages {
     #[modify(trim)]
     language: String,
     #[modify(trim)]
-    #[validate(is_in(collection = str_slice_to_string(PROFICIENCY)))]
+    #[validate(is_in(collection = PROFICIENCY))]
     proficiency: Option<String>,
     required: Option<bool>,
     created_by: String,

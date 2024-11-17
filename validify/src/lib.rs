@@ -5,8 +5,7 @@ pub mod traits;
 mod validation;
 
 pub use error::{ValidationError, ValidationErrors};
-pub use validation::time;
-
+pub use traits::{Contains, Length};
 pub use validation::{
     cards::validate_credit_card,
     contains::validate_contains,
@@ -19,27 +18,30 @@ pub use validation::{
     r#in::validate_in,
     range::validate_range,
     required::validate_required,
+    time,
     urls::validate_url,
 };
-
 pub use validify_derive::{schema_err, schema_validation, Payload, Validate, Validify};
 
-/// Deriving [Validate] allows you to specify schema and field validations on structs.
-/// See the [repository](https://github.com/biblius/validify) for a full list of possible validations.
+/// Validates the struct/enum based on the provided `#[validate]` attributes.
+/// Deriving [Validate] allows you to specify schema and field validation on structs using the `#[validate]` attribute.
+/// See the [repository](https://github.com/biblius/validify#validators) for a full list of possible validations.
 pub trait Validate {
     /// Apply the provided validations to self
     fn validate(&self) -> Result<(), ValidationErrors>;
 }
 
-/// Modifies the struct based on the provided `modify` parameters. Automatically implemented when deriving Validify.
-/// See the [repository](https://github.com/biblius/validify) for a full list of possible modifiers.
+/// Modifies the struct/enum based on the provided `#[modify]` attributes.
+/// Automatically implemented when deriving [Validify].
+/// See the [repository](https://github.com/biblius/validify#modifiers) for a full list of possible modifiers.
 pub trait Modify {
     /// Apply the provided modifiers to self
     fn modify(&mut self);
 }
 
-/// Deriving [Validify] allows you to modify structs before they are validated by providing a out of the box validation implementations
-/// as well as the ability to write custom ones.
+/// Validates and modifies the struct/enum based on the provided `#[validate]` and `#[modify]` attributes.
+/// Deriving [Validify] allows you to modify structs before they are validated by providing
+/// out of the box validation implementations as well as the ability to write custom ones.
 ///
 /// ### Example
 ///
