@@ -327,7 +327,7 @@ impl Length {
         } = self;
 
         let quoted_error = self.quote_error(&field_name);
-        let error_param = quote!(err.add_param("actual", &#validator_param.len()););
+        let error_param = quote!(err.add_param("actual", &::validify::traits::HasLen::length(&#validator_param)););
         let error_location = if in_iter {
             quote!(err.set_location_idx(__i, #field_name);)
         } else {
