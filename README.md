@@ -8,44 +8,51 @@
 
 Procedural macros that provide attributes for data validation and modification.
 
-## **Modifiers**
+## Attributes
 
-| Modifier     | Type                                                 | Description                                                                                                                                                |
-| ------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| trim\*       | String                                               | Removes surrounding whitespace                                                                                                                             |
-| uppercase\*  | String                                               | Calls `.to_uppercase()`                                                                                                                                    |
-| lowercase\*  | String                                               | Calls `.to_lowercase()`                                                                                                                                    |
-| capitalize\* | String                                               | Makes the first char of the string uppercase                                                                                                               |
-| custom       | Any                                                  | Takes a function whose argument is `&mut <Type>`                                                                                                           |
-| validify     | impl Validify / impl Iterator\<Item = impl Validify> | Can only be used on fields that are structs (or collections of) implementing the `Validify` trait. Runs all the nested struct's modifiers and validations. |
+### **Modifiers**
 
-\*Also works for Vec\<String> by running the modifier on each element.
+| Modifier     | Type                                 | Description                                                                                                                                          |
+| ------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| trim\*       | `String / Vec<String>`               | Removes surrounding whitespace / in each string in the iterator                                                                                      |
+| uppercase\*  | `String / Vec<String>`               | Calls `.to_uppercase()` / in each string in the iterator                                                                                             |
+| lowercase\*  | `String / Vec<String>`               | Calls `.to_lowercase()` / in each string in the iterator                                                                                             |
+| capitalize\* | `String / Vec<String>`               | Makes the first char of the string uppercase / in each string in the iterator                                                                        |
+| custom       | `T`                                  | Takes a function whose argument is `&mut <Type>`                                                                                                     |
+| validify     | `impl Validify / Vec<impl Validify>` | Can only be used on fields that are structs (or vecs of) implementing the `Validify` trait. Runs all the child's struct's modifiers and validations. |
 
-## **Validators**
+### **Validators**
 
-All validators also take in a `code` and `message` as parameters, their values are must be string literals if specified.
+The syntax is either
 
-| Validator        | Type             | Params             | Param type    | Description                                                                                                                           |
-| ---------------- | ---------------- | ------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| email            | String           | --                 | --            | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                           |
-| ip               | String           | format             | Ident (v4/v6) | Checks if the string is an IP address.                                                                                                |
-| url              | String           | --                 | --            | Checks if the string is a URL.                                                                                                        |
-| length           | impl Length      | min, max, equal    | LitInt        | Checks if the collection length is within the specified params. Works via the `Length` trait.                                         |
-| range            | Int/Float        | min, max           | LitFloat      | Checks if the value is in the specified range.                                                                                        |
-| must_match       | Any              | value              | Ident         | Checks if the field matches another field of the struct. The value must be equal to a field identifier on the deriving struct.        |
-| contains         | Collection       | value              | Lit/Path      | Checks if the collection contains the specified value. If used on a K,V collection, it checks whether it has the provided key.        |
-| contains_not     | Collection       | value              | Lit/Path      | Checks if the collection doesn't contain the specified value. If used on a K,V collection, it checks whether it has the provided key. |
-| non_control_char | String           | --                 | --            | Checks if the field contains control characters                                                                                       |
-| custom           | Function         | function           | Path          | Executes custom validation on the field by calling the provided function                                                              |
-| regex            | String           | path               | Path          | Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex.       |
-| credit_card      | String           | --                 | --            | Checks if the field's value is a valid credit card number                                                                             |
-| phone            | String           | --                 | --            | Checks if the field's value is a valid phone number                                                                                   |
-| required         | Option\<T>       | --                 | --            | Checks whether the field's value is Some                                                                                              |
-| is_in            | impl PartialEq   | collection         | Path          | Checks whether the field's value is in the specified collection                                                                       |
-| not_in           | impl PartialEq   | collection         | Path          | Checks whether the field's value is not in the specified collection                                                                   |
-| validate         | impl Validate    | --                 | --            | Calls the underlying struct's `validate` implementation                                                                               |
-| iter             | impl Iterator    | List of validators | Validator     | Runs the provided validators on each element of the iterable                                                                          |
-| time             | NaiveDate\[Time] | See below          | See below     | Performs a check based on the specified op                                                                                            |
+- `#[validate(<Validator>)]` if `Parameters` is `--`,
+
+- `#[validate(<Validator>( [param = val1 ]+ )` if `Parameters` is specified.
+
+All validators also take in a `code` and `message` as parameters and their values are must be string literals if specified.
+
+All validators are valid on their respective `Option` types. Fields only get validated if they are `Some`.
+
+| Validator        | Field type         | Parameters         | Parameter type | Description                                                                                                                     |
+| ---------------- | ------------------ | ------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| email            | `String`           | --                 | --             | Checks emails based on [this spec](https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address).                     |
+| ip               | `String`           | format             | Ident (v4/v6)  | Checks if the string is an IP address.                                                                                          |
+| url              | `String`           | --                 | --             | Checks if the string is a URL.                                                                                                  |
+| length           | `impl Length`      | min, max, equal    | LitInt         | Checks if the collection length is within the specified params. Works via the `Length` trait.                                   |
+| range            | `Int/Float`        | min, max           | LitFloat       | Checks if the value is in the specified range.                                                                                  |
+| contains         | `impl Contains`    | value              | Lit/Path       | Checks if the collection contains the specified value. Works via the `Contains` trait.                                          |
+| contains_not     | `impl Contains`    | value              | Lit/Path       | Checks if the collection doesn't contain the specified value. Works via the `Contains` trait.                                   |
+| non_control_char | `String`           | --                 | --             | Checks if the field contains control characters.                                                                                |
+| custom           | `T`                | function           | Path           | Executes custom validation on the field by calling the provided function.                                                       |
+| regex            | `String`           | path               | Path           | Matches the provided regex against the field. Intended to be used with lazy_static by providing a path to an initialised regex. |
+| credit_card      | `String`           | --                 | --             | Checks if the field's value is a valid credit card number.                                                                      |
+| phone            | `String`           | --                 | --             | Checks if the field's value is a valid phone number.                                                                            |
+| required         | `Option\<T>`       | --                 | --             | Checks whether the field's value is `Some`.                                                                                     |
+| is_in            | `impl Contains`    | collection         | Path           | Checks whether the field's value is in the specified collection.                                                                |
+| not_in           | `impl Contains`    | collection         | Path           | Checks whether the field's value is not in the specified collection.                                                            |
+| validate         | `impl Validate`    | --                 | --             | Calls the child struct's `validate` implementation.                                                                             |
+| iter             | `impl Iterator`    | List of validators | Validator      | Runs the provided validators on each element of the iterable.                                                                   |
+| time             | `NaiveDate\[Time]` | See below          | See below      | Performs a check based on the specified op.                                                                                     |
 
 ### **Time operators**
 
@@ -63,7 +70,7 @@ Accepted interval parameters are `seconds`, `minutes`, `hours`, `days`, `weeks`.
 The `_from_now` operators should not use negative duration due to how they validate the inputs,
 negative duration for `in_period` works fine.
 
-| Op              | Params           | Description                                                                      |
+| Op              | Parameters       | Description                                                                      |
 | --------------- | ---------------- | -------------------------------------------------------------------------------- |
 | before          | target           | Check whether a date\[time] is before the target one                             |
 | after           | target           | Check whether a date\[time] is after the target one                              |
@@ -73,10 +80,10 @@ negative duration for `in_period` works fine.
 | after_from_now  | interval         | Check whether a date\[time] is after the specified interval from the today\[now] |
 | in_period       | target, interval | Check whether a date\[time] falls within a certain period                        |
 
-## Derive Validate/Validify
+## Derive
 
-Annotate the struct or enum you want to modify and validate with the `Validify` attribute
-(if you do not need modification, derive only `Validate`):
+Annotate the struct or enum you want to modify and/or validate with the `Validify` attribute
+(if you do not need modification, derive only `Validate`) and call its `validate/validify` function:
 
 ```rust
 use validify::Validify;
@@ -135,8 +142,6 @@ assert_eq!(test.d, Some("modified".to_string()));
 assert_eq!(test.nested.a, "NOTSOTINYNOW");
 assert_eq!(test.nested.b, "Capitalize me.");
 ```
-
-Notice how even though field `d` is an option, the function used to modify the field still takes in `&mut String`. This is because modifiers and validations are only executed when the field isn't `None`.
 
 ## Traits
 
@@ -339,7 +344,7 @@ struct DateTimeExamples {
     }
 ```
 
-See more examples in [the test directory](./derive_tests/tests)
+See more examples in [the test directory](./derive_tests/tests).
 
 ### Contributing
 

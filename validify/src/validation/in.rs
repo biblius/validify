@@ -21,14 +21,22 @@ mod tests {
     #[test]
     fn _in() {
         const STRUCTS: [A; 3] = [A { a: 1 }, A { a: 2 }, A { a: 3 }];
+
         let a = A { a: 2 };
-        assert!(validate_in(STRUCTS, &a, false))
+        assert!(validate_in(STRUCTS, &a, false));
+
+        let a = A { a: 4 };
+        assert!(!validate_in(STRUCTS, &a, false));
     }
 
     #[test]
     fn not_in() {
         const STRUCTS: [A; 3] = [A { a: 1 }, A { a: 2 }, A { a: 3 }];
+
         let a = A { a: 4 };
-        assert!(validate_in(STRUCTS, &a, true))
+        assert!(validate_in(STRUCTS, &a, true));
+
+        let a = A { a: 2 };
+        assert!(!validate_in(STRUCTS, &a, true));
     }
 }

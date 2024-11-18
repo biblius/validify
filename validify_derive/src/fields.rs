@@ -78,7 +78,7 @@ impl Variants {
         quote!(match self { #field_validation })
     }
 
-    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+    pub fn to_modify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
         let mut modifiers = vec![];
 
         for variant in self.0.iter() {
@@ -95,7 +95,7 @@ impl Variants {
 
             let variant_field_tokens = quote!(#(ref mut #variant_fields),*);
 
-            let field_modifiers = fields.to_validify_tokens();
+            let field_modifiers = fields.to_modify_tokens();
 
             if *named {
                 let tokens =
@@ -183,12 +183,12 @@ impl Fields {
     }
 
     /// Creates a token stream applying the modifiers based on the field annotations.
-    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+    pub fn to_modify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
         let mut modifications = vec![];
 
         for field_info in self.0.iter() {
-            let mods = field_info.to_validify_tokens();
-            modifications.extend(mods);
+            let modification = field_info.to_modify_tokens();
+            modifications.extend(modification);
         }
 
         modifications
@@ -259,28 +259,29 @@ impl FieldInfo {
 
     // QUOTING
 
-    /// Returns the validation tokens. Nested validations are always at the start of the token stream.
+    /// Returns tokens for the `impl Validate` block.
+    /// Child validation are always at the start of the token stream.
     pub fn to_validate_tokens(&self) -> Vec<proc_macro2::TokenStream> {
-        let mut nested_validations = vec![];
-        let mut quoted_validations = vec![];
+        let mut child_validation = vec![];
+        let mut validation = vec![];
 
         for validator in self.validations.iter() {
-            let validator_param = self.quote_validator_param();
+            let validator_param = self.validator_param_tokens();
 
             let tokens = validator.to_validate_tokens(self, validator_param);
 
             match tokens {
-                crate::tokens::ValidationTokens::Normal(v) => quoted_validations.push(v),
-                crate::tokens::ValidationTokens::Nested(v) => nested_validations.insert(0, v),
+                crate::tokens::ValidationTokens::Normal(v) => validation.push(v),
+                crate::tokens::ValidationTokens::Nested(v) => child_validation.push(v),
             }
         }
 
-        nested_validations.extend(quoted_validations);
-        nested_validations
+        child_validation.extend(validation);
+        child_validation
     }
 
     /// Returns the modification tokens as the first element and any nested validifes as the second.
-    pub fn to_validify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
+    pub fn to_modify_tokens(&self) -> Vec<proc_macro2::TokenStream> {
         let mut modifications = vec![];
 
         for modifier in self.modifiers.iter() {
@@ -291,8 +292,7 @@ impl FieldInfo {
         modifications
     }
 
-    /// Quotes the field as necessary for passing the resulting tokens into a validation
-    /// function.
+    /// Generates the tokens that get passed to validation functions.
     ///
     /// If the field has an ident override in case of enums, quote it directly.
     /// All enum variants use the ident override.
@@ -303,7 +303,7 @@ impl FieldInfo {
     /// If the field is a reference the returned tokens are `self.field`.
     ///
     /// If the field is owned, the tokens are `&self.field`.
-    pub fn quote_validator_param(&self) -> proc_macro2::TokenStream {
+    pub fn validator_param_tokens(&self) -> proc_macro2::TokenStream {
         if let Some(ref ident) = self.ident_override {
             return quote!(#ident);
         }
@@ -330,7 +330,7 @@ impl FieldInfo {
 
     /// Returns `self.#ident`, unless the field is an option in which case it just
     /// returns an `#ident` as we always do a `if let` check on Option fields
-    pub fn quote_modifier_param(&self) -> proc_macro2::TokenStream {
+    pub fn modifier_param_tokens(&self) -> proc_macro2::TokenStream {
         if let Some(ident) = &self.ident_override {
             return quote!(#ident);
         }

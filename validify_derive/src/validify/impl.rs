@@ -21,7 +21,8 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
     match input.data {
         syn::Data::Struct(ref data_struct) => {
             let fields = Fields::collect(&input.attrs, &data_struct.fields);
-            let modifiers = fields.to_validify_tokens();
+
+            let modifiers = fields.to_modify_tokens();
 
             let validate_impl = impl_validate(input);
 
@@ -57,7 +58,8 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
         }
         syn::Data::Enum(ref data_enum) => {
             let variants = Variants::collect(data_enum);
-            let modifiers = variants.to_validify_tokens();
+
+            let modifiers = variants.to_modify_tokens();
 
             let validate_impl = impl_validate(input);
 
@@ -77,8 +79,6 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
                     fn validify(&mut self) -> Result<(), ::validify::ValidationErrors> {
                         let mut errors = ::validify::ValidationErrors::new();
-
-                        // #(#nested_validifies)*
 
                         <Self as ::validify::Modify>::modify(self);
 

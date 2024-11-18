@@ -2,11 +2,6 @@ use serde::Deserialize;
 use validify::{Payload, Validify};
 use validify::{ValidationError, ValidationErrors, ValidifyPayload};
 
-/// Use for `in/not_in` validation to convert the slices to strings.
-fn str_slice_to_string(slice: &[&str]) -> Vec<String> {
-    slice.iter().map(|el| String::from(*el)).collect()
-}
-
 #[derive(Debug, Deserialize, Validify, Payload)]
 struct HasVec {
     #[modify(trim, uppercase)]
@@ -311,7 +306,7 @@ const ALLOWED_DURATIONS: &[i32] = &[1, 2, 3];
 struct BigBoi {
     #[validate(length(max = 300))]
     title: String,
-    #[validate(is_in(collection = str_slice_to_string(STATUSES)))]
+    #[validate(is_in(collection = STATUSES))]
     status: String,
     #[modify(capitalize)]
     city_country: String,
@@ -321,16 +316,16 @@ struct BigBoi {
     education: String,
     #[modify(capitalize)]
     type_of_workplace: Vec<String>,
-    #[validate(is_in(collection = str_slice_to_string(WORKING_HOURS)))]
+    #[validate(is_in(collection = WORKING_HOURS))]
     working_hours: String,
     part_time_period: Option<String>,
     #[modify(capitalize)]
-    #[validate(is_in(collection = str_slice_to_string(CONTRACT_TYPES)))]
+    #[validate(is_in(collection = CONTRACT_TYPES))]
     contract_type: String,
     indefinite_probation_period: bool,
     #[validate(is_in(ALLOWED_DURATIONS))]
     indefinite_probation_period_duration: Option<i32>,
-    #[validate(is_in(collection = str_slice_to_string(CAREER_LEVEL)))]
+    #[validate(is_in(collection = CAREER_LEVEL))]
     career_level: String,
     #[modify(capitalize)]
     benefits: String,
@@ -338,7 +333,7 @@ struct BigBoi {
     meta_title: String,
     #[validate(length(max = 160))]
     meta_description: String,
-    #[validate(is_in(collection = str_slice_to_string(ALLOWED_MIME)))]
+    #[validate(is_in(collection = ALLOWED_MIME))]
     meta_image: String,
     #[validate(custom(greater_than_now))]
     published_at: String,

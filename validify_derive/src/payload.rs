@@ -31,7 +31,7 @@ pub(super) fn generate_struct(input: &syn::DeriveInput) -> proc_macro2::TokenStr
     let syn::Data::Struct(ref strct) = input.data else {
         abort!(
             input.span(),
-            "#[derive(Validate/Validify)] can only be used on structs with named fields"
+            "#[derive(Payload)] can only be used on structs with named fields"
         )
     };
 

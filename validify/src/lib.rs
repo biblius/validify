@@ -12,7 +12,6 @@ pub use validation::{
     email::validate_email,
     ip::{validate_ip, validate_ip_v4, validate_ip_v6},
     length::validate_length,
-    must_match::validate_must_match,
     non_control_char::validate_non_control_character,
     phone::validate_phone,
     r#in::validate_in,

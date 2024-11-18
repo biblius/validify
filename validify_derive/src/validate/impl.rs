@@ -1,6 +1,6 @@
 use super::parser::*;
 use super::validation::{
-    Contains, CreditCard, Custom, Email, In, Ip, MustMatch, NonControlChar, Phone, Regex, Required,
+    Contains, CreditCard, Custom, Email, In, Ip, NonControlChar, Phone, Regex, Required,
     SchemaValidation, Url, Validator,
 };
 use crate::fields::{Fields, Variants};
@@ -19,7 +19,6 @@ const EMAIL: &str = "email";
 const URL: &str = "url";
 const LENGTH: &str = "length";
 const RANGE: &str = "range";
-const MUST_MATCH: &str = "must_match";
 const CONTAINS: &str = "contains";
 const CONTAINS_NOT: &str = "contains_not";
 const NON_CONTROL_CHAR: &str = "non_control_char";
@@ -192,21 +191,6 @@ fn parse_single_validation(
     if meta.path.is_ident(RANGE) {
         let validation = parse_range(&meta)?;
         validators.push(Validator::Range(validation));
-        return Ok(());
-    }
-
-    if meta.path.is_ident(MUST_MATCH) {
-        if meta.is_single_path("must_match") {
-            let content;
-            parenthesized!(content in meta.input);
-            let Ok(id) = content.parse::<syn::Ident>() else {
-                return Err(meta.error("Invalid value given for `must_match` validation, must be a field on the current struct"));
-            };
-            validators.push(Validator::MustMatch(MustMatch::new(id)));
-        } else {
-            let validation = parse_must_match_full(&meta)?;
-            validators.push(Validator::MustMatch(validation));
-        }
         return Ok(());
     }
 

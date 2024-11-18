@@ -86,8 +86,6 @@ fn named_enum_validify_validation_success() {
 
     let res = named.validify();
 
-    dbg!(&res);
-
     assert!(res.is_ok());
 
     let TestEnum::Named {

@@ -17,7 +17,7 @@ impl Modifier {
     /// necessary modification tokens for nested elements in the `Modify` impl while the second will have the tokens
     /// for the `Validify` impl.
     pub fn to_validify_tokens(&self, field_info: &FieldInfo) -> proc_macro2::TokenStream {
-        let param = field_info.quote_modifier_param();
+        let param = field_info.modifier_param_tokens();
 
         match self {
             Modifier::Trim => {
