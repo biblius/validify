@@ -1,7 +1,6 @@
 pub mod cards;
 pub mod contains;
 pub mod email;
-pub mod r#in;
 pub mod ip;
 pub mod length;
 pub mod non_control_char;

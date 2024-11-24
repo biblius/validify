@@ -95,12 +95,11 @@ impl<T> Length for IndexSet<T> {
     }
 }
 
-/// Used by the [validate_contains][crate::validation::contains::validate_contains], and
-/// [validate_in][crate::validation::in::validate_in] functions.
+/// Used by the [validate_contains][crate::validation::contains::validate_contains] function.
 ///
 /// In `contains`, the field is checked if it contains the provided value.
 ///
-/// In `in`, the given value is checked if it contains the field.
+/// In `in/not_in`, the given value is checked if it contains the field.
 pub trait Contains<T> {
     fn has_element(&self, needle: &T) -> bool;
 }

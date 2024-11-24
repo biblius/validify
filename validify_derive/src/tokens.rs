@@ -638,7 +638,7 @@ impl In {
         if is_option {
             quote!(
                 if let Some(ref param) = #validator_param {
-                    if !::validify::validate_in(&#expr, &param, #not) {
+                    if !::validify::validate_contains(&#expr, &param, #not) {
                         #quoted_error
                         #error_location
                         errors.add(err);
@@ -647,7 +647,7 @@ impl In {
             )
         } else {
             quote!(
-                if !::validify::validate_in(&#expr, &#validator_param, #not) {
+                if !::validify::validate_contains(&#expr, &#validator_param, #not) {
                     #quoted_error
                     #error_location
                     errors.add(err);

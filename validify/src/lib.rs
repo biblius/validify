@@ -14,7 +14,6 @@ pub use validation::{
     length::validate_length,
     non_control_char::validate_non_control_character,
     phone::validate_phone,
-    r#in::validate_in,
     range::validate_range,
     required::validate_required,
     time,

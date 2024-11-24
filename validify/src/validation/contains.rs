@@ -12,7 +12,7 @@ pub fn validate_contains<T: Contains<C>, C>(haystack: T, needle: &C, not: bool) 
 }
 
 #[cfg(test)]
-mod tests {
+mod contains_tests {
     use std::borrow::Cow;
     use std::collections::HashMap;
 
@@ -96,5 +96,37 @@ mod tests {
         assert!(validate_contains(test, &"o", true));
         let test: Cow<'static, str> = String::from("hey").into();
         assert!(validate_contains(test, &"o", true));
+    }
+}
+
+#[cfg(test)]
+mod in_notin_tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq)]
+    struct A {
+        a: usize,
+    }
+
+    #[test]
+    fn _in() {
+        const STRUCTS: [A; 3] = [A { a: 1 }, A { a: 2 }, A { a: 3 }];
+
+        let a = A { a: 2 };
+        assert!(validate_contains(STRUCTS, &a, false));
+
+        let a = A { a: 4 };
+        assert!(!validate_contains(STRUCTS, &a, false));
+    }
+
+    #[test]
+    fn not_in() {
+        const STRUCTS: [A; 3] = [A { a: 1 }, A { a: 2 }, A { a: 3 }];
+
+        let a = A { a: 4 };
+        assert!(validate_contains(STRUCTS, &a, true));
+
+        let a = A { a: 2 };
+        assert!(!validate_contains(STRUCTS, &a, true));
     }
 }
