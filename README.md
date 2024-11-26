@@ -259,7 +259,7 @@ Keep in mind, when specifying validations this way, all attribute parameters MUS
 
 you will get an error because the parser expects either a single value or multiple name value pairs.
 
-The `field_err!` macro provides a shorthand for creating field errors when using custom functions.
+The [field_err!](https://docs.rs/validify/latest/validify/macro.field_err.html) macro provides a more ergonomic way to create field errors.
 
 ### Location
 

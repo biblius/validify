@@ -180,3 +180,29 @@ fn properly_validates_structs() {
     let res = test.validate();
     assert!(res.is_ok());
 }
+
+#[test]
+fn can_specify_literal_as_parameter() {
+    #[derive(Debug, Validate)]
+    struct TestStruct {
+        #[validate(is_in(collection = ["foo", "bar"]))]
+        val: String,
+    }
+
+    let s = TestStruct {
+        val: "foo".to_string(),
+    };
+    assert!(s.validate().is_ok());
+
+    let s = TestStruct {
+        val: "bar".to_string(),
+    };
+    assert!(s.validate().is_ok());
+
+    let s = TestStruct {
+        val: "baz".to_string(),
+    };
+    let err = s.validate();
+    let err = err.unwrap_err();
+    assert_eq!(err.errors()[0].code(), "in");
+}

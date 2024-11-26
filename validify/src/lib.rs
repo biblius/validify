@@ -125,7 +125,29 @@ pub trait ValidifyPayload: Sized {
 ///
 /// - `("code")`
 /// - `("code", "message")`
-/// - `("field_name", "code", "custom message")`
+/// - `("field_name", "code", "message")`
+///
+/// ```rust
+///  use validify::field_err;
+///
+///  let err = field_err!("foo");
+///  assert_eq!(err.code(), "foo");
+///  assert_eq!(err.location(), "");
+///  assert!(err.message().is_none());
+///  assert!(err.field_name().is_none());
+///
+///  let err = field_err!("foo", "bar");
+///  assert_eq!(err.code(), "foo");
+///  assert_eq!(err.location(), "");
+///  assert_eq!(err.message().unwrap(), "bar");
+///  assert!(err.field_name().is_none());
+///
+///  let err = field_err!("foo", "bar", "field");
+///  assert_eq!(err.code(), "foo");
+///  assert_eq!(err.message().unwrap(), "bar");
+///  assert_eq!(err.field_name().unwrap(), "field");
+///  assert_eq!(err.location(), "/field");
+/// ```
 #[macro_export]
 macro_rules! field_err {
     ($code:literal) => {
@@ -134,8 +156,10 @@ macro_rules! field_err {
     ($code:literal, $message:literal) => {
         ::validify::ValidationError::new_field($code).with_message($message.to_string())
     };
-    ($field:literal, $code:literal, $message:literal) => {
-        ::validify::ValidationError::new_field_named($field, $code)
-            .with_message($message.to_string())
-    };
+    ($code:literal, $message:literal, $field:literal) => {{
+        let mut __e = ::validify::ValidationError::new_field_named($field, $code)
+            .with_message($message.to_string());
+        __e.set_location($field);
+        __e
+    }};
 }

@@ -331,7 +331,7 @@ fn parse_single_validation(
     }
 
     if meta.path.is_ident(IS_IN) {
-        if meta.is_single_path(IS_IN) {
+        if meta.is_single_path(IS_IN) || meta.is_single_lit(IS_IN) {
             let content;
             parenthesized!(content in meta.input);
             let Ok(expr) = content.parse::<syn::Expr>() else {
