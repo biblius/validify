@@ -3,9 +3,9 @@ permissions:
 on:
   push:
     branches:
-      - 'master'
-      - 'feature/**'
-      - 'bugfix/**'
+      - "master"
+      - "feature/**"
+      - "bugfix/**"
   pull_request:
 name: test
 jobs:
@@ -82,8 +82,3 @@ jobs:
 
       - name: cargo llvm-cov
         run: cargo llvm-cov --workspace --locked --all-features --lcov --output-path lcov.info
-
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true

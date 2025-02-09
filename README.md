@@ -2,7 +2,6 @@
 
 [![Build](https://img.shields.io/github/actions/workflow/status/biblius/validify/check.yml?logo=github&style=plastic)](https://github.com/biblius/validify)
 [![test](https://img.shields.io/github/actions/workflow/status/biblius/validify/test.yml?label=test&logo=github&style=plastic)](https://github.com/biblius/validify)
-[![coverage](https://img.shields.io/codecov/c/github/biblius/validify?color=%23383&logo=codecov&style=plastic)](https://app.codecov.io/gh/biblius/validify/tree/master)
 [![docs](https://img.shields.io/docsrs/validify?logo=rust&style=plastic)](https://docs.rs/validify/latest/validify/)
 [![version](https://img.shields.io/crates/v/validify?logo=rust&style=plastic)](https://crates.io/crates/validify)
 
