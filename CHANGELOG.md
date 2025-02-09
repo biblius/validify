@@ -2,10 +2,11 @@
 
 - ## 2.0.0
 
+- Bumped MSRV to 1.71.1.
 - Enum validation.
 - Removes `must_match` validation due to quirks with enums in favor of much simpler `schema` validation.
 - Rename `HasLen` trait to `Length`.
-- Refactor `Contains` to take in generic and implement on common types.
+- Refactor `Contains` to take in generic and implement on common types making it more ergonomic to use.
 - Fixes some invalid attribute matching.
 
 - ## 1.4.0
