@@ -113,11 +113,6 @@ validation!(
 );
 
 validation!(
-    Nested : "nested",
-    Default;
-);
-
-validation!(
     Required : "required",
     Default;
 );

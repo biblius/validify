@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use prost::Message;
 
 #[derive(Message, validify::Validify)]
