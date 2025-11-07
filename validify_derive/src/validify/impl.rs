@@ -38,7 +38,7 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 }
 
                 impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
-                    fn validify(&mut self) -> Result<(), ::validify::ValidationErrors> {
+                    fn validify(&mut self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
                         let mut errors = ::validify::ValidationErrors::new();
 
                         <Self as ::validify::Modify>::modify(self);
@@ -48,9 +48,9 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                         }
 
                         if !errors.is_empty() {
-                            Err(errors)
+                            ::std::result::Result::Err(errors)
                         } else {
-                            Ok(())
+                            ::std::result::Result::Ok(())
                         }
                     }
                 }
@@ -77,7 +77,7 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                 }
 
                 impl #impl_generics ::validify::Validify for #ident #ty_generics #where_clause {
-                    fn validify(&mut self) -> Result<(), ::validify::ValidationErrors> {
+                    fn validify(&mut self) -> ::std::result::Result<(), ::validify::ValidationErrors> {
                         let mut errors = ::validify::ValidationErrors::new();
 
                         <Self as ::validify::Modify>::modify(self);
@@ -87,9 +87,9 @@ pub fn impl_validify(input: &syn::DeriveInput) -> proc_macro2::TokenStream {
                         }
 
                         if !errors.is_empty() {
-                            Err(errors)
+                            ::std::result::Result::Err(errors)
                         } else {
-                            Ok(())
+                            ::std::result::Result::Ok(())
                         }
                     }
                 }
