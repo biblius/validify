@@ -43,7 +43,7 @@ pub fn quote_custom_serde_payload_field(
     };
 
     let tokens = quote!(
-        fn #custom_fn_id<'de, D>(deserializer: D) -> Result<#ty, D::Error>
+        fn #custom_fn_id<'de, D>(deserializer: D) -> ::std::result::Result<#ty, D::Error>
         where
           D: serde::Deserializer<'de>
         {

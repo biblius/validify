@@ -14,7 +14,7 @@ pub fn impl_payload(input: &DeriveInput) -> proc_macro2::TokenStream {
         impl #impl_generics ::validify::ValidifyPayload for #ident #ty_generics #where_clause {
             type Payload = #payload_id;
 
-            fn validate_from(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors>
+            fn validate_from(payload: Self::Payload) -> ::std::result::Result<Self, ::validify::ValidationErrors>
             {
                 <Self::Payload as ::validify::Validate>::validate(&payload)?;
 
@@ -27,13 +27,13 @@ pub fn impl_payload(input: &DeriveInput) -> proc_macro2::TokenStream {
                 }
 
                 if !errors.is_empty() {
-                    Err(errors)
+                    ::std::result::Result::Err(errors)
                 } else {
-                    Ok(this)
+                    ::std::result::Result::Ok(this)
                 }
             }
 
-            fn validify_from(payload: Self::Payload) -> Result<Self, ::validify::ValidationErrors>
+            fn validify_from(payload: Self::Payload) -> ::std::result::Result<Self, ::validify::ValidationErrors>
             {
                 <Self::Payload as ::validify::Validate>::validate(&payload)?;
 
@@ -46,9 +46,9 @@ pub fn impl_payload(input: &DeriveInput) -> proc_macro2::TokenStream {
                 }
 
                 if !errors.is_empty() {
-                    Err(errors)
+                    ::std::result::Result::Err(errors)
                 } else {
-                    Ok(this)
+                    ::std::result::Result::Ok(this)
                 }
             }
         }
